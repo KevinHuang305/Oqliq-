@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 身材測量工作站 - 單位連動版</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --success-hover: #059669;
+            --danger: #ef4444;
+            --bg-color: #f3f4f6;
+            --sidebar-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --canvas-bg: #1f2937;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh; 
+            overflow: hidden; 
+            background-color: var(--bg-color);
+            color: var(--text-main);
+        }
+
+        /* 左側畫布區域 */
+        .main-content {
+            flex: 1; 
+            background-color: var(--canvas-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 20px;
+            box-sizing: border-box;
+            background-image: radial-gradient(#374151 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .canvas-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            cursor: crosshair;
+            border: 2px solid #4b5563;
+            border-radius: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            background-color: #e5e7eb;
+        }
+
+        /* 右側控制面板 */
+        .sidebar {
+            width: 360px;
+            min-width: 360px;
+            background: var(--sidebar-bg);
+            padding: 25px 20px;
+            box-shadow: -4px 0 15px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto; 
+            z-index: 10;
+        }
+
+        h2 { margin: 0; font-size: 20px; color: var(--primary); font-weight: 700; }
+        .section-title { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 10px; }
+        
+        /* 針對輸入框與下拉選單的設計 */
+        .form-group input, .form-group select {
+            padding: 10px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #fff;
+            color: var(--text-main);
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        .form-group select:disabled { background-color: #f3f4f6; cursor: not-allowed; color: #9ca3af; }
+
+        .file-upload-wrapper { position: relative; }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
+        }
+        .file-btn {
+            display: block; width: 100%; padding: 12px; text-align: center; background: #f3f4f6;
+            border: 2px dashed #9ca3af; border-radius: 8px; color: var(--text-main); font-weight: 600;
+            transition: all 0.2s; box-sizing: border-box;
+        }
+        .file-upload-wrapper:hover .file-btn { border-color: var(--primary); background: #eef2ff; color: var(--primary); }
+
+        .status-box { padding: 12px; border-radius: 6px; font-size: 13px; font-weight: 600; line-height: 1.5; background: #fee2e2; color: var(--danger); border: 1px solid #fca5a5; }
+        .status-box.success { background: #d1fae5; color: var(--success-hover); border-color: #6ee7b7; }
+        .status-box.info { background: #e0e7ff; color: var(--primary-hover); border-color: #a5b4fc; }
+
+        button {
+            padding: 10px 15px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: #e5e7eb; color: #4b5563;
+        }
+        button:hover:not(:disabled) { background: #d1d5db; }
+        button.active { background: var(--primary); color: white; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-submit { background: var(--success); color: white; padding: 14px; font-size: 15px; margin-top: 10px; width: 100%; }
+        .btn-submit:hover:not(:disabled) { background: var(--success-hover); }
+
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .controls-grid button:first-child { grid-column: span 2; }
+    </style>
+</head>
+<body>
+
+<!-- 左側：照片畫布區 -->
+<div class="main-content">
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<!-- 右側：控制面板 -->
+<div class="sidebar">
+    <h2>📏 AI 身材測量工作站</h2>
+    
+    <div class="status-box info" id="statusText">⏳ 系統初始化中...</div>
+
+    <div class="form-group">
+        <div class="section-title">1. 上傳測量照片</div>
+        <div class="file-upload-wrapper">
+            <div class="file-btn" id="fileNameDisplay">📂 點擊選擇照片</div>
+            <input type="file" id="imageUpload" accept="image/*" disabled>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <div class="section-title">2. 所屬單位與資料</div>
+        <select id="personCity">
+            <option value="">⏳ 載入縣市資料中...</option>
+        </select>
+        <select id="personBranch" disabled>
+            <option value="">請先選擇縣市</option>
+        </select>
+        <input type="text" id="personName" placeholder="人員姓名 (必填)">
+        <input type="number" id="personAge" placeholder="年齡">
+        <input type="text" id="personJob" placeholder="職級/職稱">
+    </div>
+
+    <div class="form-group">
+        <div class="section-title">3. 測量操作</div>
+        <div class="controls-grid">
+            <button id="btnRef" disabled>📍 手動微調基準線 (身高)</button>
+            <button id="btnMeasure" disabled>➕ 新增自訂線段</button>
+            <button id="btnClear" disabled>🗑️ 清除所有</button>
+        </div>
+    </div>
+
+    <button id="btnSubmitToSheet" class="btn-submit" disabled>☁️ 儲存數據至 Google 試算表</button>
+</div>
+
+<!-- 使用 ES Module 載入 MediaPipe Vision -->
+<script type="module">
+    // ==========================================
+    // 🌟 請將你在步驟一取得的「網頁應用程式網址」貼在下方引號內
+    // ==========================================
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxKdyXdVKSt2dAFbioapS8Wt4ffDtjZ3ES27gB67kdiy-pWpMAg9Ytxlmq3BKMyrG5e/exec";
+    // ==========================================
+
+    import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+    const imageUpload = document.getElementById('imageUpload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+    
+    // UI 元件
+    const citySelect = document.getElementById('personCity');
+    const branchSelect = document.getElementById('personBranch');
+    const btnRef = document.getElementById('btnRef');
+    const btnMeasure = document.getElementById('btnMeasure');
+    const btnClear = document.getElementById('btnClear');
+    const btnSubmitToSheet = document.getElementById('btnSubmitToSheet');
+    const statusText = document.getElementById('statusText');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+
+    let img = new Image();
+    let mode = 'ref'; 
+    let isDrawing = false;
+    let startP = null;
+    let currentP = null;
+    
+    let refLine = null; 
+    let measureLines =[]; 
+    let pxPerUnit = 0; 
+    let poseLandmarker = null;
+    let uploadedFileName = "未命名";
+    let regionData = {}; // 儲存縣市與分局的 JSON
+
+    const DRAG_RADIUS = 15; 
+    let hoveredPoint = null; 
+    let draggingPoint = null; 
+
+    function updateStatus(msg, type = "") {
+        statusText.innerHTML = msg;
+        statusText.className = "status-box " + type;
+    }
+
+    // 0. 從 Google 試算表載入「縣市與分局」下拉選單資料
+    async function loadDropdownData() {
+        if(APPS_SCRIPT_URL.includes("你的專屬ID")) {
+            citySelect.innerHTML = '<option value="">⚠️ 請先設定 APPS_SCRIPT_URL</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(APPS_SCRIPT_URL);
+            regionData = await response.json();
+            
+            if(regionData.error) {
+                citySelect.innerHTML = `<option value="">⚠️ ${regionData.error}</option>`;
+                return;
+            }
+
+            citySelect.innerHTML = '<option value="">請選擇縣市...</option>';
+            for (let city in regionData) {
+                let opt = document.createElement('option');
+                opt.value = city;
+                opt.textContent = city;
+                citySelect.appendChild(opt);
+            }
+        } catch (error) {
+            console.error(error);
+            citySelect.innerHTML = '<option value="">⚠️ 資料庫連線失敗</option>';
+        }
+    }
+
+    // 連動下拉選單事件
+    citySelect.addEventListener('change', function() {
+        const selectedCity = this.value;
+        branchSelect.innerHTML = '<option value="">請選擇分局...</option>';
+        
+        if (selectedCity && regionData[selectedCity]) {
+            regionData[selectedCity].forEach(branch => {
+                let opt = document.createElement('option');
+                opt.value = branch;
+                opt.textContent = branch;
+                branchSelect.appendChild(opt);
+            });
+            branchSelect.disabled = false;
+        } else {
+            branchSelect.disabled = true;
+        }
+    });
+
+    // 1. 初始化 AI 模型
+    async function initAI() {
+        try {
+            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+            poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+                baseOptions: {
+                    modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+                    delegate: "GPU"
+                },
+                runningMode: "IMAGE",
+                numPoses: 1
+            });
+            updateStatus("✅ 系統載入完成！請上傳照片。", "success");
+            imageUpload.disabled = false;
+        } catch (error) {
+            updateStatus("❌ AI 載入失敗，請檢查網路連線。", "error");
+        }
+    }
+
+    // 啟動程式 (同時載入下拉選單與 AI)
+    loadDropdownData();
+    initAI();
+
+    // 2. 處理圖片上傳與自動縮放適應
+    imageUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        uploadedFileName = file.name;
+        fileNameDisplay.innerText = `📄 ${uploadedFileName}`;
+        updateStatus("圖片載入中...", "info");
+
+        const reader = new FileReader();
+        reader.onload = function(event) { img.src = event.target.result; }
+        reader.readAsDataURL(file);
+    });
+
+    img.onload = async function() {
+        const maxWidth = canvasContainer.clientWidth;
+        const maxHeight = canvasContainer.clientHeight;
+        const imgRatio = img.width / img.height;
+        const containerRatio = maxWidth / maxHeight;
+
+        if (imgRatio > containerRatio) {
+            canvas.width = maxWidth;
+            canvas.height = maxWidth / imgRatio;
+        } else {
+            canvas.height = maxHeight;
+            canvas.width = maxHeight * imgRatio;
+        }
+        
+        refLine = null; measureLines =[]; pxPerUnit = 0;
+        redraw();
+
+        btnRef.disabled = false; btnClear.disabled = false; btnSubmitToSheet.disabled = false;
+
+        if (poseLandmarker) {
+            updateStatus("🔍 正在自動識別身材特徵點...", "info");
+            setTimeout(() => detectAndDrawPose(), 50);
+        }
+    };
+
+    // 3. AI 識別與繪製
+    function detectAndDrawPose() {
+        const result = poseLandmarker.detect(img);
+        if (result.landmarks && result.landmarks.length > 0) {
+            const pose = result.landmarks[0];
+            const toX = (val) => val * canvas.width;
+            const toY = (val) => val * canvas.height;
+
+            const nose = pose[0];
+            const shoulderY = (pose[11].y + pose[12].y) / 2;
+            let headTopY = nose.y - (shoulderY - nose.y) * 0.45;
+            if (headTopY < 0) headTopY = 0.02; 
+            const footBottomY = Math.max(pose[29].y, pose[30].y, pose[31].y, pose[32].y, pose[27].y, pose[28].y);
+            const headX = nose.x; const footX = (pose[27].x + pose[28].x) / 2;
+            
+            refLine = { x1: toX(headX), y1: toY(headTopY), x2: toX(footX), y2: toY(footBottomY), realLength: 0 };
+
+            const sL = { x: toX(pose[11].x), y: toY(pose[11].y) };
+            const sR = { x: toX(pose[12].x), y: toY(pose[12].y) };
+            measureLines.push({ name: '肩寬', x1: sL.x, y1: sL.y, x2: sR.x, y2: sR.y });
+
+            const hL = { x: toX(pose[23].x), y: toY(pose[23].y) };
+            const hR = { x: toX(pose[24].x), y: toY(pose[24].y) };
+            measureLines.push({ name: '臀寬', x1: hL.x, y1: hL.y, x2: hR.x, y2: hR.y });
+
+            const chestL = { x: sL.x + (hL.x - sL.x)*0.25, y: sL.y + (hL.y - sL.y)*0.25 };
+            const chestR = { x: sR.x + (hR.x - sR.x)*0.25, y: sR.y + (hR.y - sR.y)*0.25 };
+            measureLines.push({ name: '胸寬', x1: chestL.x, y1: chestL.y, x2: chestR.x, y2: chestR.y });
+
+            const waistL = { x: sL.x + (hL.x - sL.x)*0.60, y: sL.y + (hL.y - sL.y)*0.60 };
+            const waistR = { x: sR.x + (hR.x - sR.x)*0.60, y: sR.y + (hR.y - sR.y)*0.60 };
+            measureLines.push({ name: '腰寬', x1: waistL.x, y1: waistL.y, x2: waistR.x, y2: waistR.y });
+
+            redraw();
+
+            setTimeout(() => {
+                const inputLength = prompt("✨ AI 已自動標記！\n請輸入此人真實身高 (例: 175)：");
+                if (inputLength && !isNaN(inputLength) && inputLength > 0) {
+                    refLine.realLength = parseFloat(inputLength);
+                    pxPerUnit = getDistance({x:refLine.x1, y:refLine.y1}, {x:refLine.x2, y:refLine.y2}) / refLine.realLength;
+                    setMode('measure'); btnMeasure.disabled = false;
+                    updateStatus("✅ 標記完成！滑鼠拖曳線條節點可微調，確認無誤後點擊下方按鈕儲存。", "success");
+                    redraw();
+                } else {
+                    updateStatus("⚠️ 未設定身高，請點擊「手動微調基準線」。", "");
+                    setMode('ref');
+                }
+            }, 200);
+        } else {
+            updateStatus("⚠️ AI 找不到人物，請手動拉線。", "");
+            setMode('ref');
+        }
+    }
+
+    // 4. Google 試算表 提交邏輯
+    btnSubmitToSheet.addEventListener('click', () => {
+        if (!refLine || pxPerUnit === 0) {
+            alert("⚠️ 錯誤：尚未設定身高尺寸，無法產出數據。"); return;
+        }
+        if (APPS_SCRIPT_URL.includes("你的專屬ID")) {
+            alert("⚠️ 請先將 HTML 程式碼內的 APPS_SCRIPT_URL 換成你的 Google Apps Script 網址！"); return;
+        }
+        
+        const pCity = citySelect.value || "未選縣市";
+        const pBranch = branchSelect.value || "未選分局";
+        const pName = document.getElementById('personName').value || "未提供";
+        const pAge = document.getElementById('personAge').value || "未提供";
+        const pJob = document.getElementById('personJob').value || "未提供";
+        
+        let vHeight = refLine.realLength;
+        let vShoulder = "", vChest = "", vWaist = "", vHip = "";
+        let customArr =[];
+
+        measureLines.forEach(line => {
+            const dist = getDistance({x: line.x1, y: line.y1}, {x: line.x2, y: line.y2});
+            const realVal = (dist / pxPerUnit).toFixed(1);
+            if (line.name === '肩寬') vShoulder = realVal;
+            else if (line.name === '胸寬') vChest = realVal;
+            else if (line.name === '腰寬') vWaist = realVal;
+            else if (line.name === '臀寬') vHip = realVal;
+            else customArr.push(`${line.name || '自訂'}:${realVal}`);
+        });
+
+        const formData = new URLSearchParams();
+        formData.append("city", pCity);
+        formData.append("branch", pBranch);
+        formData.append("name", pName);
+        formData.append("age", pAge);
+        formData.append("job", pJob);
+        formData.append("filename", uploadedFileName);
+        formData.append("height", vHeight);
+        formData.append("shoulder", vShoulder);
+        formData.append("chest", vChest);
+        formData.append("waist", vWaist);
+        formData.append("hip", vHip);
+        formData.append("custom", customArr.join(", "));
+
+        btnSubmitToSheet.innerText = "⏳ 資料傳送中...";
+        btnSubmitToSheet.disabled = true;
+
+        fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            body: formData
+        }).then(() => {
+            alert(`✅ 資料已成功寫入 Google 試算表的「測量紀錄」工作表！`);
+            btnSubmitToSheet.innerText = "☁️ 儲存數據至 Google 試算表";
+            btnSubmitToSheet.disabled = false;
+        }).catch(err => {
+            alert("✅ 請求已送出 (若 GAS 權限正常即已寫入)。");
+            btnSubmitToSheet.innerText = "☁️ 儲存數據至 Google 試算表";
+            btnSubmitToSheet.disabled = false;
+        });
+    });
+
+    // --- 滑鼠操作與繪圖邏輯 (保留原有功能) ---
+    btnRef.addEventListener('click', () => setMode('ref'));
+    btnMeasure.addEventListener('click', () => setMode('measure'));
+    btnClear.addEventListener('click', () => { measureLines =[]; redraw(); });
+
+    function setMode(newMode) {
+        mode = newMode;
+        btnRef.classList.toggle('active', mode === 'ref');
+        btnMeasure.classList.toggle('active', mode === 'measure');
+    }
+
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        let cX = e.clientX, cY = e.clientY;
+        if (e.touches && e.touches.length > 0) { cX = e.touches[0].clientX; cY = e.touches[0].clientY; }
+        return { x: (cX - rect.left) * (canvas.width / rect.width), y: (cY - rect.top) * (canvas.height / rect.height) };
+    }
+    function getDistance(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+
+    function getPointAt(p) {
+        if (refLine) {
+            if (getDistance(p, {x: refLine.x1, y: refLine.y1}) < DRAG_RADIUS) return { line: refLine, end: 1 };
+            if (getDistance(p, {x: refLine.x2, y: refLine.y2}) < DRAG_RADIUS) return { line: refLine, end: 2 };
+        }
+        for (let i = 0; i < measureLines.length; i++) {
+            let line = measureLines[i];
+            if (getDistance(p, {x: line.x1, y: line.y1}) < DRAG_RADIUS) return { line: line, end: 1 };
+            if (getDistance(p, {x: line.x2, y: line.y2}) < DRAG_RADIUS) return { line: line, end: 2 };
+        }
+        return null;
+    }
+
+    canvas.addEventListener('mousedown', down); canvas.addEventListener('mousemove', move); window.addEventListener('mouseup', up);
+    canvas.addEventListener('touchstart', (e)=>{e.preventDefault(); down(e);},{passive:false});
+    canvas.addEventListener('touchmove', (e)=>{e.preventDefault(); move(e);},{passive:false});
+    window.addEventListener('touchend', up);
+
+    function down(e) {
+        if (!img.src) return;
+        const p = getCoords(e);
+        const target = getPointAt(p);
+        if (target) { draggingPoint = target; return; }
+        if (mode === 'measure' && pxPerUnit === 0) { alert("請先完成基準身高設定！"); setMode('ref'); return; }
+        isDrawing = true; startP = p; currentP = startP;
+    }
+
+    function move(e) {
+        const p = getCoords(e);
+        if (draggingPoint) {
+            canvas.style.cursor = 'grabbing';
+            if (draggingPoint.end === 1) { draggingPoint.line.x1 = p.x; draggingPoint.line.y1 = p.y; }
+            else { draggingPoint.line.x2 = p.x; draggingPoint.line.y2 = p.y; }
+            if (draggingPoint.line === refLine && refLine.realLength > 0) {
+                pxPerUnit = getDistance({x:refLine.x1, y:refLine.y1}, {x:refLine.x2, y:refLine.y2}) / refLine.realLength;
+            }
+            redraw(); return;
+        }
+        if (!isDrawing) {
+            hoveredPoint = getPointAt(p);
+            canvas.style.cursor = hoveredPoint ? 'grab' : 'crosshair';
+            redraw(); return;
+        }
+        currentP = p; redraw();
+        if (mode === 'measure' && pxPerUnit > 0) {
+            drawLine(startP, currentP, varColor('primary')); 
+            drawText(startP, currentP, `新增: ${(getDistance(startP, currentP)/pxPerUnit).toFixed(1)}`, varColor('primary'));
+        } else if (mode === 'ref') { drawLine(startP, currentP, varColor('danger')); }
+    }
+
+    function up(e) {
+        if (draggingPoint) { draggingPoint = null; canvas.style.cursor = 'crosshair'; return; }
+        if (!isDrawing) return;
+        isDrawing = false;
+        const dist = getDistance(startP, currentP);
+        if (dist > 5) {
+            if (mode === 'ref') {
+                const len = prompt("請輸入身高/基準線數值 (例如 175)：");
+                if (len && !isNaN(len) && len > 0) {
+                    refLine = { x1: startP.x, y1: startP.y, x2: currentP.x, y2: currentP.y, realLength: parseFloat(len) };
+                    pxPerUnit = dist / refLine.realLength;
+                    btnMeasure.disabled = false; setMode('measure'); 
+                }
+            } else if (mode === 'measure') {
+                measureLines.push({ name: '', x1: startP.x, y1: startP.y, x2: currentP.x, y2: currentP.y });
+            }
+        }
+        redraw();
+    }
+
+    function varColor(name) { return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim(); }
+
+    function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        if (refLine && (refLine.realLength > 0 || isDrawing)) {
+            const p1 = {x: refLine.x1, y: refLine.y1}, p2 = {x: refLine.x2, y: refLine.y2};
+            drawLine(p1, p2, '#ef4444');
+            drawText(p1, p2, refLine.realLength > 0 ? `身高: ${refLine.realLength}` : `身高 (請設定)`, '#ef4444');
+        }
+
+        measureLines.forEach(line => {
+            const p1 = {x: line.x1, y: line.y1}, p2 = {x: line.x2, y: line.y2};
+            let text = line.name ? line.name + " " : "";
+            if (pxPerUnit > 0) text += (getDistance(p1, p2) / pxPerUnit).toFixed(1);
+            const color = line.name ? '#8b5cf6' : '#3b82f6';
+            drawLine(p1, p2, color);
+            if (text) drawText(p1, p2, text, color);
+        });
+
+        if (hoveredPoint) {
+            const t = hoveredPoint.end === 1 ? {x:hoveredPoint.line.x1, y:hoveredPoint.line.y1} : {x:hoveredPoint.line.x2, y:hoveredPoint.line.y2};
+            ctx.beginPath(); ctx.arc(t.x, t.y, 8, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.fill();
+            ctx.strokeStyle = "#10b981"; ctx.lineWidth = 3; ctx.stroke();
+        }
+    }
+
+    function drawLine(p1, p2, color) {
+        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p2.x, p2.y, 4, 0, Math.PI * 2); ctx.fill();
+    }
+    function drawText(p1, p2, text, color) {
+        const mX = (p1.x + p2.x)/2, mY = (p1.y + p2.y)/2;
+        ctx.font = "bold 15px 'Segoe UI'";
+        const w = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(17, 24, 39, 0.75)"; ctx.fillRect(mX - w/2 - 6, mY - 20, w + 12, 24);
+        ctx.fillStyle = "#ffffff"; ctx.textAlign = "center"; ctx.fillText(text, mX, mY - 2);
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(mX - w/2 - 6, mY - 20, w + 12, 24);
+    }
+</script>
+</body>
+</html>

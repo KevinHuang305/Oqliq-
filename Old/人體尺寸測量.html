@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片尺寸測量工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        button, input[type="file"] {
+            padding: 8px 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #e9e9e9;
+        }
+        button.active {
+            background-color: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        button:disabled {
+            background-color: #ddd;
+            color: #888;
+            cursor: not-allowed;
+        }
+        .canvas-container {
+            position: relative;
+            overflow: auto;
+            border: 2px dashed #bbb;
+            text-align: center;
+            background-color: #eee;
+            min-height: 300px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            cursor: crosshair;
+            max-width: 100%;
+            display: block;
+        }
+        .info {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>照片尺寸測量工具</h2>
+    
+    <div class="controls">
+        <input type="file" id="imageUpload" accept="image/*">
+        <button id="btnRef" class="active" disabled>1. 繪製參考線 (基準)</button>
+        <button id="btnMeasure" disabled>2. 測量其他尺寸</button>
+        <button id="btnClear" disabled>清除所有測量線</button>
+    </div>
+
+    <div class="info" id="statusText">請先上傳一張照片。</div>
+
+    <div class="canvas-container" id="canvasContainer">
+        <canvas id="canvas"></canvas>
+    </div>
+</div>
+
+<script>
+    const imageUpload = document.getElementById('imageUpload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const btnRef = document.getElementById('btnRef');
+    const btnMeasure = document.getElementById('btnMeasure');
+    const btnClear = document.getElementById('btnClear');
+    const statusText = document.getElementById('statusText');
+
+    let img = new Image();
+    let mode = 'ref'; // 'ref' 或 'measure'
+    let isDrawing = false;
+    let startP = null;
+    let currentP = null;
+    
+    let refLine = null; // 儲存參考線 {x1, y1, x2, y2, realLength}
+    let measureLines =[]; // 儲存測量線陣列
+    let pxPerUnit = 0; // 像素/單位比例
+
+    // 處理圖片上傳
+    imageUpload.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+    });
+
+    img.onload = function() {
+        // 設定 Canvas 大小以符合圖片比例（限制最大寬度以防跑版）
+        const maxWidth = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+            height = (maxWidth / width) * height;
+            width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 重置狀態
+        refLine = null;
+        measureLines =[];
+        pxPerUnit = 0;
+        setMode('ref');
+        
+        btnRef.disabled = false;
+        btnClear.disabled = false;
+        
+        redraw();
+    };
+
+    // 切換模式按鈕
+    btnRef.addEventListener('click', () => setMode('ref'));
+    btnMeasure.addEventListener('click', () => setMode('measure'));
+    btnClear.addEventListener('click', () => {
+        measureLines =[];
+        redraw();
+    });
+
+    function setMode(newMode) {
+        mode = newMode;
+        btnRef.classList.toggle('active', mode === 'ref');
+        btnMeasure.classList.toggle('active', mode === 'measure');
+        
+        if (mode === 'ref') {
+            statusText.innerHTML = "<b>目前模式：繪製參考線。</b>請在畫面上按住拖曳，畫出已知長度的部位（如身高）。";
+        } else {
+            statusText.innerHTML = "<b>目前模式：測量模式。</b>請在畫面上任意拖曳以測量其他部位。";
+        }
+    }
+
+    // 取得滑鼠或觸控的座標
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX = e.clientX;
+        let clientY = e.clientY;
+
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        }
+
+        // 考慮到 canvas 在畫面上的縮放比例
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
+    // 計算兩點距離
+    function getDistance(p1, p2) {
+        return Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    }
+
+    // 滑鼠事件
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stopDrawing); // 綁在 window 避免滑鼠移出 canvas 導致卡住
+
+    // 觸控事件 (手機支援)
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
+    window.addEventListener('touchend', stopDrawing);
+
+    function startDrawing(e) {
+        if (!img.src || img.src === "") return;
+        if (mode === 'measure' && !refLine) {
+            alert("請先繪製參考線並設定數值！");
+            setMode('ref');
+            return;
+        }
+
+        isDrawing = true;
+        startP = getCoords(e);
+        currentP = startP;
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        currentP = getCoords(e);
+        redraw();
+
+        // 如果在測量模式，即時顯示當前拉動的數值
+        if (mode === 'measure' && pxPerUnit > 0) {
+            const dist = getDistance(startP, currentP);
+            const realVal = (dist / pxPerUnit).toFixed(1);
+            drawLine(startP, currentP, '#007bff'); // 藍色測量線
+            drawText(startP, currentP, `${realVal}`, '#007bff');
+        } else if (mode === 'ref') {
+            drawLine(startP, currentP, '#dc3545'); // 紅色參考線
+        }
+    }
+
+    function stopDrawing(e) {
+        if (!isDrawing) return;
+        isDrawing = false;
+
+        const dist = getDistance(startP, currentP);
+        
+        // 避免只是點擊而沒有拖曳
+        if (dist > 5) {
+            if (mode === 'ref') {
+                const inputLength = prompt("請輸入這條參考線的實際尺寸數字（例如身高 175）：");
+                if (inputLength && !isNaN(inputLength) && inputLength > 0) {
+                    refLine = { x1: startP.x, y1: startP.y, x2: currentP.x, y2: currentP.y, realLength: parseFloat(inputLength) };
+                    pxPerUnit = dist / refLine.realLength;
+                    btnMeasure.disabled = false;
+                    setMode('measure'); // 自動切換到測量模式
+                }
+            } else if (mode === 'measure') {
+                measureLines.push({ x1: startP.x, y1: startP.y, x2: currentP.x, y2: currentP.y });
+            }
+        }
+        redraw();
+    }
+
+    // 繪製畫面
+    function redraw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 畫原圖
+        if (img.src) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        }
+
+        // 畫參考線
+        if (refLine) {
+            const p1 = {x: refLine.x1, y: refLine.y1};
+            const p2 = {x: refLine.x2, y: refLine.y2};
+            drawLine(p1, p2, '#dc3545');
+            drawText(p1, p2, `${refLine.realLength} (基準)`, '#dc3545');
+        }
+
+        // 畫測量線
+        measureLines.forEach(line => {
+            const p1 = {x: line.x1, y: line.y1};
+            const p2 = {x: line.x2, y: line.y2};
+            const dist = getDistance(p1, p2);
+            const realVal = (dist / pxPerUnit).toFixed(1);
+            
+            drawLine(p1, p2, '#007bff');
+            drawText(p1, p2, `${realVal}`, '#007bff');
+        });
+    }
+
+    // 輔助函式：畫線
+    function drawLine(p1, p2, color) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        
+        // 畫兩端點
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(p1.x, p1.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(p2.x, p2.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    // 輔助函式：畫文字標籤
+    function drawText(p1, p2, text, color) {
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        
+        ctx.font = "bold 16px Arial";
+        ctx.fillStyle = "white";
+        
+        // 文字背景增加可讀性
+        const textWidth = ctx.measureText(text).width;
+        ctx.fillRect(midX - textWidth/2 - 5, midY - 20, textWidth + 10, 24);
+        
+        ctx.fillStyle = color;
+        ctx.textAlign = "center";
+        ctx.fillText(text, midX, midY - 2);
+    }
+</script>
+
+</body>
+</html>

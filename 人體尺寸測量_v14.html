@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 身材測量系統 - 包含尺碼對照表</title>
+    <style>
+        :root {
+            --primary: #4f46e5; --primary-hover: #4338ca;
+            --success: #10b981; --success-hover: #059669;
+            --danger: #ef4444; --bg-color: #f3f4f6;
+            --sidebar-bg: #ffffff; --text-main: #1f2937;
+            --text-muted: #6b7280; --canvas-bg: #1f2937;
+        }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background-color: var(--bg-color); color: var(--text-main); }
+        
+        /* 頂部導覽列 (頁籤切換) */
+        .navbar { background: #1e1e2f; color: white; display: flex; padding: 0 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 50; }
+        .nav-brand { font-size: 18px; font-weight: bold; margin-right: 30px; display: flex; align-items: center; }
+        .nav-tab { padding: 15px 20px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; transition: all 0.2s; }
+        .nav-tab:hover { background: rgba(255,255,255,0.1); }
+        .nav-tab.active { border-bottom: 3px solid #60a5fa; color: #60a5fa; background: rgba(255,255,255,0.05); }
+
+        /* 視圖切換區 */
+        .view-container { display: none; flex: 1; height: calc(100vh - 50px); }
+        #view-measure.active { display: flex; }
+        #view-admin.active { display: flex; flex-direction: column; }
+        #view-chart.active { display: flex; flex-direction: column; }
+
+        /* ======== 測量視圖 ======== */
+        .main-content { flex: 1; background-color: var(--canvas-bg); display: flex; align-items: center; justify-content: center; position: relative; padding: 20px; box-sizing: border-box; background-image: radial-gradient(#374151 1px, transparent 1px); background-size: 20px 20px; }
+        .canvas-container { position: relative; display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; }
+        canvas { cursor: crosshair; border: 2px solid #4b5563; border-radius: 4px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); background-color: #e5e7eb; }
+
+        .sidebar { width: 360px; min-width: 360px; background: var(--sidebar-bg); padding: 20px; box-shadow: -4px 0 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 12px; overflow-y: auto; z-index: 10; }
+        .section-title { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group input, .form-group select { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        .id-input { font-family: monospace; font-weight: bold; color: var(--primary) !important; background-color: #eef2ff !important; border-color: #a5b4fc !important; }
+        .form-row { display: flex; gap: 8px; }
+        .form-row > * { flex: 1; }
+        .file-btn { display: block; width: 100%; padding: 10px; text-align: center; background: #f3f4f6; border: 2px dashed #9ca3af; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .file-upload-wrapper input[type="file"] { position: absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;}
+        
+        .status-box { padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; background: #e0e7ff; color: var(--primary-hover); border: 1px solid #a5b4fc; }
+        button { padding: 8px 12px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; background: #e5e7eb; color: #4b5563; transition: all 0.2s;}
+        button:hover:not(:disabled) { background: #d1d5db; }
+        button.active { background: var(--primary); color: white; }
+        .btn-submit { background: var(--success); color: white; padding: 12px; font-size: 15px; margin-top: 5px; width: 100%; }
+        .btn-submit:hover:not(:disabled) { background: var(--success-hover); }
+
+        /* ======== 尺碼對照表視圖 ======== */
+        .chart-view { background: #f9fafb; padding: 20px 40px; overflow-y: auto; }
+        .chart-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .chart-tabs button { flex: 1; padding: 12px; font-size: 15px; background: white; border: 1px solid #d1d5db; }
+        .chart-tabs button.active { background: #eef2ff; border-color: var(--primary); color: var(--primary); }
+        .sct { width: 100%; border-collapse: collapse; font-size: 14px; background: white; }
+        .sct th, .sct td { padding: 10px 15px; border: 1px solid #e5e7eb; text-align: center; }
+        .sct th { background: rgba(79, 70, 229, 0.05); color: var(--primary); font-weight: 700; }
+        .sct .sz { display: inline-flex; align-items: center; justify-content: center; padding: 2px 10px; border-radius: 4px; font-family: monospace; font-size: 13px; font-weight: 700; background: #e0e7ff; color: var(--primary); }
+
+        /* ======== 管理後台視圖 ======== */
+        .admin-view { background: #f9fafb; padding: 20px; overflow-y: auto; position: relative; }
+        .login-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .login-box { background: white; padding: 30px; border-radius: 10px; text-align: center; width: 300px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-box input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; box-sizing: border-box; text-align: center; }
+        .login-box button { background: var(--primary); color: white; width: 100%; padding: 10px; font-size: 16px; }
+
+        .dashboard-cards { display: flex; gap: 20px; margin-bottom: 20px; }
+        .card { background: white; flex: 1; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid var(--primary); }
+        .card h3 { margin: 0 0 10px 0; font-size: 14px; color: var(--text-muted); }
+        .card .value { font-size: 28px; font-weight: bold; color: var(--text-main); }
+
+        .toolbar { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); gap: 15px;}
+        .filters { display: flex; gap: 10px; flex: 1; }
+        .filters input, .filters select { padding: 8px; border: 1px solid #ccc; border-radius: 5px; }
+        .btn-export { background: #10b981; color: white; display: flex; align-items: center; gap: 5px; padding: 10px 15px;}
+        .btn-refresh { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+
+        .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f3f4f6; font-weight: 600; color: #4b5563; position: sticky; top: 0; }
+        tr:hover { background: #f9fafb; cursor: pointer; }
+        .tag-m { background: #dbeafe; color: #1e3a8a; padding: 3px 8px; border-radius: 20px; font-size: 12px; }
+        .tag-f { background: #fce7f3; color: #9d174d; padding: 3px 8px; border-radius: 20px; font-size: 12px; }
+
+        /* 個人資料卡 Modal */
+        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index: 200; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; width: 850px; max-width: 95%; max-height: 90vh; border-radius: 10px; overflow: hidden; display: flex; box-shadow: 0 20px 25px rgba(0,0,0,0.2); }
+        .modal-img-container { flex: 1.2; background: #111; display: flex; justify-content: center; align-items: center; overflow: hidden; max-height: 90vh; }
+        .modal-img-container img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .modal-info { flex: 1; padding: 25px; background: #ffffff; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;}
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #fff; background: rgba(0,0,0,0.5); width: 30px; height: 30px; text-align: center; border-radius: 50%; line-height: 26px; z-index: 10;}
+        
+        .info-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .info-item { background: #f9fafb; padding: 10px; border-radius: 6px; border: 1px solid #eee; position: relative; }
+        .info-item span { display: block; font-size: 11px; color: #6b7280; text-transform: uppercase; }
+        .info-item strong { display: block; font-size: 15px; color: #1f2937; margin-top: 2px; }
+        .info-item input, .info-item select { display: none; width: 100%; padding: 4px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; }
+        .info-item.full { grid-column: span 2; background: #eef2ff; border-color: #c7d2fe; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="nav-brand">📐 智能測量系統</div>
+    <div class="nav-tab active" onclick="switchTab('measure')">📏 測量建檔站</div>
+    <div class="nav-tab" onclick="switchTab('chart')">👕 尺碼對照表</div>
+    <div class="nav-tab" onclick="switchTab('admin')">📊 數據管理後台</div>
+</div>
+
+<!-- ==============================================
+     視圖 1：測量建檔站 
+     ============================================== -->
+<div id="view-measure" class="view-container active">
+    <div class="main-content"><div class="canvas-container" id="canvasContainer"><canvas id="canvas"></canvas></div></div>
+    <div class="sidebar">
+        <div class="status-box info" id="statusText">⏳ 系統初始化中...</div>
+        <div class="form-group"><div class="section-title">1. 上傳測量照片</div>
+            <div class="file-upload-wrapper" style="position:relative"><div class="file-btn" id="fileNameDisplay">📂 點擊選擇照片</div><input type="file" id="imageUpload" accept="image/*" disabled></div>
+        </div>
+        <div class="form-group"><div class="section-title">2. 所屬單位與識別碼</div>
+            <select id="agencySelect"><option value="">⏳ 載入機關中...</option></select>
+            <div class="form-row"><select id="brigadeSelect" disabled><option value="">大隊/分類</option></select><select id="unitSelect" disabled><option value="">單位名稱</option></select></div>
+            <input type="text" id="personId" class="id-input" placeholder="人員識別碼 (自動產生)">
+        </div>
+        <div class="form-group"><div class="section-title">3. 人員基本資料</div>
+            <div class="form-row"><input type="text" id="personName" placeholder="姓名 (必填)"><select id="personGender"><option value="">性別</option><option value="男">男</option><option value="女">女</option></select></div>
+            <div class="form-row">
+                <select id="personJob"><option value="">職稱</option><option value="消防士">消防士</option><option value="副小隊長">副小隊長</option><option value="小隊長">小隊長</option><option value="副分隊長">副分隊長</option><option value="分隊長">分隊長</option><option value="副大隊長">副大隊長</option><option value="大隊長">大隊長</option></select>
+                <input type="number" id="personAge" placeholder="年齡">
+            </div>
+            <input type="date" id="registerDate" title="登記日期">
+        </div>
+        <div class="form-group"><div class="section-title">4. 測量操作</div>
+            <div class="form-row"><button id="btnRef" disabled style="flex:2">📍 設定身高基準</button><button id="btnMeasure" disabled style="flex:2">➕ 自訂線段</button><button id="btnClear" disabled style="flex:1">🗑️ 清除</button></div>
+        </div>
+        <button id="btnSubmitToSheet" class="btn-submit" disabled>☁️ 儲存數據與畫布照片</button>
+    </div>
+</div>
+
+<!-- ==============================================
+     視圖 2：尺碼對照表 
+     ============================================== -->
+<div id="view-chart" class="view-container chart-view">
+    <h2 style="margin-top:0; color:var(--primary);">👕 尺碼對照表</h2>
+    <p style="color:#666; margin-bottom: 20px;">根據最新規格文件制定，包含衣物大貨尺寸與消防靴號碼對照。</p>
+    
+    <div class="chart-tabs">
+        <button class="active" onclick="renderChart('TAC', this)">🔵 戰術系列</button>
+        <button onclick="renderChart('OPS', this)">🟢 操作系列</button>
+        <button onclick="renderChart('EMS', this)">🔴 救護系列</button>
+    </div>
+
+    <div id="chartContent">
+        <!-- JS 動態生成表格 -->
+    </div>
+</div>
+
+<!-- ==============================================
+     視圖 3：數據管理後台 
+     ============================================== -->
+<div id="view-admin" class="view-container admin-view">
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h2>🔒 後台權限驗證</h2>
+            <p style="color:#666; font-size:14px;">請輸入管理員密碼以查看數據</p>
+            <input type="password" id="adminPwdInput" placeholder="輸入密碼 (按 Enter)">
+            <button onclick="loginAdmin()">進入後台</button>
+            <p id="loginError" style="color:red; font-size:13px; display:none; margin-top:10px;">密碼錯誤或未發佈新版本！</p>
+        </div>
+    </div>
+
+    <div class="dashboard-cards">
+        <div class="card"><h3>📊 總完成建檔人數</h3><div class="value" id="dashTotal">0</div></div>
+        <div class="card" style="border-left-color:#3b82f6;"><h3>👨 男性</h3><div class="value" id="dashMale" style="color:#3b82f6;">0</div></div>
+        <div class="card" style="border-left-color:#ec4899;"><h3>👩 女性</h3><div class="value" id="dashFemale" style="color:#ec4899;">0</div></div>
+    </div>
+
+    <div class="toolbar">
+        <div class="filters">
+            <select id="filterAgency"><option value="">所有機關</option></select>
+            <select id="filterBrigade"><option value="">所有大隊</option></select>
+            <select id="filterUnit"><option value="">所有單位</option></select>
+            <input type="text" id="filterSearch" placeholder="🔍 搜尋姓名或識別碼..." style="width:200px;">
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn-refresh" onclick="refreshAdminData()">🔄 重新整理</button>
+            <button class="btn-export" onclick="exportCSV()">📥 匯出 Excel (CSV)</button>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead><tr><th>識別碼</th><th>單位名稱</th><th>姓名</th><th>性別</th><th>職稱</th><th>登記日期</th><th>身高/肩/胸/腰/臀</th></tr></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 個人詳細資料卡 (Modal) -->
+<div class="modal" id="detailModal">
+    <div class="modal-content" style="position:relative;">
+        <div class="close-btn" onclick="closeModal()">×</div>
+        <div class="modal-img-container">
+            <span id="loadingImg" style="color:#888;">圖片載入中...</span>
+            <img id="modalImg" src="" style="display:none;" onload="document.getElementById('loadingImg').style.display='none'; this.style.display='block';">
+        </div>
+        <div class="modal-info">
+            <div class="info-header">
+                <h2 style="margin:0; font-size:22px;">📋 詳細資料</h2>
+                <div id="editControls">
+                    <button id="btnToggleEdit" onclick="toggleEditMode(true)" style="background:var(--primary); color:white;">✏️ 修改</button>
+                    <button id="btnSaveEdit" onclick="saveEditInfo()" style="display:none; background:var(--success); color:white;">💾 儲存</button>
+                    <button id="btnCancelEdit" onclick="toggleEditMode(false)" style="display:none;">取消</button>
+                </div>
+            </div>
+            <div class="info-grid">
+                <div class="info-item full"><span>人員識別碼 (無法修改)</span><strong id="mId">TPE-XY-1234</strong></div>
+                <div class="info-item"><span>姓名</span><strong id="mName_txt" class="edit-txt">-</strong><input type="text" id="mName_inp" class="edit-inp"></div>
+                <div class="info-item"><span>性別</span><strong id="mGender_txt" class="edit-txt">-</strong><select id="mGender_inp" class="edit-inp"><option value="男">男</option><option value="女">女</option></select></div>
+                <div class="info-item"><span>職稱</span><strong id="mJob_txt" class="edit-txt">-</strong><input type="text" id="mJob_inp" class="edit-inp"></div>
+                <div class="info-item"><span>年齡</span><strong id="mAge_txt" class="edit-txt">-</strong><input type="number" id="mAge_inp" class="edit-inp"></div>
+                <div class="info-item"><span>所屬機關</span><strong id="mAgency">-</strong></div>
+                <div class="info-item"><span>大隊/單位</span><strong id="mUnit">-</strong></div>
+            </div>
+            <h3 style="margin:10px 0 0 0; font-size:16px; color:var(--primary);">📏 測量尺寸 (cm)</h3>
+            <div class="info-grid" style="background:#f3f4f6; padding:10px; border-radius:8px;">
+                <div class="info-item"><span>身高</span><strong id="mHeight">-</strong></div>
+                <div class="info-item"><span>肩寬</span><strong id="mShoulder">-</strong></div>
+                <div class="info-item"><span>胸寬</span><strong id="mChest">-</strong></div>
+                <div class="info-item"><span>腰寬</span><strong id="mWaist">-</strong></div>
+                <div class="info-item"><span>臀寬</span><strong id="mHip">-</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // ==========================================
+    // 🌟 請將您最新發佈的網頁應用程式網址貼在此處
+    // ==========================================
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzSgfzJ2jbCPWAawEKHCphVsxTShd1NofjVHMJs2SIZ3nwcVy48qoprt0_wRdAMK1ry/exec";
+    // ==========================================
+
+    let adminLoggedIn = false;
+    let savedAdminPwd = "";
+
+    window.switchTab = function(tab) {
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById('view-' + tab).classList.add('active');
+        if (tab === 'admin' && adminLoggedIn) refreshAdminData(true);
+    };
+
+    // ==============================================
+    //  尺碼對照表資料與渲染邏輯
+    // ==============================================
+    const SIZE_ITEMS = [
+        { series: 'TAC', code: 'TL', name: '長袖戰術服', cols:['肩寬', '胸圍'], data: [['XS',45,97],['S',46,102],['M',47,107],['L',48,112],['XL',50,117],['2XL',51,122],['3XL',52,127]] },
+        { series: 'TAC', code: 'TS', name: '短袖戰術服', cols: ['肩寬', '胸圍'], data: [['XS',45,97],['S',46,102],['M',47,107],['L',48,112],['XL',50,117],['2XL',51,122],['3XL',52,127]] },
+        { series: 'TAC', code: 'TV', name: '戰術背心', cols: ['肩寬', '胸圍'], data: [['XS',38,98],['S',39,103],['M',41,108],['L',42,113],['XL',43,118],['2XL',44,123],['3XL',46,128]] },
+        { series: 'OPS', code: 'OPL', name: '長袖操作服', cols:['肩寬', '胸圍'], data: [['XS',45,99],['S',46,104],['M',47,109],['L',48,114],['XL',50,119],['2XL',51,125],['3XL',52,130]] },
+        { series: 'OPS', code: 'OPS', name: '短袖操作服', cols: ['肩寬', '胸圍'], data: [['XS',45,99],['S',46,104],['M',47,109],['L',48,114],['XL',50,119],['2XL',51,125],['3XL',52,130]] },
+        { series: 'EMS', code: 'EJ', name: '救護外套', cols: ['肩寬', '胸圍'], data: [['XS',46,114],['S',48,119],['M',49,124],['L',50,130],['XL',51,135],['2XL',53,140],['3XL',54,145]] },
+        { series: 'EMS', code: 'EV', name: '救護背心', cols:['肩寬', '胸圍最小', '胸圍最大'], data: [['S',38,91,98],['M',39,101,108],['L',40,112,118],['XL',42,122,128]] }
+    ];
+    const PANTS_DATA = [['XS','66~76',94],['S','71~81',99],['M','76~86',104],['L','81~91',109],['XL','86~97',114],['2XL','91~102',119],['3XL','97~107',124]];
+    const SHOES_DATA = [['34','22'],['35','23'],['36','24'],['37','24.5'],['38','25'],['39','25.5'],['40','26'],['41','27'],['42','28'],['43','29']];
+
+    window.renderChart = function(series, btn) {
+        if (btn) {
+            document.querySelectorAll('.chart-tabs button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        let html = '';
+        const items = SIZE_ITEMS.filter(it => it.series === series);
+        
+        // 渲染衣物表格
+        items.forEach(item => {
+            html += `<div class="table-container" style="margin-bottom: 20px;">
+                <h3 style="padding: 15px; margin: 0; background: white; border-bottom: 1px solid #eee;">${item.name} (${item.code})</h3>
+                <div style="overflow-x: auto;">
+                    <table class="sct">
+                        <thead><tr><th>尺碼</th>${item.cols.map(c => `<th>${c} (cm)</th>`).join('')}</tr></thead>
+                        <tbody>${item.data.map(r => `<tr><td><span class="sz">${r[0]}</span></td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody>
+                    </table>
+                </div>
+            </div>`;
+        });
+
+        // 渲染戰術褲 (共用)
+        html += `<div class="table-container" style="margin-bottom: 20px;">
+            <h3 style="padding: 15px; margin: 0; background: white; border-bottom: 1px solid #eee;">戰術褲 (TP) - 各系列共用</h3>
+            <div style="overflow-x: auto;">
+                <table class="sct">
+                    <thead><tr><th>尺碼</th><th>腰圍範圍 (cm)</th><th>臀圍 (cm)</th></tr></thead>
+                    <tbody>${PANTS_DATA.map(r => `<tr><td><span class="sz">${r[0]}</span></td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody>
+                </table>
+            </div>
+        </div>`;
+
+        // 渲染消防靴 (共用)
+        html += `<div class="table-container" style="margin-bottom: 20px;">
+            <h3 style="padding: 15px; margin: 0; background: white; border-bottom: 1px solid #eee;">消防靴號碼對照</h3>
+            <div style="overflow-x: auto;">
+                <table class="sct">
+                    <thead><tr><th>腳長 (cm)</th>${SHOES_DATA.map(r => `<th>${r[1]}</th>`).join('')}</tr></thead>
+                    <tbody><tr><td><strong>日本號</strong></td>${SHOES_DATA.map(r => `<td><span class="sz">${r[0]}</span></td>`).join('')}</tr></tbody>
+                </table>
+            </div>
+        </div>`;
+
+        document.getElementById('chartContent').innerHTML = html;
+    };
+    
+    // 初始化渲染一次戰術系列的表
+    renderChart('TAC');
+
+    // ==============================================
+    //  以下為原本的測量站與後台系統邏輯
+    // ==============================================
+    import { PoseLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+    const imageUpload = document.getElementById('imageUpload'), canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d'), canvasContainer = document.getElementById('canvasContainer');
+    const agencySelect = document.getElementById('agencySelect'), brigadeSelect = document.getElementById('brigadeSelect'), unitSelect = document.getElementById('unitSelect');
+    const personIdInput = document.getElementById('personId'), registerDateInput = document.getElementById('registerDate');
+    const btnSubmitToSheet = document.getElementById('btnSubmitToSheet'), statusText = document.getElementById('statusText');
+
+    let img = new Image(), mode = 'ref', isDrawing = false, startP = null, currentP = null;
+    let refLine = null, measureLines =[], pxPerUnit = 0;
+    let poseLandmarker = null, uploadedFileName = "未命名", dbHierarchy = {}, dbSystemCodes = {}; 
+    const DRAG_RADIUS = 15; let hoveredPoint = null, draggingPoint = null; 
+
+    const today = new Date(); registerDateInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    function updateStatus(msg, type = "") { statusText.innerHTML = msg; statusText.className = "status-box " + type; }
+
+    async function loadDropdownData() {
+        if(APPS_SCRIPT_URL.includes("您的網頁應用程式網址")) { agencySelect.innerHTML = '<option value="">⚠️ 請先設定 APPS URL</option>'; return; }
+        try {
+            const fetchUrl = APPS_SCRIPT_URL.includes('?') ? `${APPS_SCRIPT_URL}&action=getUnits` : `${APPS_SCRIPT_URL}?action=getUnits`;
+            const response = await fetch(fetchUrl); const resData = await response.json();
+            dbHierarchy = resData.hierarchy; dbSystemCodes = resData.systemCodes;
+            agencySelect.innerHTML = '<option value="">選擇機關...</option>'; document.getElementById('filterAgency').innerHTML = '<option value="">所有機關</option>';
+            for (let agency in dbHierarchy) { agencySelect.innerHTML += `<option value="${agency}">${agency}</option>`; document.getElementById('filterAgency').innerHTML += `<option value="${agency}">${agency}</option>`; }
+        } catch (error) { agencySelect.innerHTML = '<option value="">⚠️ 連線失敗</option>'; }
+    }
+
+    agencySelect.addEventListener('change', function() {
+        brigadeSelect.innerHTML = '<option value="">選擇大隊...</option>'; unitSelect.innerHTML = '<option value="">選擇單位...</option>';
+        unitSelect.disabled = true; personIdInput.value = ""; 
+        if (this.value && dbHierarchy[this.value]) { for (let brigade in dbHierarchy[this.value]) brigadeSelect.innerHTML += `<option value="${brigade}">${brigade}</option>`; brigadeSelect.disabled = false; } else brigadeSelect.disabled = true; 
+    });
+
+    brigadeSelect.addEventListener('change', function() {
+        unitSelect.innerHTML = '<option value="">選擇單位...</option>'; personIdInput.value = ""; 
+        if (this.value && dbHierarchy[agencySelect.value][this.value]) { dbHierarchy[agencySelect.value][this.value].forEach(unit => unitSelect.innerHTML += `<option value="${unit}">${unit}</option>`); unitSelect.disabled = false; } else unitSelect.disabled = true; 
+    });
+
+    unitSelect.addEventListener('change', function() {
+        if (this.value) { const key = `${agencySelect.value}_${brigadeSelect.value}_${this.value}`; personIdInput.value = `${dbSystemCodes[key] || "SYS"}-${Math.floor(1000 + Math.random() * 9000)}`; } else personIdInput.value = ""; 
+    });
+
+    async function initAI() {
+        try {
+            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+            poseLandmarker = await PoseLandmarker.createFromOptions(vision, { baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task", delegate: "GPU" }, runningMode: "IMAGE", numPoses: 1 });
+            updateStatus("✅ 系統載入完成！請上傳照片。", "success"); imageUpload.disabled = false;
+        } catch (error) { updateStatus("❌ AI 載入失敗。", "error"); }
+    }
+    loadDropdownData(); initAI();
+
+    imageUpload.addEventListener('change', function(e) {
+        if (!e.target.files[0]) return; uploadedFileName = e.target.files[0].name; document.getElementById('fileNameDisplay').innerText = `📄 ${uploadedFileName}`;
+        updateStatus("圖片載入中...", "info"); const reader = new FileReader(); reader.onload = function(evt) { img.src = evt.target.result; }; reader.readAsDataURL(e.target.files[0]);
+    });
+
+    img.onload = async function() {
+        const cRatio = canvasContainer.clientWidth / canvasContainer.clientHeight;
+        if (img.width / img.height > cRatio) { canvas.width = canvasContainer.clientWidth; canvas.height = canvasContainer.clientWidth / (img.width / img.height); } else { canvas.height = canvasContainer.clientHeight; canvas.width = canvasContainer.clientHeight * (img.width / img.height); }
+        refLine = null; measureLines =[]; pxPerUnit = 0; redraw(); document.getElementById('btnRef').disabled = false; document.getElementById('btnClear').disabled = false; btnSubmitToSheet.disabled = false;
+        if (poseLandmarker) {
+            updateStatus("🔍 自動識別中...", "info");
+            setTimeout(() => {
+                const result = poseLandmarker.detect(img);
+                if (result.landmarks && result.landmarks.length > 0) {
+                    const pose = result.landmarks[0], toX = v => v * canvas.width, toY = v => v * canvas.height;
+                    const nose = pose[0], shoulderY = (pose[11].y + pose[12].y) / 2; let headTopY = nose.y - (shoulderY - nose.y) * 0.45; if (headTopY < 0) headTopY = 0.02; 
+                    const footBottomY = Math.max(pose[29].y, pose[30].y, pose[31].y, pose[32].y, pose[27].y, pose[28].y);
+                    refLine = { x1: toX(nose.x), y1: toY(headTopY), x2: toX((pose[27].x + pose[28].x) / 2), y2: toY(footBottomY), realLength: 0 };
+                    const sL = { x: toX(pose[11].x), y: toY(pose[11].y) }, sR = { x: toX(pose[12].x), y: toY(pose[12].y) };
+                    const hL = { x: toX(pose[23].x), y: toY(pose[23].y) }, hR = { x: toX(pose[24].x), y: toY(pose[24].y) };
+                    measureLines.push({ name: '肩寬', x1: sL.x, y1: sL.y, x2: sR.x, y2: sR.y }); measureLines.push({ name: '臀寬', x1: hL.x, y1: hL.y, x2: hR.x, y2: hR.y });
+                    measureLines.push({ name: '胸寬', x1: sL.x+(hL.x-sL.x)*0.25, y1: sL.y+(hL.y-sL.y)*0.25, x2: sR.x+(hR.x-sR.x)*0.25, y2: sR.y+(hR.y-sR.y)*0.25 });
+                    measureLines.push({ name: '腰寬', x1: sL.x+(hL.x-sL.x)*0.60, y1: sL.y+(hL.y-sL.y)*0.60, x2: sR.x+(hR.x-sR.x)*0.60, y2: sR.y+(hR.y-sR.y)*0.60 });
+                    redraw();
+                    setTimeout(() => { const h = prompt("✨ AI 已標記！\n請輸入身高 (例如: 175)："); if (h && !isNaN(h) && h > 0) { refLine.realLength = parseFloat(h); pxPerUnit = getDistance({x:refLine.x1, y:refLine.y1}, {x:refLine.x2, y:refLine.y2}) / h; setMode('measure'); document.getElementById('btnMeasure').disabled = false; updateStatus("✅ 標記完成！請拖曳節點微調後儲存。", "success"); redraw(); } else { updateStatus("⚠️ 未設定身高。", ""); setMode('ref'); } }, 200);
+                } else { updateStatus("⚠️ 找不到人物。", ""); setMode('ref'); }
+            }, 50);
+        }
+    };
+
+    btnSubmitToSheet.addEventListener('click', () => {
+        if (!refLine || pxPerUnit === 0) { alert("⚠️ 錯誤：尚未設定身高尺寸。"); return; } if (!personIdInput.value) { alert("⚠️ 錯誤：請先選擇所屬單位。"); return; }
+        let customArr =[]; let vShoulder = "", vChest = "", vWaist = "", vHip = "";
+        measureLines.forEach(l => { const val = (getDistance({x:l.x1,y:l.y1}, {x:l.x2,y:l.y2}) / pxPerUnit).toFixed(1); if(l.name==='肩寬') vShoulder=val; else if(l.name==='胸寬') vChest=val; else if(l.name==='腰寬') vWaist=val; else if(l.name==='臀寬') vHip=val; else customArr.push(`${l.name||'自訂'}:${val}`); });
+
+        const formData = new URLSearchParams();
+        formData.append("agency", agencySelect.value); formData.append("brigade", brigadeSelect.value); formData.append("unit", unitSelect.value); formData.append("personId", personIdInput.value); formData.append("regDate", registerDateInput.value);
+        formData.append("name", document.getElementById('personName').value); formData.append("gender", document.getElementById('personGender').value); formData.append("age", document.getElementById('personAge').value); formData.append("job", document.getElementById('personJob').value);
+        formData.append("filename", uploadedFileName); formData.append("height", refLine.realLength); formData.append("shoulder", vShoulder); formData.append("chest", vChest); formData.append("waist", vWaist); formData.append("hip", vHip); formData.append("custom", customArr.join(", ")); formData.append("fileData", canvas.toDataURL("image/jpeg", 0.85));
+
+        btnSubmitToSheet.innerText = "⏳ 上傳中..."; btnSubmitToSheet.disabled = true;
+        fetch(APPS_SCRIPT_URL, { method: "POST", body: formData })
+        .then(() => { alert(`✅ 寫入成功！`); btnSubmitToSheet.innerText = "☁️ 儲存數據與畫布照片"; btnSubmitToSheet.disabled = false; })
+        .catch(() => { alert("✅ 請求已送出。"); btnSubmitToSheet.innerText = "☁️ 儲存數據與畫布照片"; btnSubmitToSheet.disabled = false; });
+    });
+
+    document.getElementById('btnRef').onclick = () => setMode('ref'); document.getElementById('btnMeasure').onclick = () => setMode('measure'); document.getElementById('btnClear').onclick = () => { measureLines =[]; redraw(); };
+    function setMode(m) { mode = m; document.getElementById('btnRef').classList.toggle('active', m==='ref'); document.getElementById('btnMeasure').classList.toggle('active', m==='measure'); }
+    function getCoords(e) { const r = canvas.getBoundingClientRect(); let cX = e.clientX||e.touches[0].clientX, cY = e.clientY||e.touches[0].clientY; return { x: (cX - r.left)*(canvas.width/r.width), y: (cY - r.top)*(canvas.height/r.height) }; }
+    function getDistance(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+    function getPointAt(p) {
+        if(refLine) { if(getDistance(p,{x:refLine.x1,y:refLine.y1})<DRAG_RADIUS) return {line:refLine,end:1}; if(getDistance(p,{x:refLine.x2,y:refLine.y2})<DRAG_RADIUS) return {line:refLine,end:2}; }
+        for(let i=0; i<measureLines.length; i++) { let l = measureLines[i]; if(getDistance(p,{x:l.x1,y:l.y1})<DRAG_RADIUS) return {line:l,end:1}; if(getDistance(p,{x:l.x2,y:l.y2})<DRAG_RADIUS) return {line:l,end:2}; } return null;
+    }
+    
+    canvas.addEventListener('mousedown', d=>{ if(!img.src)return; let p=getCoords(d), t=getPointAt(p); if(t){draggingPoint=t;return;} isDrawing=true; startP=p; currentP=startP;});
+    canvas.addEventListener('mousemove', m=>{ 
+        let p=getCoords(m); 
+        if(draggingPoint){ if(draggingPoint.end===1){draggingPoint.line.x1=p.x;draggingPoint.line.y1=p.y;}else{draggingPoint.line.x2=p.x;draggingPoint.line.y2=p.y;} if(draggingPoint.line===refLine && refLine.realLength>0) pxPerUnit=getDistance({x:refLine.x1,y:refLine.y1},{x:refLine.x2,y:refLine.y2})/refLine.realLength; redraw(); return; }
+        if(!isDrawing) { hoveredPoint=getPointAt(p); canvas.style.cursor=hoveredPoint?'grab':'crosshair'; redraw(); return;}
+        currentP=p; redraw();
+        if(mode==='measure' && pxPerUnit>0) { drawLine(startP, currentP, '#3b82f6'); drawText(startP, currentP, `新增: ${(getDistance(startP,currentP)/pxPerUnit).toFixed(1)}`, '#3b82f6'); } else if(mode==='ref') { drawLine(startP, currentP, '#ef4444'); }
+    });
+    window.addEventListener('mouseup', u=>{
+        if(draggingPoint){draggingPoint=null;canvas.style.cursor='crosshair';return;} if(!isDrawing)return; isDrawing=false; let d=getDistance(startP,currentP);
+        if(d>5){ if(mode==='ref'){ let l=prompt("身高數值:"); if(l>0){ refLine={x1:startP.x,y1:startP.y,x2:currentP.x,y2:currentP.y,realLength:parseFloat(l)}; pxPerUnit=d/refLine.realLength; document.getElementById('btnMeasure').disabled=false; setMode('measure');}} else { measureLines.push({name:'',x1:startP.x,y1:startP.y,x2:currentP.x,y2:currentP.y}); } } redraw();
+    });
+
+    function redraw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height); if(img.src) ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        if(refLine && (refLine.realLength>0||isDrawing)) { drawLine({x:refLine.x1,y:refLine.y1},{x:refLine.x2,y:refLine.y2},'#ef4444'); drawText({x:refLine.x1,y:refLine.y1},{x:refLine.x2,y:refLine.y2},refLine.realLength>0?`身高:${refLine.realLength}`:'身高','#ef4444',true); }
+        measureLines.forEach(l => { drawLine({x:l.x1,y:l.y1},{x:l.x2,y:l.y2},l.name?'#8b5cf6':'#3b82f6'); drawText({x:l.x1,y:l.y1},{x:l.x2,y:l.y2}, l.name?l.name+" "+(getDistance({x:l.x1,y:l.y1},{x:l.x2,y:l.y2})/pxPerUnit).toFixed(1):(getDistance({x:l.x1,y:l.y1},{x:l.x2,y:l.y2})/pxPerUnit).toFixed(1), l.name?'#8b5cf6':'#3b82f6'); });
+        if(hoveredPoint){ let t=hoveredPoint.end===1?{x:hoveredPoint.line.x1,y:hoveredPoint.line.y1}:{x:hoveredPoint.line.x2,y:hoveredPoint.line.y2}; ctx.beginPath();ctx.arc(t.x,t.y,8,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,0.9)";ctx.fill();ctx.strokeStyle="#10b981";ctx.lineWidth=3;ctx.stroke();}
+    }
+    function drawLine(p1,p2,c){ ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.strokeStyle=c;ctx.lineWidth=3;ctx.stroke();ctx.fillStyle=c;ctx.beginPath();ctx.arc(p1.x,p1.y,4,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(p2.x,p2.y,4,0,Math.PI*2);ctx.fill(); }
+    function drawText(p1,p2,t,c,iT=false){ let x=(p1.x+p2.x)/2,y=(p1.y+p2.y)/2; if(iT){x=p1.y<p2.y?p1.x:p2.x;y=(p1.y<p2.y?p1.y:p2.y)-15;if(y<25)y+=50;} ctx.font="bold 14px Arial";let w=ctx.measureText(t).width;ctx.fillStyle="rgba(0,0,0,0.7)";ctx.fillRect(x-w/2-5,y-18,w+10,22);ctx.fillStyle="#fff";ctx.textAlign="center";ctx.fillText(t,x,y-3);ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(x-w/2-5,y-18,w+10,22);}
+
+
+    // ==============================================
+    //  區塊三：數據管理後台邏輯 (含修復版 API)
+    // ==============================================
+    let allRecords =[];
+    document.getElementById('adminPwdInput').addEventListener('keypress', function (e) { if (e.key === 'Enter') loginAdmin(); });
+
+    window.loginAdmin = async function() {
+        const pwd = document.getElementById('adminPwdInput').value;
+        const btn = document.querySelector('.login-box button');
+        const errorMsg = document.getElementById('loginError');
+        
+        btn.innerText = "驗證中..."; btn.disabled = true; errorMsg.style.display = 'none';
+        try {
+            const fetchUrl = APPS_SCRIPT_URL.includes('?') ? `${APPS_SCRIPT_URL}&action=getRecords&password=${encodeURIComponent(pwd)}` : `${APPS_SCRIPT_URL}?action=getRecords&password=${encodeURIComponent(pwd)}`;
+            const res = await fetch(fetchUrl); const textData = await res.text();
+            let data; try { data = JSON.parse(textData); } catch (err) { throw new Error("API_NOT_JSON"); }
+            
+            if (data.error) {
+                errorMsg.innerText = data.error; errorMsg.style.display = 'block';
+                btn.innerText = "進入後台"; btn.disabled = false;
+            } else if (!Array.isArray(data)) {
+                throw new Error("VERSION_MISMATCH");
+            } else {
+                document.getElementById('loginOverlay').style.display = 'none';
+                adminLoggedIn = true; savedAdminPwd = pwd;
+                allRecords = data; renderDashboard();
+            }
+        } catch(e) {
+            if (e.message === "VERSION_MISMATCH" || e.message === "API_NOT_JSON") { alert("❌ 後端未更新！請回 Apps Script 發佈為「新版本」。"); } 
+            else { alert("連線失敗！請檢查網路。"); }
+            btn.innerText = "進入後台"; btn.disabled = false;
+        }
+    };
+
+    window.refreshAdminData = async function(isSilent = false) {
+        if(!adminLoggedIn) return;
+        const btn = document.querySelector('.btn-refresh');
+        if(!isSilent) { btn.innerText = "🔄 更新中..."; btn.disabled = true; }
+        try {
+            const fetchUrl = APPS_SCRIPT_URL.includes('?') ? `${APPS_SCRIPT_URL}&action=getRecords&password=${encodeURIComponent(savedAdminPwd)}` : `${APPS_SCRIPT_URL}?action=getRecords&password=${encodeURIComponent(savedAdminPwd)}`;
+            const res = await fetch(fetchUrl); const data = await res.json();
+            if(Array.isArray(data)) {
+                allRecords = data; filterTable(); 
+                document.getElementById('dashTotal').innerText = allRecords.length;
+                document.getElementById('dashMale').innerText = allRecords.filter(r => r['性別'] === '男').length;
+                document.getElementById('dashFemale').innerText = allRecords.filter(r => r['性別'] === '女').length;
+            }
+        } catch(e) { console.error("更新失敗"); }
+        if(!isSilent) { btn.innerText = "🔄 重新整理"; btn.disabled = false; }
+    }
+
+    function renderDashboard() {
+        document.getElementById('dashTotal').innerText = allRecords.length;
+        document.getElementById('dashMale').innerText = allRecords.filter(r => r['性別'] === '男').length;
+        document.getElementById('dashFemale').innerText = allRecords.filter(r => r['性別'] === '女').length;
+        
+        const units = new Set(), brigades = new Set();
+        allRecords.forEach(r => { if(r['大隊/分類']) brigades.add(r['大隊/分類']); if(r['單位名稱']) units.add(r['單位名稱']); });
+        
+        const fB = document.getElementById('filterBrigade'), fU = document.getElementById('filterUnit');
+        fB.innerHTML = '<option value="">所有大隊</option>'; brigades.forEach(b => fB.innerHTML += `<option value="${b}">${b}</option>`);
+        fU.innerHTML = '<option value="">所有單位</option>'; units.forEach(u => fU.innerHTML += `<option value="${u}">${u}</option>`);
+
+        document.getElementById('filterAgency').onchange = filterTable; document.getElementById('filterBrigade').onchange = filterTable;
+        document.getElementById('filterUnit').onchange = filterTable; document.getElementById('filterSearch').oninput = filterTable;
+        filterTable(); 
+    }
+
+    function filterTable() {
+        const vA = document.getElementById('filterAgency').value, vB = document.getElementById('filterBrigade').value;
+        const vU = document.getElementById('filterUnit').value, vS = document.getElementById('filterSearch').value.toLowerCase();
+        const filtered = allRecords.filter(r => {
+            if (vA && r['機關名稱'] !== vA) return false; if (vB && r['大隊/分類'] !== vB) return false; if (vU && r['單位名稱'] !== vU) return false;
+            if (vS && !(r['姓名'].toLowerCase().includes(vS) || r['人員識別碼'].toLowerCase().includes(vS))) return false;
+            return true;
+        });
+
+        const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
+        filtered.forEach((r, idx) => {
+            const genderTag = r['性別'] === '男' ? '<span class="tag-m">男</span>' : (r['性別'] === '女' ? '<span class="tag-f">女</span>' : '-');
+            const sizes = `${r['身高(cm)']} / ${r['肩寬(cm)']} / ${r['胸寬(cm)']} / ${r['腰寬(cm)']} / ${r['臀寬(cm)']}`;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td style="font-family:monospace; color:var(--primary); font-weight:bold;">${r['人員識別碼']}</td><td>${r['單位名稱']}</td><td>${r['姓名']}</td><td>${genderTag}</td><td>${r['職稱']}</td><td>${r['登記日期']}</td><td style="color:#666;">${sizes}</td>`;
+            tr.onclick = () => showModal(r); tbody.appendChild(tr);
+        });
+    }
+
+    function getDriveThumbnailUrl(url) {
+        if (!url || !url.includes('drive.google.com/file/d/')) return '';
+        const match = url.match(/\/d\/(.*?)\//);
+        return match ? `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000` : url;
+    }
+
+    window.showModal = function(r) {
+        document.getElementById('detailModal').classList.add('active'); toggleEditMode(false); 
+        
+        document.getElementById('mName_txt').innerText = r['姓名']; document.getElementById('mGender_txt').innerText = r['性別'];
+        document.getElementById('mJob_txt').innerText = r['職稱']; document.getElementById('mAge_txt').innerText = r['年齡'] || '-';
+        document.getElementById('mName_inp').value = r['姓名']; document.getElementById('mGender_inp').value = r['性別'];
+        document.getElementById('mJob_inp').value = r['職稱']; document.getElementById('mAge_inp').value = r['年齡'] || '';
+
+        document.getElementById('mId').innerText = r['人員識別碼']; document.getElementById('mAgency').innerText = r['機關名稱'];
+        document.getElementById('mUnit').innerText = `${r['大隊/分類']} - ${r['單位名稱']}`; document.getElementById('mHeight').innerText = r['身高(cm)'];
+        document.getElementById('mShoulder').innerText = r['肩寬(cm)']; document.getElementById('mChest').innerText = r['胸寬(cm)'];
+        document.getElementById('mWaist').innerText = r['腰寬(cm)']; document.getElementById('mHip').innerText = r['臀寬(cm)'];
+
+        const imgEl = document.getElementById('modalImg'), loadText = document.getElementById('loadingImg');
+        imgEl.style.display = 'none'; loadText.style.display = 'block';
+        if(r['照片連結'] && r['照片連結'].startsWith('http')) { loadText.innerText = "圖片載入中..."; imgEl.src = getDriveThumbnailUrl(r['照片連結']); } else { loadText.innerText = "無照片紀錄"; }
+    };
+
+    window.closeModal = function() { document.getElementById('detailModal').classList.remove('active'); };
+
+    window.toggleEditMode = function(isEdit) {
+        const txts = document.querySelectorAll('.edit-txt'), inps = document.querySelectorAll('.edit-inp');
+        if (isEdit) {
+            txts.forEach(t => t.style.display = 'none'); inps.forEach(i => i.style.display = 'block');
+            document.getElementById('btnToggleEdit').style.display = 'none'; document.getElementById('btnSaveEdit').style.display = 'inline-block'; document.getElementById('btnCancelEdit').style.display = 'inline-block';
+        } else {
+            txts.forEach(t => t.style.display = 'block'); inps.forEach(i => i.style.display = 'none');
+            document.getElementById('btnToggleEdit').style.display = 'inline-block'; document.getElementById('btnSaveEdit').style.display = 'none'; document.getElementById('btnCancelEdit').style.display = 'none';
+        }
+    };
+
+    window.saveEditInfo = async function() {
+        const btnSave = document.getElementById('btnSaveEdit'); btnSave.innerText = "儲存中..."; btnSave.disabled = true;
+        const pId = document.getElementById('mId').innerText, newName = document.getElementById('mName_inp').value, newGender = document.getElementById('mGender_inp').value, newJob = document.getElementById('mJob_inp').value, newAge = document.getElementById('mAge_inp').value;
+
+        const formData = new URLSearchParams();
+        formData.append("action", "updateRecord"); formData.append("personId", pId); formData.append("name", newName); formData.append("gender", newGender); formData.append("job", newJob); formData.append("age", newAge);
+
+        try {
+            const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
+            if (result.success) {
+                alert("✅ 資料修改成功！");
+                document.getElementById('mName_txt').innerText = newName; document.getElementById('mGender_txt').innerText = newGender; document.getElementById('mJob_txt').innerText = newJob; document.getElementById('mAge_txt').innerText = newAge;
+                toggleEditMode(false); refreshAdminData(true); 
+            } else alert("❌ 修改失敗：" + (result.error || "未知錯誤"));
+        } catch(e) { alert("❌ 儲存失敗，請檢查網路連線。"); }
+        btnSave.innerText = "💾 儲存"; btnSave.disabled = false;
+    };
+
+    window.exportCSV = function() {
+        if(allRecords.length === 0) return alert("目前沒有資料可匯出！");
+        let csvContent = "\uFEFF"; 
+        const headers =["系統建檔時間", "登記日期", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "年齡", "職稱", "身高(cm)", "肩寬(cm)", "胸寬(cm)", "腰寬(cm)", "臀寬(cm)", "其他自訂測量", "照片連結"];
+        csvContent += headers.join(",") + "\r\n";
+        allRecords.forEach(r => { let row = headers.map(h => { let cell = r[h] === undefined ? "" : r[h].toString(); cell = cell.replace(/"/g, '""'); return `"${cell}"`; }); csvContent += row.join(",") + "\r\n"; });
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob));
+        link.setAttribute("download", `測量資料匯出_${new Date().toISOString().slice(0,10)}.csv`);
+        link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    };
+</script>
+</body>
+</html>

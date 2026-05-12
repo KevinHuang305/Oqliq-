@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<title>FIRESCUE 配發系統 v3</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+:root{
+  --bg:#09090e;--surf:#111118;--card:#15151e;--border:#252535;
+  --accent:#e05c2a;--a2:#f0883e;--text:#e4e4f0;--muted:#5a5a7a;
+  --ok:#3ecf8e;--warn:#f0b429;--err:#e05c5c;
+  --tac:#4a8af0;--ops:#5ab85a;--ems:#f05a8a;
+  --mono:'JetBrains Mono',monospace;--sans:'Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.hd{background:var(--surf);border-bottom:1px solid var(--border);padding:0 16px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;gap:10px}
+.logo{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--accent);letter-spacing:.12em;white-space:nowrap}
+.logo small{color:var(--muted);font-size:10px;margin-left:5px}
+.sync{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.dot.ok{background:var(--ok)}.dot.err{background:var(--err)}.dot.spin{background:var(--warn);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.nav{display:flex;gap:5px;flex-wrap:nowrap;overflow-x:auto}
+.nb{padding:5px 11px;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:4px;font-size:11px;cursor:pointer;font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.nb.on,.nb:hover{border-color:var(--accent);color:var(--accent);background:rgba(224,92,42,.08)}
+
+/* PAGES */
+.pg{display:none;padding:18px 16px;max-width:1000px;margin:0 auto}
+.pg.on{display:block}
+.pt{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px}
+.ps{font-size:12px;color:var(--muted);margin-bottom:20px}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px}
+.ct{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+/* FORMS */
+.fg{display:grid;gap:9px;margin-bottom:10px}
+.fg2{grid-template-columns:1fr 1fr}
+.fg3{grid-template-columns:1fr 1fr 1fr}
+.fg4{grid-template-columns:repeat(4,1fr)}
+.fg5{grid-template-columns:repeat(5,1fr)}
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.f input,.f select,.f textarea{background:var(--surf);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;padding:9px 10px;font-family:var(--sans);outline:none;width:100%;transition:border-color .15s}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--accent)}
+.f select option{background:var(--card)}
+.f textarea{resize:vertical;min-height:70px}
+.f input[readonly]{color:var(--a2);cursor:default}
+
+/* BUTTONS */
+.btn{touch-action:manipulation;-webkit-tap-highlight-color:rgba(224,92,42,.25);padding:9px 16px;border-radius:4px;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.bp{background:var(--accent);color:#fff}.bp:hover{background:var(--a2)}
+.bg{background:transparent;border:1px solid var(--border);color:var(--muted)}.bg:hover{border-color:var(--accent);color:var(--accent)}
+.bs{background:var(--ok);color:#000;font-weight:700}
+.bw{background:transparent;border:1px solid var(--err);color:var(--err)}
+.bsm{padding:5px 11px;font-size:11px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.br{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* STATUS */
+.sb{padding:9px 12px;border-radius:4px;font-size:12px;margin-bottom:10px;border:1px solid transparent}
+.si{background:rgba(224,92,42,.07);border-color:rgba(224,92,42,.25);color:var(--a2)}
+.so{background:rgba(62,207,142,.07);border-color:rgba(62,207,142,.25);color:var(--ok)}
+.sw{background:rgba(240,180,41,.07);border-color:rgba(240,180,41,.25);color:var(--warn)}
+
+/* STEPS */
+.steps{display:flex;margin-bottom:18px;border-bottom:1px solid var(--border)}
+.step{flex:1;padding:9px 8px;font-size:11px;border-bottom:2px solid transparent;color:var(--muted);transition:all .15s;margin-bottom:-1px}
+.step.on{border-color:var(--accent);color:var(--accent)}
+.sn{font-family:var(--mono);font-size:9px;margin-bottom:2px}
+
+/* SERIES TABS */
+.stabs{display:flex;border-radius:6px;overflow:hidden;border:1px solid var(--border);margin-bottom:14px}
+.stab{flex:1;padding:9px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;background:var(--surf);color:var(--muted);border:none;transition:all .15s}
+.stab.tac.on{background:rgba(74,138,240,.12);color:var(--tac)}
+.stab.ops.on{background:rgba(90,184,90,.12);color:var(--ops)}
+.stab.ems.on{background:rgba(240,90,138,.12);color:var(--ems)}
+
+/* SIZE DISPLAY */
+.mg{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.mi{background:var(--surf);border:1px solid var(--border);border-radius:6px;padding:10px 8px;text-align:center}
+.ml{font-size:9px;color:var(--muted);margin-bottom:4px}
+.mv{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--a2)}
+.mu{font-size:9px;color:var(--muted)}
+
+/* PHOTO ZONE */
+.pz{border:2px dashed var(--border);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:150px;cursor:pointer;overflow:hidden;margin-bottom:12px;transition:border-color .15s;position:relative}
+.pz:hover{border-color:var(--accent)}
+.pz canvas{max-width:100%;display:block}
+.ph{color:var(--muted);text-align:center;padding:18px;font-size:12px}
+.ph .ico{font-size:26px;margin-bottom:5px}
+
+/* RESULT ROWS */
+.rrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.rrow:last-child{border-bottom:none}
+.rrow b{font-size:13px}
+.rrow span{font-family:var(--mono);color:var(--a2);font-weight:700}
+
+/* TABLES */
+.dt{width:100%;border-collapse:collapse;font-size:12px}
+.dt th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.dt td{padding:9px 10px;border-bottom:1px solid rgba(37,37,53,.5);vertical-align:middle}
+.dt tr:last-child td{border-bottom:none}
+.dt tr:hover td{background:rgba(255,255,255,.015)}
+.scroll{overflow:auto;max-height:500px;border:1px solid var(--border);border-radius:6px}
+
+/* BADGES */
+.sz{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:11px;font-weight:700;background:rgba(224,92,42,.1);border:1px solid var(--accent);color:var(--accent);min-width:36px}
+.serial{font-family:var(--mono);font-size:11px;color:var(--a2);background:rgba(240,136,62,.08);padding:2px 6px;border-radius:3px}
+.spill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.s-待確認{background:rgba(240,180,41,.12);color:var(--warn)}
+.s-已確認{background:rgba(62,207,142,.12);color:var(--ok)}
+.s-需複量{background:rgba(224,92,42,.12);color:var(--a2)}
+.s-特殊修改{background:rgba(240,90,138,.12);color:var(--ems)}
+.s-備料中{background:rgba(240,180,41,.12);color:var(--warn)}
+.s-已裝袋{background:rgba(224,92,42,.12);color:var(--a2)}
+.s-已領取{background:rgba(62,207,142,.12);color:var(--ok)}
+
+/* LABEL */
+.lp{background:#fff;color:#111;border-radius:6px;padding:14px 16px;font-family:var(--mono);font-size:11px;line-height:1.8;border:2px solid #ddd;max-width:340px}
+.lp .lh{font-size:13px;font-weight:700;border-bottom:2px solid #111;margin-bottom:8px;padding-bottom:5px;letter-spacing:.1em}
+.lp .lk{color:#555;display:inline-block;min-width:78px}
+.lp .lv{font-weight:700}
+.lp .lsec{margin-top:7px;padding-top:7px;border-top:1px solid #ddd;font-size:10px;line-height:1.6}
+.labelgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.qr-box{background:#fff;padding:7px;border-radius:4px;display:inline-block}
+
+/* SIZE CHART */
+.sct{width:100%;border-collapse:collapse;font-size:11px}
+.sct th,.sct td{padding:7px 9px;border:1px solid var(--border);text-align:center}
+.sct th{background:rgba(224,92,42,.07);color:var(--accent);font-weight:700;font-size:10px}
+
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;justify-content:center;align-items:center;padding:14px}
+.mo.on{display:flex}
+.mbox{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto}
+.mt{font-size:15px;font-weight:700;margin-bottom:12px}
+
+/* SETUP */
+.ss{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.ss:last-child{border-bottom:none}
+.ss .n{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent);min-width:22px}
+.ss .b{font-size:12px;line-height:1.7}
+.ss code{font-family:var(--mono);background:var(--surf);padding:1px 5px;border-radius:3px;font-size:11px;color:var(--a2)}
+
+@media(max-width:640px){
+  .grid2,.fg3,.fg4,.fg5,.labelgrid{grid-template-columns:1fr}
+  .fg2{grid-template-columns:1fr}
+  .mg{grid-template-columns:repeat(3,1fr)}
+  .step{padding:7px 4px;font-size:10px}
+}
+@media print{
+  body{background:#fff;color:#000}
+  .hd,.br,.pz,.noPrint{display:none!important}
+  .card{border:1px solid #ccc;break-inside:avoid}
+  .lp{border:2px solid #111}
+}
+</style>
+</head>
+<body>
+
+<div class="hd">
+  <div class="logo">FIRESCUE<small>v3</small></div>
+  <div class="sync"><span class="dot" id="dot"></span><span id="slbl">未連線</span></div>
+  <nav class="nav">
+    <button class="nb on" onclick="showPg('register',this)">登記</button>
+    <button class="nb" onclick="showPg('measure',this)">量測</button>
+    <button class="nb" onclick="showPg('records',this)">名冊</button>
+    <button class="nb" onclick="showPg('packing',this)">裝袋</button>
+    <button class="nb" onclick="showPg('export',this)">匯出</button>
+    <button class="nb" onclick="showPg('label',this)">標籤</button>
+    <button class="nb" onclick="showPg('chart',this)">尺碼表</button>
+    <button class="nb" onclick="showPg('admin',this)">後台</button>
+    <button class="nb" onclick="showPg('setup',this)">設定</button>
+  </nav>
+</div>
+
+<!-- ══ 01 REGISTER ════════════════════════════ -->
+<div class="pg on" id="pg-register">
+  <div class="pt">隊員尺寸登記</div>
+  <div class="ps">基本資料 → 系列 / 測量 → 確認尺碼 → 編碼 / 標籤</div>
+
+  <div class="steps">
+    <div class="step on" id="st1"><div class="sn">01</div>基本資料</div>
+    <div class="step" id="st2"><div class="sn">02</div>系列 / 測量</div>
+    <div class="step" id="st3"><div class="sn">03</div>確認尺碼</div>
+    <div class="step" id="st4"><div class="sn">04</div>編碼 / 標籤</div>
+  </div>
+
+  <!-- Step 1 -->
+  <div id="s1">
+    <div class="card">
+      <div class="ct">個人基本資訊</div>
+      <div class="fg fg3">
+        <div class="f"><label>姓名 *</label><input id="fname" placeholder="王大明"></div>
+        <div class="f"><label>人員識別碼（自動產生）</label><input id="fid" readonly placeholder="選單選擇後自動產生" style="color:var(--a2)"></div>
+        <div class="f"><label>登記日期</label><input type="date" id="fdate"></div>
+      </div>
+      <div class="fg fg2">
+        <div class="f"><label>所屬單位 *</label>
+          <input id="funit-search" placeholder="輸入縣市或分隊名稱快速搜尋…" autocomplete="off"
+            style="margin-bottom:5px;background:var(--surf);border:1px solid var(--accent);border-radius:4px;color:var(--text);font-size:13px;padding:8px 10px;width:100%;font-family:var(--sans);outline:none">
+          <select id="funit" size="1">
+            <option value="">— 請選擇單位 —</option>
+            <optgroup label="內政部消防署">
+              <option value="NFA-NFA|綜合企劃組|NFA">直屬行政・綜合企劃組</option>
+              <option value="NFA-NFA|災害管理組|NFA">直屬行政・災害管理組</option>
+              <option value="NFA-NFA|火災預防組|NFA">直屬行政・火災預防組</option>
+              <option value="NFA-NFA|災害搶救組|NFA">直屬行政・災害搶救組</option>
+              <option value="NFA-NFA|緊急救護組|NFA">直屬行政・緊急救護組</option>
+              <option value="NFA-NFA|救災救護指揮中心|NFA">直屬行政・救災救護指揮中心</option>
+              <option value="NFA-NFA|秘書室|NFA">直屬行政・秘書室</option>
+              <option value="NFA-NFA|北部基地(新店)|NFA">特種搜救大隊・北部基地(新店)</option>
+              <option value="NFA-NFA|中部基地(竹山)|NFA">特種搜救大隊・中部基地(竹山)</option>
+              <option value="NFA-NFA|南部基地(楠梓)|NFA">特種搜救大隊・南部基地(楠梓)</option>
+              <option value="NFA-NFA|東部基地(吉安)|NFA">特種搜救大隊・東部基地(吉安)</option>
+              <option value="NFA-NFA|基隆分隊|NFA">港務消防-基隆港隊・基隆分隊</option>
+              <option value="NFA-NFA|臺北分隊|NFA">港務消防-基隆港隊・臺北分隊</option>
+              <option value="NFA-NFA|蘇澳分隊|NFA">港務消防-基隆港隊・蘇澳分隊</option>
+              <option value="NFA-NFA|北堤分隊|NFA">港務消防-臺中港隊・北堤分隊</option>
+              <option value="NFA-NFA|中碼頭分隊|NFA">港務消防-臺中港隊・中碼頭分隊</option>
+              <option value="NFA-NFA|南碼頭分隊|NFA">港務消防-臺中港隊・南碼頭分隊</option>
+              <option value="NFA-NFA|蓬萊分隊|NFA">港務消防-高雄港隊・蓬萊分隊</option>
+              <option value="NFA-NFA|二號碼頭分隊|NFA">港務消防-高雄港隊・二號碼頭分隊</option>
+              <option value="NFA-NFA|六號碼頭分隊|NFA">港務消防-高雄港隊・六號碼頭分隊</option>
+              <option value="NFA-NFA|洲際分隊|NFA">港務消防-高雄港隊・洲際分隊</option>
+              <option value="NFA-NFA|花蓮港分隊|NFA">港務消防-花蓮港隊・花蓮港分隊</option>
+            </optgroup>
+            <optgroup label="臺北市政府消防局">
+              <option value="TPE-TPE|火災預防科|TPE">局本部・火災預防科</option>
+              <option value="TPE-TPE|災害搶救科|TPE">局本部・災害搶救科</option>
+              <option value="TPE-TPE|緊急救護科|TPE">局本部・緊急救護科</option>
+              <option value="TPE-TPE|救災救護指揮中心|TPE">局本部・救災救護指揮中心</option>
+              <option value="TPE-TPE|訓練中心|TPE">局本部・訓練中心</option>
+              <option value="TPE-TPE|秘書室|TPE">局本部・秘書室</option>
+              <option value="TPE-TPE|中正分隊|TPE">第1大隊-中正中隊・中正分隊</option>
+              <option value="TPE-TPE|忠孝分隊|TPE">第1大隊-中正中隊・忠孝分隊</option>
+              <option value="TPE-TPE|泉州分隊|TPE">第1大隊-中正中隊・泉州分隊</option>
+              <option value="TPE-TPE|城中分隊|TPE">第1大隊-中正中隊・城中分隊</option>
+              <option value="TPE-TPE|萬華分隊|TPE">第1大隊-萬華中隊・萬華分隊</option>
+              <option value="TPE-TPE|龍山分隊|TPE">第1大隊-萬華中隊・龍山分隊</option>
+              <option value="TPE-TPE|雙園分隊|TPE">第1大隊-萬華中隊・雙園分隊</option>
+              <option value="TPE-TPE|文山分隊|TPE">第1大隊-文山中隊・文山分隊</option>
+              <option value="TPE-TPE|寶橋分隊|TPE">第1大隊-文山中隊・寶橋分隊</option>
+              <option value="TPE-TPE|木柵分隊|TPE">第1大隊-文山中隊・木柵分隊</option>
+              <option value="TPE-TPE|景美分隊|TPE">第1大隊-文山中隊・景美分隊</option>
+              <option value="TPE-TPE|大安分隊|TPE">第2大隊-大安中隊・大安分隊</option>
+              <option value="TPE-TPE|金華分隊|TPE">第2大隊-大安中隊・金華分隊</option>
+              <option value="TPE-TPE|復興分隊|TPE">第2大隊-大安中隊・復興分隊</option>
+              <option value="TPE-TPE|信義分隊|TPE">第2大隊-信義中隊・信義分隊</option>
+              <option value="TPE-TPE|永吉分隊|TPE">第2大隊-信義中隊・永吉分隊</option>
+              <option value="TPE-TPE|莊敬分隊|TPE">第2大隊-信義中隊・莊敬分隊</option>
+              <option value="TPE-TPE|南港分隊|TPE">第2大隊-南港中隊・南港分隊</option>
+              <option value="TPE-TPE|舊莊分隊|TPE">第2大隊-南港中隊・舊莊分隊</option>
+              <option value="TPE-TPE|內湖分隊|TPE">第2大隊-內湖中隊・內湖分隊</option>
+              <option value="TPE-TPE|大湖分隊|TPE">第2大隊-內湖中隊・大湖分隊</option>
+              <option value="TPE-TPE|東湖分隊|TPE">第2大隊-內湖中隊・東湖分隊</option>
+              <option value="TPE-TPE|中山分隊|TPE">第3大隊-中山中隊・中山分隊</option>
+              <option value="TPE-TPE|松江分隊|TPE">第3大隊-中山中隊・松江分隊</option>
+              <option value="TPE-TPE|大直分隊|TPE">第3大隊-中山中隊・大直分隊</option>
+              <option value="TPE-TPE|松山分隊|TPE">第3大隊-松山中隊・松山分隊</option>
+              <option value="TPE-TPE|民生分隊|TPE">第3大隊-松山中隊・民生分隊</option>
+              <option value="TPE-TPE|建成分隊|TPE">第3大隊-大同中隊・建成分隊</option>
+              <option value="TPE-TPE|延平分隊|TPE">第3大隊-大同中隊・延平分隊</option>
+              <option value="TPE-TPE|大同分隊|TPE">第3大隊-大同中隊・大同分隊</option>
+              <option value="TPE-TPE|士林分隊|TPE">第4大隊-士林中隊・士林分隊</option>
+              <option value="TPE-TPE|天母分隊|TPE">第4大隊-士林中隊・天母分隊</option>
+              <option value="TPE-TPE|福安分隊|TPE">第4大隊-士林中隊・福安分隊</option>
+              <option value="TPE-TPE|社子分隊|TPE">第4大隊-士林中隊・社子分隊</option>
+              <option value="TPE-TPE|劍潭分隊|TPE">第4大隊-士林中隊・劍潭分隊</option>
+              <option value="TPE-TPE|雙溪分隊|TPE">第4大隊-士林中隊・雙溪分隊</option>
+              <option value="TPE-TPE|陽明山分隊|TPE">第4大隊-士林中隊・陽明山分隊</option>
+              <option value="TPE-TPE|光明分隊|TPE">第4大隊-北投中隊・光明分隊</option>
+              <option value="TPE-TPE|關渡分隊|TPE">第4大隊-北投中隊・關渡分隊</option>
+              <option value="TPE-TPE|石牌分隊|TPE">第4大隊-北投中隊・石牌分隊</option>
+              <option value="TPE-TPE|秀山分隊|TPE">第4大隊-北投中隊・秀山分隊</option>
+              <option value="TPE-TPE|建國分隊|TPE">特搜大隊・建國分隊</option>
+              <option value="TPE-TPE|後港分隊|TPE">特搜大隊・後港分隊</option>
+              <option value="TPE-TPE|大路分隊|TPE">特搜大隊・大路分隊</option>
+            </optgroup>
+            <optgroup label="新北市政府消防局">
+              <option value="NTP-NTP|莒光分隊|NTP">第1大隊(板橋)・莒光分隊</option>
+              <option value="NTP-NTP|新板分隊|NTP">第1大隊(板橋)・新板分隊</option>
+              <option value="NTP-NTP|板橋分隊|NTP">第1大隊(板橋)・板橋分隊</option>
+              <option value="NTP-NTP|大觀分隊|NTP">第1大隊(板橋)・大觀分隊</option>
+              <option value="NTP-NTP|海山分隊|NTP">第1大隊(板橋)・海山分隊</option>
+              <option value="NTP-NTP|民生分隊|NTP">第1大隊(板橋)・民生分隊</option>
+              <option value="NTP-NTP|溪崑分隊|NTP">第1大隊(板橋)・溪崑分隊</option>
+              <option value="NTP-NTP|五工分隊|NTP">第2大隊(新莊)・五工分隊</option>
+              <option value="NTP-NTP|裕民分隊|NTP">第2大隊(新莊)・裕民分隊</option>
+              <option value="NTP-NTP|五股分隊|NTP">第2大隊(新莊)・五股分隊</option>
+              <option value="NTP-NTP|更寮分隊|NTP">第2大隊(新莊)・更寮分隊</option>
+              <option value="NTP-NTP|林口分隊|NTP">第2大隊(新莊)・林口分隊</option>
+              <option value="NTP-NTP|文化分隊|NTP">第2大隊(新莊)・文化分隊</option>
+              <option value="NTP-NTP|福營分隊|NTP">第2大隊(新莊)・福營分隊</option>
+              <option value="NTP-NTP|新莊分隊|NTP">第2大隊(新莊)・新莊分隊</option>
+              <option value="NTP-NTP|中港分隊|NTP">第2大隊(新莊)・中港分隊</option>
+              <option value="NTP-NTP|頭前分隊|NTP">第2大隊(新莊)・頭前分隊</option>
+              <option value="NTP-NTP|泰山分隊|NTP">第2大隊(新莊)・泰山分隊</option>
+              <option value="NTP-NTP|三重分隊|NTP">第3大隊(三重)・三重分隊</option>
+              <option value="NTP-NTP|光興分隊|NTP">第3大隊(三重)・光興分隊</option>
+              <option value="NTP-NTP|重陽分隊|NTP">第3大隊(三重)・重陽分隊</option>
+              <option value="NTP-NTP|二重分隊|NTP">第3大隊(三重)・二重分隊</option>
+              <option value="NTP-NTP|蘆洲分隊|NTP">第3大隊(三重)・蘆洲分隊</option>
+              <option value="NTP-NTP|鷺江分隊|NTP">第3大隊(三重)・鷺江分隊</option>
+              <option value="NTP-NTP|八里分隊|NTP">第3大隊(三重)・八里分隊</option>
+              <option value="NTP-NTP|龍源分隊|NTP">第3大隊(三重)・龍源分隊</option>
+              <option value="NTP-NTP|淡水分隊|NTP">第3大隊(三重)・淡水分隊</option>
+              <option value="NTP-NTP|竹圍分隊|NTP">第3大隊(三重)・竹圍分隊</option>
+              <option value="NTP-NTP|三芝分隊|NTP">第3大隊(三重)・三芝分隊</option>
+              <option value="NTP-NTP|滬尾分隊|NTP">第3大隊(三重)・滬尾分隊</option>
+              <option value="NTP-NTP|新店分隊|NTP">第4大隊(新店)・新店分隊</option>
+              <option value="NTP-NTP|直潭分隊|NTP">第4大隊(新店)・直潭分隊</option>
+              <option value="NTP-NTP|安康分隊|NTP">第4大隊(新店)・安康分隊</option>
+              <option value="NTP-NTP|安和分隊|NTP">第4大隊(新店)・安和分隊</option>
+              <option value="NTP-NTP|深坑分隊|NTP">第4大隊(新店)・深坑分隊</option>
+              <option value="NTP-NTP|石碇分隊|NTP">第4大隊(新店)・石碇分隊</option>
+              <option value="NTP-NTP|坪林分隊|NTP">第4大隊(新店)・坪林分隊</option>
+              <option value="NTP-NTP|雪山分隊|NTP">第4大隊(新店)・雪山分隊</option>
+              <option value="NTP-NTP|烏來分隊|NTP">第4大隊(新店)・烏來分隊</option>
+              <option value="NTP-NTP|土城分隊|NTP">第5大隊(土城)・土城分隊</option>
+              <option value="NTP-NTP|清水分隊|NTP">第5大隊(土城)・清水分隊</option>
+              <option value="NTP-NTP|頂埔分隊|NTP">第5大隊(土城)・頂埔分隊</option>
+              <option value="NTP-NTP|三峽分隊|NTP">第5大隊(土城)・三峽分隊</option>
+              <option value="NTP-NTP|隆恩分隊|NTP">第5大隊(土城)・隆恩分隊</option>
+              <option value="NTP-NTP|樹林分隊|NTP">第5大隊(土城)・樹林分隊</option>
+              <option value="NTP-NTP|樹潭分隊|NTP">第5大隊(土城)・樹潭分隊</option>
+              <option value="NTP-NTP|柑園分隊|NTP">第5大隊(土城)・柑園分隊</option>
+              <option value="NTP-NTP|鶯歌分隊|NTP">第5大隊(土城)・鶯歌分隊</option>
+              <option value="NTP-NTP|鳳鳴分隊|NTP">第5大隊(土城)・鳳鳴分隊</option>
+              <option value="NTP-NTP|汐止分隊|NTP">第6大隊(汐止)・汐止分隊</option>
+              <option value="NTP-NTP|社後分隊|NTP">第6大隊(汐止)・社後分隊</option>
+              <option value="NTP-NTP|長青分隊|NTP">第6大隊(汐止)・長青分隊</option>
+              <option value="NTP-NTP|橫科分隊|NTP">第6大隊(汐止)・橫科分隊</option>
+              <option value="NTP-NTP|保長分隊|NTP">第6大隊(汐止)・保長分隊</option>
+              <option value="NTP-NTP|瑞芳分隊|NTP">第6大隊(汐止)・瑞芳分隊</option>
+              <option value="NTP-NTP|九份分隊|NTP">第6大隊(汐止)・九份分隊</option>
+              <option value="NTP-NTP|金山分隊|NTP">第6大隊(汐止)・金山分隊</option>
+              <option value="NTP-NTP|石門分隊|NTP">第6大隊(汐止)・石門分隊</option>
+              <option value="NTP-NTP|萬里分隊|NTP">第6大隊(汐止)・萬里分隊</option>
+              <option value="NTP-NTP|雙溪分隊|NTP">第6大隊(汐止)・雙溪分隊</option>
+              <option value="NTP-NTP|貢寮分隊|NTP">第6大隊(汐止)・貢寮分隊</option>
+              <option value="NTP-NTP|平溪分隊|NTP">第6大隊(汐止)・平溪分隊</option>
+              <option value="NTP-NTP|永和分隊|NTP">第7大隊(中永和)・永和分隊</option>
+              <option value="NTP-NTP|永利分隊|NTP">第7大隊(中永和)・永利分隊</option>
+              <option value="NTP-NTP|永平分隊|NTP">第7大隊(中永和)・永平分隊</option>
+              <option value="NTP-NTP|中和分隊|NTP">第7大隊(中永和)・中和分隊</option>
+              <option value="NTP-NTP|員山分隊|NTP">第7大隊(中永和)・員山分隊</option>
+              <option value="NTP-NTP|南勢分隊|NTP">第7大隊(中永和)・南勢分隊</option>
+              <option value="NTP-NTP|國光分隊|NTP">第7大隊(中永和)・國光分隊</option>
+              <option value="NTP-NTP|南雅分隊|NTP">特搜大隊・南雅分隊</option>
+              <option value="NTP-NTP|德音分隊|NTP">特搜大隊・德音分隊</option>
+              <option value="NTP-NTP|慈福分隊|NTP">特搜大隊・慈福分隊</option>
+              <option value="NTP-NTP|秀峰分隊|NTP">特搜大隊・秀峰分隊</option>
+              <option value="NTP-NTP|大埔分隊|NTP">特搜大隊・大埔分隊</option>
+              <option value="NTP-NTP|七賢分隊|NTP">特搜大隊・七賢分隊</option>
+            </optgroup>
+            <optgroup label="桃園市政府消防局">
+              <option value="TYN-TYN|桃園分隊|TYN">第1大隊・桃園分隊</option>
+              <option value="TYN-TYN|中路分隊|TYN">第1大隊・中路分隊</option>
+              <option value="TYN-TYN|大林分隊|TYN">第1大隊・大林分隊</option>
+              <option value="TYN-TYN|三民分隊|TYN">第1大隊・三民分隊</option>
+              <option value="TYN-TYN|龜山分隊|TYN">第1大隊・龜山分隊</option>
+              <option value="TYN-TYN|坪頂分隊|TYN">第1大隊・坪頂分隊</option>
+              <option value="TYN-TYN|迴龍分隊|TYN">第1大隊・迴龍分隊</option>
+              <option value="TYN-TYN|八德分隊|TYN">第1大隊・八德分隊</option>
+              <option value="TYN-TYN|大湳分隊|TYN">第1大隊・大湳分隊</option>
+              <option value="TYN-TYN|茄苳分隊|TYN">第1大隊・茄苳分隊</option>
+              <option value="TYN-TYN|中壢分隊|TYN">第2大隊・中壢分隊</option>
+              <option value="TYN-TYN|興國分隊|TYN">第2大隊・興國分隊</option>
+              <option value="TYN-TYN|內壢分隊|TYN">第2大隊・內壢分隊</option>
+              <option value="TYN-TYN|華勛分隊|TYN">第2大隊・華勛分隊</option>
+              <option value="TYN-TYN|龍岡分隊|TYN">第2大隊・龍岡分隊</option>
+              <option value="TYN-TYN|楊梅分隊|TYN">第2大隊・楊梅分隊</option>
+              <option value="TYN-TYN|幼獅分隊|TYN">第2大隊・幼獅分隊</option>
+              <option value="TYN-TYN|富岡分隊|TYN">第2大隊・富岡分隊</option>
+              <option value="TYN-TYN|草湳分隊|TYN">第2大隊・草湳分隊</option>
+              <option value="TYN-TYN|新屋分隊|TYN">第2大隊・新屋分隊</option>
+              <option value="TYN-TYN|永安分隊|TYN">第2大隊・永安分隊</option>
+              <option value="TYN-TYN|蘆竹分隊|TYN">第3大隊・蘆竹分隊</option>
+              <option value="TYN-TYN|山腳分隊|TYN">第3大隊・山腳分隊</option>
+              <option value="TYN-TYN|大竹分隊|TYN">第3大隊・大竹分隊</option>
+              <option value="TYN-TYN|大園分隊|TYN">第3大隊・大園分隊</option>
+              <option value="TYN-TYN|竹圍分隊|TYN">第3大隊・竹圍分隊</option>
+              <option value="TYN-TYN|觀音分隊|TYN">第3大隊・觀音分隊</option>
+              <option value="TYN-TYN|新坡分隊|TYN">第3大隊・新坡分隊</option>
+              <option value="TYN-TYN|草漯分隊|TYN">第3大隊・草漯分隊</option>
+              <option value="TYN-TYN|圳頂分隊|TYN">第4大隊・圳頂分隊</option>
+              <option value="TYN-TYN|大溪分隊|TYN">第4大隊・大溪分隊</option>
+              <option value="TYN-TYN|平鎮分隊|TYN">第4大隊・平鎮分隊</option>
+              <option value="TYN-TYN|復旦分隊|TYN">第4大隊・復旦分隊</option>
+              <option value="TYN-TYN|山峰分隊|TYN">第4大隊・山峰分隊</option>
+              <option value="TYN-TYN|龍潭分隊|TYN">第4大隊・龍潭分隊</option>
+              <option value="TYN-TYN|高平分隊|TYN">第4大隊・高平分隊</option>
+              <option value="TYN-TYN|復興分隊|TYN">第4大隊・復興分隊</option>
+              <option value="TYN-TYN|巴陵分隊|TYN">第4大隊・巴陵分隊</option>
+              <option value="TYN-TYN|第一搜救分隊|TYN">特搜大隊・第一搜救分隊</option>
+              <option value="TYN-TYN|第二搜救分隊|TYN">特搜大隊・第二搜救分隊</option>
+              <option value="TYN-TYN|第三搜救分隊|TYN">特搜大隊・第三搜救分隊</option>
+              <option value="TYN-TYN|第四搜救分隊|TYN">特搜大隊・第四搜救分隊</option>
+            </optgroup>
+            <optgroup label="臺中市政府消防局">
+              <option value="TXG-TXG|豐原分隊|TXG">第1大隊・豐原分隊</option>
+              <option value="TXG-TXG|神岡分隊|TXG">第1大隊・神岡分隊</option>
+              <option value="TXG-TXG|潭子分隊|TXG">第1大隊・潭子分隊</option>
+              <option value="TXG-TXG|大雅分隊|TXG">第1大隊・大雅分隊</option>
+              <option value="TXG-TXG|頭家厝分隊|TXG">第1大隊・頭家厝分隊</option>
+              <option value="TXG-TXG|東勢分隊|TXG">第2大隊・東勢分隊</option>
+              <option value="TXG-TXG|新社分隊|TXG">第2大隊・新社分隊</option>
+              <option value="TXG-TXG|石岡分隊|TXG">第2大隊・石岡分隊</option>
+              <option value="TXG-TXG|和平分隊|TXG">第2大隊・和平分隊</option>
+              <option value="TXG-TXG|谷關分隊|TXG">第2大隊・谷關分隊</option>
+              <option value="TXG-TXG|梨山分隊|TXG">第2大隊・梨山分隊</option>
+              <option value="TXG-TXG|太平分隊|TXG">第3大隊・太平分隊</option>
+              <option value="TXG-TXG|中山分隊|TXG">第3大隊・中山分隊</option>
+              <option value="TXG-TXG|大里分隊|TXG">第3大隊・大里分隊</option>
+              <option value="TXG-TXG|十九甲分隊|TXG">第3大隊・十九甲分隊</option>
+              <option value="TXG-TXG|霧峰分隊|TXG">第3大隊・霧峰分隊</option>
+              <option value="TXG-TXG|溪新分隊|TXG">第3大隊・溪新分隊</option>
+              <option value="TXG-TXG|清水分隊|TXG">第4大隊・清水分隊</option>
+              <option value="TXG-TXG|沙鹿分隊|TXG">第4大隊・沙鹿分隊</option>
+              <option value="TXG-TXG|龍井分隊|TXG">第4大隊・龍井分隊</option>
+              <option value="TXG-TXG|大肚分隊|TXG">第4大隊・大肚分隊</option>
+              <option value="TXG-TXG|梧棲分隊|TXG">第4大隊・梧棲分隊</option>
+              <option value="TXG-TXG|大甲分隊|TXG">第5大隊・大甲分隊</option>
+              <option value="TXG-TXG|幼獅分隊|TXG">第5大隊・幼獅分隊</option>
+              <option value="TXG-TXG|外埔分隊|TXG">第5大隊・外埔分隊</option>
+              <option value="TXG-TXG|大安分隊|TXG">第5大隊・大安分隊</option>
+              <option value="TXG-TXG|黎明分隊|TXG">第6大隊・黎明分隊</option>
+              <option value="TXG-TXG|南屯分隊|TXG">第6大隊・南屯分隊</option>
+              <option value="TXG-TXG|春社分隊|TXG">第6大隊・春社分隊</option>
+              <option value="TXG-TXG|工業區分隊|TXG">第6大隊・工業區分隊</option>
+              <option value="TXG-TXG|協和分隊|TXG">第6大隊・協和分隊</option>
+              <option value="TXG-TXG|中港分隊|TXG">第7大隊・中港分隊</option>
+              <option value="TXG-TXG|信義分隊|TXG">第7大隊・信義分隊</option>
+              <option value="TXG-TXG|勤工分隊|TXG">第7大隊・勤工分隊</option>
+              <option value="TXG-TXG|中區分隊|TXG">第7大隊・中區分隊</option>
+              <option value="TXG-TXG|大誠分隊|TXG">第7大隊・大誠分隊</option>
+              <option value="TXG-TXG|北屯分隊|TXG">第8大隊・北屯分隊</option>
+              <option value="TXG-TXG|四平分隊|TXG">第8大隊・四平分隊</option>
+              <option value="TXG-TXG|東山分隊|TXG">第8大隊・東山分隊</option>
+              <option value="TXG-TXG|水湳分隊|TXG">第8大隊・水湳分隊</option>
+              <option value="TXG-TXG|西屯分隊|TXG">特搜大隊・西屯分隊</option>
+              <option value="TXG-TXG|國光分隊|TXG">特搜大隊・國光分隊</option>
+              <option value="TXG-TXG|大誠特搜分隊|TXG">特搜大隊・大誠特搜分隊</option>
+            </optgroup>
+            <optgroup label="高雄市政府消防局">
+              <option value="KHH-KHH|新興分隊|KHH">第1大隊・新興分隊</option>
+              <option value="KHH-KHH|苓雅分隊|KHH">第1大隊・苓雅分隊</option>
+              <option value="KHH-KHH|旗津分隊|KHH">第1大隊・旗津分隊</option>
+              <option value="KHH-KHH|成功分隊|KHH">第1大隊・成功分隊</option>
+              <option value="KHH-KHH|前鎮分隊|KHH">第1大隊・前鎮分隊</option>
+              <option value="KHH-KHH|瑞隆分隊|KHH">第1大隊・瑞隆分隊</option>
+              <option value="KHH-KHH|左營分隊|KHH">第2大隊・左營分隊</option>
+              <option value="KHH-KHH|新莊分隊|KHH">第2大隊・新莊分隊</option>
+              <option value="KHH-KHH|中華分隊|KHH">第2大隊・中華分隊</option>
+              <option value="KHH-KHH|鼎金分隊|KHH">第2大隊・鼎金分隊</option>
+              <option value="KHH-KHH|鼓山分隊|KHH">第2大隊・鼓山分隊</option>
+              <option value="KHH-KHH|鳳山分隊|KHH">第3大隊・鳳山分隊</option>
+              <option value="KHH-KHH|五甲分隊|KHH">第3大隊・五甲分隊</option>
+              <option value="KHH-KHH|鳳祥分隊|KHH">第3大隊・鳳祥分隊</option>
+              <option value="KHH-KHH|大寮分隊|KHH">第3大隊・大寮分隊</option>
+              <option value="KHH-KHH|中庄分隊|KHH">第3大隊・中庄分隊</option>
+              <option value="KHH-KHH|林園分隊|KHH">第3大隊・林園分隊</option>
+              <option value="KHH-KHH|仁武分隊|KHH">第4大隊・仁武分隊</option>
+              <option value="KHH-KHH|鳥松分隊|KHH">第4大隊・鳥松分隊</option>
+              <option value="KHH-KHH|大社分隊|KHH">第4大隊・大社分隊</option>
+              <option value="KHH-KHH|大樹分隊|KHH">第4大隊・大樹分隊</option>
+              <option value="KHH-KHH|楠梓分隊|KHH">第4大隊・楠梓分隊</option>
+              <option value="KHH-KHH|右昌分隊|KHH">第4大隊・右昌分隊</option>
+              <option value="KHH-KHH|岡山分隊|KHH">第5大隊・岡山分隊</option>
+              <option value="KHH-KHH|路竹分隊|KHH">第5大隊・路竹分隊</option>
+              <option value="KHH-KHH|茄萣分隊|KHH">第5大隊・茄萣分隊</option>
+              <option value="KHH-KHH|永安分隊|KHH">第5大隊・永安分隊</option>
+              <option value="KHH-KHH|彌陀分隊|KHH">第5大隊・彌陀分隊</option>
+              <option value="KHH-KHH|梓官分隊|KHH">第5大隊・梓官分隊</option>
+              <option value="KHH-KHH|阿蓮分隊|KHH">第5大隊・阿蓮分隊</option>
+              <option value="KHH-KHH|湖內分隊|KHH">第5大隊・湖內分隊</option>
+              <option value="KHH-KHH|橋頭分隊|KHH">第5大隊・橋頭分隊</option>
+              <option value="KHH-KHH|田寮分隊|KHH">第5大隊・田寮分隊</option>
+              <option value="KHH-KHH|旗山分隊|KHH">第6大隊・旗山分隊</option>
+              <option value="KHH-KHH|美濃分隊|KHH">第6大隊・美濃分隊</option>
+              <option value="KHH-KHH|內門分隊|KHH">第6大隊・內門分隊</option>
+              <option value="KHH-KHH|杉林分隊|KHH">第6大隊・杉林分隊</option>
+              <option value="KHH-KHH|甲仙分隊|KHH">第6大隊・甲仙分隊</option>
+              <option value="KHH-KHH|六龜分隊|KHH">第6大隊・六龜分隊</option>
+              <option value="KHH-KHH|寶來分隊|KHH">第6大隊・寶來分隊</option>
+              <option value="KHH-KHH|那瑪夏分隊|KHH">第6大隊・那瑪夏分隊</option>
+              <option value="KHH-KHH|桃源分隊|KHH">第6大隊・桃源分隊</option>
+              <option value="KHH-KHH|茂林分隊|KHH">第6大隊・茂林分隊</option>
+              <option value="KHH-KHH|第一特搜分隊|KHH">特搜大隊・第一特搜分隊</option>
+              <option value="KHH-KHH|第二特搜分隊|KHH">特搜大隊・第二特搜分隊</option>
+            </optgroup>
+            <optgroup label="基隆市消防局">
+              <option value="KEL-KEL|仁愛分隊|KEL">第1大隊・仁愛分隊</option>
+              <option value="KEL-KEL|信義分隊|KEL">第1大隊・信義分隊</option>
+              <option value="KEL-KEL|中山分隊|KEL">第1大隊・中山分隊</option>
+              <option value="KEL-KEL|七堵分隊|KEL">第2大隊・七堵分隊</option>
+              <option value="KEL-KEL|暖暖分隊|KEL">第2大隊・暖暖分隊</option>
+              <option value="KEL-KEL|安樂分隊|KEL">第2大隊・安樂分隊</option>
+              <option value="KEL-KEL|信二分隊|KEL">第2大隊・信二分隊</option>
+            </optgroup>
+            <optgroup label="宜蘭縣政府消防局">
+              <option value="ILN-ILN|宜蘭分隊|ILN">第1大隊・宜蘭分隊</option>
+              <option value="ILN-ILN|壯圍分隊|ILN">第1大隊・壯圍分隊</option>
+              <option value="ILN-ILN|員山分隊|ILN">第1大隊・員山分隊</option>
+              <option value="ILN-ILN|礁溪分隊|ILN">第1大隊・礁溪分隊</option>
+              <option value="ILN-ILN|頭城分隊|ILN">第1大隊・頭城分隊</option>
+              <option value="ILN-ILN|大同分隊|ILN">第1大隊・大同分隊</option>
+              <option value="ILN-ILN|羅東分隊|ILN">第2大隊・羅東分隊</option>
+              <option value="ILN-ILN|五結分隊|ILN">第2大隊・五結分隊</option>
+              <option value="ILN-ILN|三星分隊|ILN">第2大隊・三星分隊</option>
+              <option value="ILN-ILN|冬山分隊|ILN">第2大隊・冬山分隊</option>
+              <option value="ILN-ILN|蘇澳分隊|ILN">第2大隊・蘇澳分隊</option>
+              <option value="ILN-ILN|南方澳分隊|ILN">第2大隊・南方澳分隊</option>
+              <option value="ILN-ILN|馬賽分隊|ILN">第2大隊・馬賽分隊</option>
+              <option value="ILN-ILN|南澳分隊|ILN">第2大隊・南澳分隊</option>
+              <option value="ILN-ILN|特種搜救分隊|ILN">特搜大隊・特種搜救分隊</option>
+            </optgroup>
+            <optgroup label="新竹市消防局">
+              <option value="HSZ-HSZ|竹光分隊|HSZ">第1大隊・竹光分隊</option>
+              <option value="HSZ-HSZ|中山分隊|HSZ">第1大隊・中山分隊</option>
+              <option value="HSZ-HSZ|三民分隊|HSZ">第1大隊・三民分隊</option>
+              <option value="HSZ-HSZ|南寮分隊|HSZ">第1大隊・南寮分隊</option>
+              <option value="HSZ-HSZ|香山分隊|HSZ">第1大隊・香山分隊</option>
+              <option value="HSZ-HSZ|朝山分隊|HSZ">第1大隊・朝山分隊</option>
+              <option value="HSZ-HSZ|埔頂分隊|HSZ">第2大隊・埔頂分隊</option>
+              <option value="HSZ-HSZ|金山分隊|HSZ">第2大隊・金山分隊</option>
+              <option value="HSZ-HSZ|光復分隊|HSZ">第2大隊・光復分隊</option>
+              <option value="HSZ-HSZ|明湖分隊|HSZ">第2大隊・明湖分隊</option>
+            </optgroup>
+            <optgroup label="新竹縣政府消防局">
+              <option value="HSQ-HSQ|竹北分隊|HSQ">第1大隊・竹北分隊</option>
+              <option value="HSQ-HSQ|光明分隊|HSQ">第1大隊・光明分隊</option>
+              <option value="HSQ-HSQ|豐田分隊|HSQ">第1大隊・豐田分隊</option>
+              <option value="HSQ-HSQ|山崎分隊|HSQ">第1大隊・山崎分隊</option>
+              <option value="HSQ-HSQ|新豐分隊|HSQ">第1大隊・新豐分隊</option>
+              <option value="HSQ-HSQ|湖口分隊|HSQ">第1大隊・湖口分隊</option>
+              <option value="HSQ-HSQ|竹東分隊|HSQ">第2大隊・竹東分隊</option>
+              <option value="HSQ-HSQ|二重分隊|HSQ">第2大隊・二重分隊</option>
+              <option value="HSQ-HSQ|橫山分隊|HSQ">第2大隊・橫山分隊</option>
+              <option value="HSQ-HSQ|芎林分隊|HSQ">第2大隊・芎林分隊</option>
+              <option value="HSQ-HSQ|北埔分隊|HSQ">第2大隊・北埔分隊</option>
+              <option value="HSQ-HSQ|峨眉分隊|HSQ">第2大隊・峨眉分隊</option>
+              <option value="HSQ-HSQ|五峰分隊|HSQ">第2大隊・五峰分隊</option>
+              <option value="HSQ-HSQ|新埔分隊|HSQ">第3大隊・新埔分隊</option>
+              <option value="HSQ-HSQ|關西分隊|HSQ">第3大隊・關西分隊</option>
+              <option value="HSQ-HSQ|寶山分隊|HSQ">第3大隊・寶山分隊</option>
+              <option value="HSQ-HSQ|尖石分隊|HSQ">第3大隊・尖石分隊</option>
+            </optgroup>
+            <optgroup label="苗栗縣政府消防局">
+              <option value="MIA-MIA|苗栗分隊|MIA">第1大隊・苗栗分隊</option>
+              <option value="MIA-MIA|頭屋分隊|MIA">第1大隊・頭屋分隊</option>
+              <option value="MIA-MIA|公館分隊|MIA">第1大隊・公館分隊</option>
+              <option value="MIA-MIA|銅鑼分隊|MIA">第1大隊・銅鑼分隊</option>
+              <option value="MIA-MIA|三義分隊|MIA">第1大隊・三義分隊</option>
+              <option value="MIA-MIA|特搜分隊|MIA">第1大隊・特搜分隊</option>
+              <option value="MIA-MIA|竹南分隊|MIA">第2大隊・竹南分隊</option>
+              <option value="MIA-MIA|後龍分隊|MIA">第2大隊・後龍分隊</option>
+              <option value="MIA-MIA|造橋分隊|MIA">第2大隊・造橋分隊</option>
+              <option value="MIA-MIA|頭份分隊|MIA">第3大隊・頭份分隊</option>
+              <option value="MIA-MIA|三灣分隊|MIA">第3大隊・三灣分隊</option>
+              <option value="MIA-MIA|南庄分隊|MIA">第3大隊・南庄分隊</option>
+              <option value="MIA-MIA|通霄分隊|MIA">第4大隊・通霄分隊</option>
+              <option value="MIA-MIA|苑裡分隊|MIA">第4大隊・苑裡分隊</option>
+              <option value="MIA-MIA|西湖分隊|MIA">第4大隊・西湖分隊</option>
+              <option value="MIA-MIA|大湖分隊|MIA">第5大隊・大湖分隊</option>
+              <option value="MIA-MIA|卓蘭分隊|MIA">第5大隊・卓蘭分隊</option>
+              <option value="MIA-MIA|泰安分隊|MIA">第5大隊・泰安分隊</option>
+              <option value="MIA-MIA|獅潭分隊|MIA">第5大隊・獅潭分隊</option>
+            </optgroup>
+            <optgroup label="彰化縣消防局">
+              <option value="CWH-CWH|彰化分隊|CWH">第1大隊・彰化分隊</option>
+              <option value="CWH-CWH|彰化東區分隊|CWH">第1大隊・彰化東區分隊</option>
+              <option value="CWH-CWH|和美分隊|CWH">第1大隊・和美分隊</option>
+              <option value="CWH-CWH|伸港分隊|CWH">第1大隊・伸港分隊</option>
+              <option value="CWH-CWH|線西分隊|CWH">第1大隊・線西分隊</option>
+              <option value="CWH-CWH|花壇分隊|CWH">第1大隊・花壇分隊</option>
+              <option value="CWH-CWH|芬園分隊|CWH">第1大隊・芬園分隊</option>
+              <option value="CWH-CWH|員林分隊|CWH">第2大隊・員林分隊</option>
+              <option value="CWH-CWH|員林西區分隊|CWH">第2大隊・員林西區分隊</option>
+              <option value="CWH-CWH|大村分隊|CWH">第2大隊・大村分隊</option>
+              <option value="CWH-CWH|田中分隊|CWH">第2大隊・田中分隊</option>
+              <option value="CWH-CWH|二水分隊|CWH">第2大隊・二水分隊</option>
+              <option value="CWH-CWH|永靖分隊|CWH">第2大隊・永靖分隊</option>
+              <option value="CWH-CWH|社頭分隊|CWH">第2大隊・社頭分隊</option>
+              <option value="CWH-CWH|鹿港分隊|CWH">第3大隊・鹿港分隊</option>
+              <option value="CWH-CWH|福興分隊|CWH">第3大隊・福興分隊</option>
+              <option value="CWH-CWH|溪湖分隊|CWH">第3大隊・溪湖分隊</option>
+              <option value="CWH-CWH|埔鹽分隊|CWH">第3大隊・埔鹽分隊</option>
+              <option value="CWH-CWH|埔心分隊|CWH">第3大隊・埔心分隊</option>
+              <option value="CWH-CWH|秀水分隊|CWH">第3大隊・秀水分隊</option>
+              <option value="CWH-CWH|二林分隊|CWH">第4大隊・二林分隊</option>
+              <option value="CWH-CWH|芳苑分隊|CWH">第4大隊・芳苑分隊</option>
+              <option value="CWH-CWH|大城分隊|CWH">第4大隊・大城分隊</option>
+              <option value="CWH-CWH|竹塘分隊|CWH">第4大隊・竹塘分隊</option>
+              <option value="CWH-CWH|埤頭分隊|CWH">第4大隊・埤頭分隊</option>
+              <option value="CWH-CWH|溪州分隊|CWH">第4大隊・溪州分隊</option>
+              <option value="CWH-CWH|北斗分隊|CWH">第4大隊・北斗分隊</option>
+              <option value="CWH-CWH|田尾分隊|CWH">第4大隊・田尾分隊</option>
+            </optgroup>
+            <optgroup label="南投縣政府消防局">
+              <option value="NAN-NAN|南投分隊|NAN">第1大隊・南投分隊</option>
+              <option value="NAN-NAN|碧興分隊|NAN">第1大隊・碧興分隊</option>
+              <option value="NAN-NAN|中興分隊|NAN">第1大隊・中興分隊</option>
+              <option value="NAN-NAN|草屯分隊|NAN">第1大隊・草屯分隊</option>
+              <option value="NAN-NAN|雙冬分隊|NAN">第1大隊・雙冬分隊</option>
+              <option value="NAN-NAN|名間分隊|NAN">第1大隊・名間分隊</option>
+              <option value="NAN-NAN|埔里分隊|NAN">第2大隊・埔里分隊</option>
+              <option value="NAN-NAN|中心碑分隊|NAN">第2大隊・中心碑分隊</option>
+              <option value="NAN-NAN|國姓分隊|NAN">第2大隊・國姓分隊</option>
+              <option value="NAN-NAN|魚池分隊|NAN">第2大隊・魚池分隊</option>
+              <option value="NAN-NAN|日月潭分隊|NAN">第2大隊・日月潭分隊</option>
+              <option value="NAN-NAN|竹山分隊|NAN">第3大隊・竹山分隊</option>
+              <option value="NAN-NAN|鹿谷分隊|NAN">第3大隊・鹿谷分隊</option>
+              <option value="NAN-NAN|集集分隊|NAN">第3大隊・集集分隊</option>
+              <option value="NAN-NAN|水里分隊|NAN">第3大隊・水里分隊</option>
+              <option value="NAN-NAN|玉山分隊|NAN">第3大隊・玉山分隊</option>
+              <option value="NAN-NAN|信義分隊|NAN">第3大隊・信義分隊</option>
+            </optgroup>
+            <optgroup label="雲林縣消防局">
+              <option value="YLN-YLN|斗六分隊|YLN">第1大隊・斗六分隊</option>
+              <option value="YLN-YLN|公園分隊|YLN">第1大隊・公園分隊</option>
+              <option value="YLN-YLN|斗南分隊|YLN">第1大隊・斗南分隊</option>
+              <option value="YLN-YLN|古坑分隊|YLN">第1大隊・古坑分隊</option>
+              <option value="YLN-YLN|莿桐分隊|YLN">第1大隊・莿桐分隊</option>
+              <option value="YLN-YLN|林內分隊|YLN">第1大隊・林內分隊</option>
+              <option value="YLN-YLN|大埤分隊|YLN">第1大隊・大埤分隊</option>
+              <option value="YLN-YLN|虎尾分隊|YLN">第2大隊・虎尾分隊</option>
+              <option value="YLN-YLN|土庫分隊|YLN">第2大隊・土庫分隊</option>
+              <option value="YLN-YLN|元長分隊|YLN">第2大隊・元長分隊</option>
+              <option value="YLN-YLN|西螺分隊|YLN">第2大隊・西螺分隊</option>
+              <option value="YLN-YLN|二崙分隊|YLN">第2大隊・二崙分隊</option>
+              <option value="YLN-YLN|崙背分隊|YLN">第2大隊・崙背分隊</option>
+              <option value="YLN-YLN|北港分隊|YLN">第3大隊・北港分隊</option>
+              <option value="YLN-YLN|水林分隊|YLN">第3大隊・水林分隊</option>
+              <option value="YLN-YLN|口湖分隊|YLN">第3大隊・口湖分隊</option>
+              <option value="YLN-YLN|四湖分隊|YLN">第3大隊・四湖分隊</option>
+              <option value="YLN-YLN|臺西分隊|YLN">第3大隊・臺西分隊</option>
+              <option value="YLN-YLN|東勢分隊|YLN">第3大隊・東勢分隊</option>
+              <option value="YLN-YLN|麥寮分隊|YLN">第3大隊・麥寮分隊</option>
+            </optgroup>
+            <optgroup label="嘉義市政府消防局">
+              <option value="CYI-CYI|第一分隊|CYI">第1大隊・第一分隊</option>
+              <option value="CYI-CYI|德安分隊|CYI">第1大隊・德安分隊</option>
+              <option value="CYI-CYI|湖內分隊|CYI">第1大隊・湖內分隊</option>
+              <option value="CYI-CYI|第二分隊|CYI">第2大隊・第二分隊</option>
+              <option value="CYI-CYI|後湖分隊|CYI">第2大隊・後湖分隊</option>
+              <option value="CYI-CYI|東區分隊|CYI">第2大隊・東區分隊</option>
+              <option value="CYI-CYI|蘭潭分隊|CYI">第2大隊・蘭潭分隊</option>
+            </optgroup>
+            <optgroup label="嘉義縣消防局">
+              <option value="CYQ-CYQ|朴子分隊|CYQ">第1大隊・朴子分隊</option>
+              <option value="CYQ-CYQ|祥和分隊|CYQ">第1大隊・祥和分隊</option>
+              <option value="CYQ-CYQ|東石分隊|CYQ">第1大隊・東石分隊</option>
+              <option value="CYQ-CYQ|布袋分隊|CYQ">第1大隊・布袋分隊</option>
+              <option value="CYQ-CYQ|義竹分隊|CYQ">第1大隊・義竹分隊</option>
+              <option value="CYQ-CYQ|鹿草分隊|CYQ">第1大隊・鹿草分隊</option>
+              <option value="CYQ-CYQ|民雄分隊|CYQ">第2大隊・民雄分隊</option>
+              <option value="CYQ-CYQ|雙福分隊|CYQ">第2大隊・雙福分隊</option>
+              <option value="CYQ-CYQ|大林分隊|CYQ">第2大隊・大林分隊</option>
+              <option value="CYQ-CYQ|溪口分隊|CYQ">第2大隊・溪口分隊</option>
+              <option value="CYQ-CYQ|新港分隊|CYQ">第2大隊・新港分隊</option>
+              <option value="CYQ-CYQ|太保分隊|CYQ">第2大隊・太保分隊</option>
+              <option value="CYQ-CYQ|竹崎分隊|CYQ">第3大隊・竹崎分隊</option>
+              <option value="CYQ-CYQ|中埔分隊|CYQ">第3大隊・中埔分隊</option>
+              <option value="CYQ-CYQ|三和分隊|CYQ">第3大隊・三和分隊</option>
+              <option value="CYQ-CYQ|梅山分隊|CYQ">第3大隊・梅山分隊</option>
+              <option value="CYQ-CYQ|番路分隊|CYQ">第3大隊・番路分隊</option>
+              <option value="CYQ-CYQ|阿里山分隊|CYQ">第3大隊・阿里山分隊</option>
+              <option value="CYQ-CYQ|奮起湖分隊|CYQ">第3大隊・奮起湖分隊</option>
+            </optgroup>
+            <optgroup label="臺南市政府消防局">
+              <option value="TNN-TNN|中西分隊|TNN">第1大隊・中西分隊</option>
+              <option value="TNN-TNN|永康分隊|TNN">第1大隊・永康分隊</option>
+              <option value="TNN-TNN|安南分隊|TNN">第1大隊・安南分隊</option>
+              <option value="TNN-TNN|安平分隊|TNN">第1大隊・安平分隊</option>
+              <option value="TNN-TNN|北區分隊|TNN">第1大隊・北區分隊</option>
+              <option value="TNN-TNN|東區分隊|TNN">第1大隊・東區分隊</option>
+              <option value="TNN-TNN|新營分隊|TNN">第2大隊・新營分隊</option>
+              <option value="TNN-TNN|鹽水分隊|TNN">第2大隊・鹽水分隊</option>
+              <option value="TNN-TNN|白河分隊|TNN">第2大隊・白河分隊</option>
+              <option value="TNN-TNN|柳營分隊|TNN">第2大隊・柳營分隊</option>
+              <option value="TNN-TNN|後壁分隊|TNN">第2大隊・後壁分隊</option>
+              <option value="TNN-TNN|東山分隊|TNN">第2大隊・東山分隊</option>
+              <option value="TNN-TNN|仁德分隊|TNN">第3大隊・仁德分隊</option>
+              <option value="TNN-TNN|歸仁分隊|TNN">第3大隊・歸仁分隊</option>
+              <option value="TNN-TNN|關廟分隊|TNN">第3大隊・關廟分隊</option>
+              <option value="TNN-TNN|龍崎分隊|TNN">第3大隊・龍崎分隊</option>
+              <option value="TNN-TNN|南化分隊|TNN">第3大隊・南化分隊</option>
+              <option value="TNN-TNN|左鎮分隊|TNN">第3大隊・左鎮分隊</option>
+              <option value="TNN-TNN|新化分隊|TNN">第4大隊・新化分隊</option>
+              <option value="TNN-TNN|善化分隊|TNN">第4大隊・善化分隊</option>
+              <option value="TNN-TNN|大內分隊|TNN">第4大隊・大內分隊</option>
+              <option value="TNN-TNN|山上分隊|TNN">第4大隊・山上分隊</option>
+              <option value="TNN-TNN|玉井分隊|TNN">第4大隊・玉井分隊</option>
+              <option value="TNN-TNN|楠西分隊|TNN">第4大隊・楠西分隊</option>
+              <option value="TNN-TNN|麻豆分隊|TNN">第5大隊・麻豆分隊</option>
+              <option value="TNN-TNN|下營分隊|TNN">第5大隊・下營分隊</option>
+              <option value="TNN-TNN|六甲分隊|TNN">第5大隊・六甲分隊</option>
+              <option value="TNN-TNN|官田分隊|TNN">第5大隊・官田分隊</option>
+              <option value="TNN-TNN|大內分隊|TNN">第5大隊・大內分隊</option>
+              <option value="TNN-TNN|佳里分隊|TNN">第5大隊・佳里分隊</option>
+              <option value="TNN-TNN|西港分隊|TNN">第5大隊・西港分隊</option>
+              <option value="TNN-TNN|七股分隊|TNN">第5大隊・七股分隊</option>
+              <option value="TNN-TNN|將軍分隊|TNN">第5大隊・將軍分隊</option>
+              <option value="TNN-TNN|學甲分隊|TNN">第5大隊・學甲分隊</option>
+              <option value="TNN-TNN|北門分隊|TNN">第5大隊・北門分隊</option>
+            </optgroup>
+            <optgroup label="屏東縣消防局">
+              <option value="PIF-PIF|屏東分隊|PIF">第1大隊・屏東分隊</option>
+              <option value="PIF-PIF|屏二分隊|PIF">第1大隊・屏二分隊</option>
+              <option value="PIF-PIF|長治分隊|PIF">第1大隊・長治分隊</option>
+              <option value="PIF-PIF|麟洛分隊|PIF">第1大隊・麟洛分隊</option>
+              <option value="PIF-PIF|九如分隊|PIF">第1大隊・九如分隊</option>
+              <option value="PIF-PIF|里港分隊|PIF">第1大隊・里港分隊</option>
+              <option value="PIF-PIF|高樹分隊|PIF">第1大隊・高樹分隊</option>
+              <option value="PIF-PIF|鹽埔分隊|PIF">第1大隊・鹽埔分隊</option>
+              <option value="PIF-PIF|瑪家分隊|PIF">第1大隊・瑪家分隊</option>
+              <option value="PIF-PIF|三地門分隊|PIF">第1大隊・三地門分隊</option>
+              <option value="PIF-PIF|內埔分隊|PIF">第2大隊・內埔分隊</option>
+              <option value="PIF-PIF|龍泉分隊|PIF">第2大隊・龍泉分隊</option>
+              <option value="PIF-PIF|潮州分隊|PIF">第2大隊・潮州分隊</option>
+              <option value="PIF-PIF|萬巒分隊|PIF">第2大隊・萬巒分隊</option>
+              <option value="PIF-PIF|竹田分隊|PIF">第2大隊・竹田分隊</option>
+              <option value="PIF-PIF|新埤分隊|PIF">第2大隊・新埤分隊</option>
+              <option value="PIF-PIF|萬丹分隊|PIF">第2大隊・萬丹分隊</option>
+              <option value="PIF-PIF|東港分隊|PIF">第3大隊・東港分隊</option>
+              <option value="PIF-PIF|新園分隊|PIF">第3大隊・新園分隊</option>
+              <option value="PIF-PIF|南州分隊|PIF">第3大隊・南州分隊</option>
+              <option value="PIF-PIF|林邊分隊|PIF">第3大隊・林邊分隊</option>
+              <option value="PIF-PIF|佳冬分隊|PIF">第3大隊・佳冬分隊</option>
+              <option value="PIF-PIF|枋寮分隊|PIF">第3大隊・枋寮分隊</option>
+              <option value="PIF-PIF|琉球分隊|PIF">第3大隊・琉球分隊</option>
+              <option value="PIF-PIF|恆春分隊|PIF">第4大隊・恆春分隊</option>
+              <option value="PIF-PIF|車城分隊|PIF">第4大隊・車城分隊</option>
+              <option value="PIF-PIF|滿州分隊|PIF">第4大隊・滿州分隊</option>
+              <option value="PIF-PIF|枋山分隊|PIF">第4大隊・枋山分隊</option>
+              <option value="PIF-PIF|獅子分隊|PIF">第4大隊・獅子分隊</option>
+              <option value="PIF-PIF|牡丹分隊|PIF">第4大隊・牡丹分隊</option>
+              <option value="PIF-PIF|屏東特搜分隊|PIF">特搜大隊・屏東特搜分隊</option>
+            </optgroup>
+            <optgroup label="花蓮縣消防局">
+              <option value="HWA-HWA|花蓮分隊|HWA">第1大隊・花蓮分隊</option>
+              <option value="HWA-HWA|美崙分隊|HWA">第1大隊・美崙分隊</option>
+              <option value="HWA-HWA|自強分隊|HWA">第1大隊・自強分隊</option>
+              <option value="HWA-HWA|仁里分隊|HWA">第1大隊・仁里分隊</option>
+              <option value="HWA-HWA|吉安分隊|HWA">第1大隊・吉安分隊</option>
+              <option value="HWA-HWA|壽豐分隊|HWA">第1大隊・壽豐分隊</option>
+              <option value="HWA-HWA|特搜分隊|HWA">第1大隊・特搜分隊</option>
+              <option value="HWA-HWA|鳳林分隊|HWA">第2大隊・鳳林分隊</option>
+              <option value="HWA-HWA|光復分隊|HWA">第2大隊・光復分隊</option>
+              <option value="HWA-HWA|萬榮分隊|HWA">第2大隊・萬榮分隊</option>
+              <option value="HWA-HWA|豐濱分隊|HWA">第2大隊・豐濱分隊</option>
+              <option value="HWA-HWA|水璉分隊|HWA">第2大隊・水璉分隊</option>
+              <option value="HWA-HWA|玉里分隊|HWA">第3大隊・玉里分隊</option>
+              <option value="HWA-HWA|瑞穗分隊|HWA">第3大隊・瑞穗分隊</option>
+              <option value="HWA-HWA|富里分隊|HWA">第3大隊・富里分隊</option>
+              <option value="HWA-HWA|東里分隊|HWA">第3大隊・東里分隊</option>
+              <option value="HWA-HWA|卓溪分隊|HWA">第3大隊・卓溪分隊</option>
+              <option value="HWA-HWA|觀音分隊|HWA">第3大隊・觀音分隊</option>
+            </optgroup>
+            <optgroup label="臺東縣消防局">
+              <option value="TTT-TTT|臺東分隊|TTT">第1大隊・臺東分隊</option>
+              <option value="TTT-TTT|特搜分隊|TTT">第1大隊・特搜分隊</option>
+              <option value="TTT-TTT|南王分隊|TTT">第1大隊・南王分隊</option>
+              <option value="TTT-TTT|卑南分隊|TTT">第1大隊・卑南分隊</option>
+              <option value="TTT-TTT|知本分隊|TTT">第1大隊・知本分隊</option>
+              <option value="TTT-TTT|綠島分隊|TTT">第1大隊・綠島分隊</option>
+              <option value="TTT-TTT|蘭嶼分隊|TTT">第1大隊・蘭嶼分隊</option>
+              <option value="TTT-TTT|關山分隊|TTT">第2大隊・關山分隊</option>
+              <option value="TTT-TTT|池上分隊|TTT">第2大隊・池上分隊</option>
+              <option value="TTT-TTT|海端分隊|TTT">第2大隊・海端分隊</option>
+              <option value="TTT-TTT|鹿野分隊|TTT">第2大隊・鹿野分隊</option>
+              <option value="TTT-TTT|延平分隊|TTT">第2大隊・延平分隊</option>
+              <option value="TTT-TTT|成功分隊|TTT">第3大隊・成功分隊</option>
+              <option value="TTT-TTT|長濱分隊|TTT">第3大隊・長濱分隊</option>
+              <option value="TTT-TTT|東河分隊|TTT">第3大隊・東河分隊</option>
+              <option value="TTT-TTT|大武分隊|TTT">第4大隊・大武分隊</option>
+              <option value="TTT-TTT|太麻里分隊|TTT">第4大隊・太麻里分隊</option>
+              <option value="TTT-TTT|金峰分隊|TTT">第4大隊・金峰分隊</option>
+              <option value="TTT-TTT|達仁分隊|TTT">第4大隊・達仁分隊</option>
+            </optgroup>
+            <optgroup label="澎湖縣消防局">
+              <option value="PHU-PHU|馬公分隊|PHU">第一大隊・馬公分隊</option>
+              <option value="PHU-PHU|澎南分隊|PHU">第一大隊・澎南分隊</option>
+              <option value="PHU-PHU|白沙分隊|PHU">第二大隊・白沙分隊</option>
+              <option value="PHU-PHU|西嶼分隊|PHU">第二大隊・西嶼分隊</option>
+              <option value="PHU-PHU|吉貝分隊|PHU">離島小隊・吉貝分隊</option>
+              <option value="PHU-PHU|鳥嶼分隊|PHU">離島小隊・鳥嶼分隊</option>
+              <option value="PHU-PHU|大倉分隊|PHU">離島小隊・大倉分隊</option>
+              <option value="PHU-PHU|員貝分隊|PHU">離島小隊・員貝分隊</option>
+              <option value="PHU-PHU|望安分隊|PHU">離島小隊・望安分隊</option>
+              <option value="PHU-PHU|七美分隊|PHU">離島小隊・七美分隊</option>
+            </optgroup>
+            <optgroup label="金門縣消防局">
+              <option value="KMN-KMN|金城分隊|KMN">第一大隊・金城分隊</option>
+              <option value="KMN-KMN|金寧分隊|KMN">第一大隊・金寧分隊</option>
+              <option value="KMN-KMN|烈嶼分隊|KMN">第一大隊・烈嶼分隊</option>
+              <option value="KMN-KMN|金湖分隊|KMN">第二大隊・金湖分隊</option>
+              <option value="KMN-KMN|金沙分隊|KMN">第二大隊・金沙分隊</option>
+            </optgroup>
+            <optgroup label="連江縣消防局">
+              <option value="LJN-LJN|南竿分隊|LJN">本局・南竿分隊</option>
+              <option value="LJN-LJN|北竿分隊|LJN">本局・北竿分隊</option>
+              <option value="LJN-LJN|莒光分隊|LJN">本局・莒光分隊</option>
+              <option value="LJN-LJN|東引分隊|LJN">本局・東引分隊</option>
+            </optgroup>
+            <optgroup label="其他">
+              <option value="CUSTOM|自訂|XX">其他 / 自訂單位</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="f"><label>分隊（自動填入，可修改）</label>
+          <input id="fsquad" placeholder="選擇單位後自動填入">
+        </div>
+      </div>
+      <div id="custom-row" style="display:none" class="fg fg2">
+        <div class="f"><label>自訂單位名稱</label><input id="funit-custom" placeholder="新北市消防局"></div>
+        <div class="f"><label>自訂代碼（2–4碼）</label><input id="funit-code" placeholder="NTP" maxlength="4"></div>
+      </div>
+      <div class="fg fg4">
+        <div class="f"><label>職稱</label>
+          <select id="frank">
+            <option value="">—</option>
+            <option>消防士</option><option>副小隊長</option><option>小隊長</option>
+            <option>副分隊長</option><option>分隊長</option><option>副大隊長</option><option>大隊長</option>
+          </select>
+        </div>
+        <div class="f"><label>性別 / 版型</label>
+          <select id="fgender"><option value="M">男</option><option value="F">女</option><option value="N">中性/另註</option></select>
+        </div>
+        <div class="f"><label>流水號</label><input type="number" id="fseq" placeholder="31" min="1" max="9999"></div>
+        <div class="f"><label>量測方式</label>
+          <select id="fsource">
+            <option>iPhone 測距儀</option><option>照片比例量測</option>
+            <option>人工皮尺</option><option>舊尺寸名冊</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="step1-err" style="display:none;background:rgba(224,92,42,.15);border:1px solid var(--accent);border-radius:4px;padding:10px 14px;font-size:13px;color:var(--a2);margin-top:10px"></div>
+    <div class="br">
+      <button type="button" class="btn bp" id="btn-next1" onclick="goStep(2); return false;">下一步 →</button>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div id="s2" style="display:none">
+    <div class="card">
+      <div class="ct">配發系列</div>
+      <div style="margin-bottom:12px">
+        <div class="ct" style="margin-bottom:8px">配發系列（可多選）</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surf)" id="lbl-tac">
+            <input type="checkbox" id="chk-tac" checked style="width:16px;height:16px;accent-color:var(--tac)"> 🔵 戰術系列
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surf)" id="lbl-ops">
+            <input type="checkbox" id="chk-ops" style="width:16px;height:16px;accent-color:var(--ops)"> 🟢 操作系列
+          </label>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:9px 14px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surf)" id="lbl-ems">
+            <input type="checkbox" id="chk-ems" style="width:16px;height:16px;accent-color:var(--ems)"> 🔴 救護系列
+          </label>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">戰術服 / 操作服 / 救護背心外套可依實際配發需求複選</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">身體測量值（cm）</div>
+      <div class="mg">
+        <div class="mi"><div class="ml">身高</div><div class="mv" id="dh">—</div><div class="mu">cm</div></div>
+        <div class="mi"><div class="ml">肩寬</div><div class="mv" id="ds">—</div><div class="mu">cm</div></div>
+        <div class="mi"><div class="ml">胸圍</div><div class="mv" id="dc">—</div><div class="mu">cm</div></div>
+        <div class="mi"><div class="ml">腰圍</div><div class="mv" id="dw">—</div><div class="mu">cm</div></div>
+        <div class="mi"><div class="ml">臀圍</div><div class="mv" id="dhp">—</div><div class="mu">cm</div></div>
+      </div>
+      <div class="ct" style="margin-bottom:8px">輸入測量值（從「量測」頁照片量測後可套用，或直接填入）</div>
+      <div class="fg fg5">
+        <div class="f"><label>身高</label><input type="number" id="ih" placeholder="175" inputmode="decimal"></div>
+        <div class="f"><label>肩寬</label><input type="number" id="is" placeholder="48" inputmode="decimal"></div>
+        <div class="f"><label>胸圍</label><input type="number" id="ic" placeholder="100" inputmode="decimal"></div>
+        <div class="f"><label>腰圍</label><input type="number" id="iw" placeholder="84" inputmode="decimal"></div>
+        <div class="f"><label>臀圍</label><input type="number" id="ihp" placeholder="96" inputmode="decimal"></div>
+      </div>
+      <div class="fg fg2" style="margin-top:4px">
+        <div class="f"><label>褲內長</label><input type="number" id="iinseam" placeholder="78" inputmode="decimal"></div>
+        <div class="f"><label>套量確認人</label><input id="imeasurer" placeholder="套量者姓名"></div>
+      </div>
+      <div class="f"><label>現場備注</label><textarea id="inote" placeholder="例：腹部偏大，褲腰建議加一碼；外套需可容納內搭。"></textarea></div>
+    </div>
+    <div class="br">
+      <button type="button" class="btn bg" id="btn-prev2" onclick="goStep(1); return false;">← 上一步</button>
+      <button type="button" class="btn bp" id="btn-calc" onclick="calcAndShow(); return false;">計算尺寸建議</button>
+      <button type="button" class="btn bp" id="btn-next2" onclick="goStep(3); return false;">下一步：確認尺碼 →</button>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div id="s3" style="display:none">
+    <div class="grid2">
+      <div class="card">
+        <div class="ct">自動推算尺碼</div>
+        <div id="size-result"></div>
+      </div>
+      <div class="card">
+        <div class="ct">手動覆蓋尺碼</div>
+        <div id="ov-fields"></div>
+      </div>
+    </div>
+    <div class="br">
+      <button type="button" class="btn bg" id="btn-prev3" onclick="goStep(2); return false;">← 上一步</button>
+      <button type="button" class="btn bp" id="btn-next3" onclick="goStep(4); return false;">產生編碼 →</button>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div id="s4" style="display:none">
+    <div class="card" style="border-color:var(--accent)">
+      <div class="ct">個人裝袋序號</div>
+      <div style="text-align:center;padding:14px 0">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:5px;letter-spacing:.1em">PERSONAL KIT SERIAL</div>
+        <div id="gserial" style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent);letter-spacing:.14em"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:5px" id="gdate"></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="ct">個人分袋標籤</div>
+        <div id="label-preview"></div>
+      </div>
+      <div class="card">
+        <div class="ct">QR Code</div>
+        <div class="qr-box" id="qr-out"></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px">掃描後可查看完整配發資料</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">確認摘要</div>
+      <div id="confirm-summary"></div>
+    </div>
+    <div id="save-st" class="sb" style="display:none"></div>
+    <div class="br">
+      <button type="button" class="btn bg" id="btn-prev4" onclick="goStep(3); return false;">← 上一步</button>
+      <button class="btn bs" id="btn-save">✓ 儲存（本機 + Sheets）</button>
+      <button class="btn bg" onclick="window.print()">列印標籤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 02 MEASURE ════════════════════════════ -->
+<div class="pg" id="pg-measure">
+  <div class="pt">照片量測工具</div>
+  <div class="ps">上傳正面站姿照 → 畫身高基準線 → 拉線量各部位 → 套用至登記表單</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="ct">操作區</div>
+      <div class="pz" id="photo-zone" style="cursor:default;min-height:300px">
+        <canvas id="photo-canvas"></canvas>
+      </div>
+      <div class="fg fg3" style="margin-bottom:10px">
+        <div class="f"><label>照片基準身高 cm</label><input type="number" id="ref-cm" value="175"></div>
+        <div class="f"><label>目前模式</label>
+          <select id="draw-mode">
+            <option value="ref">畫身高基準線</option>
+            <option value="measure">測量部位</option>
+          </select>
+        </div>
+        <div class="f"><label>量測項目</label>
+          <select id="meas-target">
+            <option value="is">肩寬</option>
+            <option value="ic">胸圍 / 胸寬參考</option>
+            <option value="iw">腰圍 / 腰寬參考</option>
+            <option value="ihp">臀圍 / 臀寬參考</option>
+            <option value="iinseam">褲內長</option>
+          </select>
+        </div>
+      </div>
+      <div class="sb si" id="meas-info">請上傳照片後開始量測。</div>
+      <div id="ai-load-status" class="sb sw" style="display:none">⏳ 載入 AI 骨架模型中（首次需約 10 秒，需網路連線）…</div>
+      <div class="br">
+        <label class="btn bg bsm" for="photo-input" style="cursor:pointer">📷 上傳 / 拍照</label>
+        <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none">
+        <button class="btn bp bsm" id="btn-ai-detect">✨ AI 自動骨架偵測</button>
+        <button class="btn bp bsm" id="btn-apply-meas">套用至登記表</button>
+        <button class="btn bg bsm" id="btn-reset-canvas">重設</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">量測記錄</div>
+      <div id="meas-log"></div>
+      <div class="sb si" style="margin-top:12px">
+        <b>使用說明</b><br>
+        1. 用 iPhone 測距儀先量身高<br>
+        2. 正面站姿拍照（距離約 2.5–3 公尺）<br>
+        3. 先畫身高基準線，再切換至測量部位<br>
+        4. 胸圍 / 腰圍 / 臀圍建議輔以皮尺確認
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 03 RECORDS ════════════════════════════ -->
+<div class="pg" id="pg-records">
+  <div class="pt">套量結果名冊</div>
+  <div class="ps">所有已登記隊員資料</div>
+  <div class="br noPrint" style="margin-bottom:12px">
+    <input id="srch" placeholder="搜尋姓名、序號、分隊…" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 11px;border-radius:4px;font-size:12px;flex:1;font-family:var(--sans);outline:none;min-width:140px">
+    <select id="series-filter" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:4px;font-size:11px">
+      <option value="">全部系列</option><option>TAC</option><option>OPS</option><option>EMS</option>
+    </select>
+    <button class="btn bg bsm" id="btn-load-recs">↻ 重新載入</button>
+    <button class="btn bg bsm" id="btn-load-demo">載入示範資料</button>
+  </div>
+  <div class="scroll">
+    <table class="dt" id="rec-table">
+      <thead><tr>
+        <th>序號</th><th>姓名</th><th>系列</th><th>分隊</th>
+        <th>身高</th><th>肩</th><th>胸</th><th>腰</th><th>臀</th>
+        <th>長袖</th><th>短袖</th><th>褲子</th><th>狀態</th><th>操作</th>
+      </tr></thead>
+      <tbody id="rec-body"><tr><td colspan="14" style="text-align:center;color:var(--muted);padding:30px">尚無資料</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ 04 PACKING ════════════════════════════ -->
+<div class="pg" id="pg-packing">
+  <div class="pt">個人裝袋標籤</div>
+  <div class="ps">每人一袋，掃碼即可查看配發內容</div>
+  <div class="br noPrint" style="margin-bottom:12px">
+    <button class="btn bp" id="btn-gen-labels">產生所有標籤</button>
+    <button class="btn bg" onclick="window.print()">列印標籤</button>
+  </div>
+  <div class="labelgrid" id="all-labels"></div>
+</div>
+
+<!-- ══ 05 EXPORT ════════════════════════════ -->
+<div class="pg" id="pg-export">
+  <div class="pt">匯出與驗收</div>
+  <div class="ps">CSV / JSON 備份 / 驗收清單</div>
+  <div class="grid2">
+    <div class="card">
+      <div class="ct">匯出表單</div>
+      <div class="br" style="flex-direction:column;align-items:flex-start">
+        <button class="btn bg" id="btn-csv-sizing">匯出：套量結果名冊 CSV</button>
+        <button class="btn bg" id="btn-csv-packing">匯出：個人裝袋清單 CSV</button>
+        <button class="btn bg" id="btn-csv-box">匯出：分隊箱明細 CSV</button>
+        <button class="btn bg" id="btn-csv-accept">匯出：驗收審查清單 CSV</button>
+        <button class="btn bg" id="btn-json">備份 JSON</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">驗收文件檢核</div>
+      <div id="accept-box"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 06 LABEL ════════════════════════════ -->
+<div class="pg" id="pg-label">
+  <div class="pt">標籤產生器</div>
+  <div class="ps">個人分袋 / 分隊箱 / 單位主箱 / 補件備援箱</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="card">
+      <div class="ct">個人分袋標籤</div>
+      <div class="fg fg2">
+        <div class="f"><label>人員編碼</label><input id="lb-pid" placeholder="TPE-B2-0031" oninput="genPersonLabel()"></div>
+        <div class="f"><label>姓名</label><input id="lb-name" placeholder="王大明" oninput="genPersonLabel()"></div>
+      </div>
+      <div class="fg fg2">
+        <div class="f"><label>單位</label><input id="lb-unit" placeholder="TPE-FD" oninput="genPersonLabel()"></div>
+        <div class="f"><label>分隊</label><input id="lb-squad" placeholder="信義分隊" oninput="genPersonLabel()"></div>
+      </div>
+      <div class="f" style="margin-bottom:10px"><label>KIT CONTENT（每行一項）</label>
+        <textarea id="lb-kit" placeholder="TL-M ×1&#10;TS-M ×1&#10;TP-W32-L32 ×1" oninput="genPersonLabel()"></textarea>
+      </div>
+      <div id="lp-person" class="lp" style="margin-top:10px"></div>
+      <div style="margin-top:8px"><div class="qr-box" id="qr-person" style="display:inline-block"></div></div>
+      <div class="br"><button class="btn bg bsm" onclick="printEl('lp-person')">列印</button></div>
+    </div>
+    <div class="card">
+      <div class="ct">分隊箱標籤</div>
+      <div class="fg fg2">
+        <div class="f"><label>單位</label><input id="lb-su" placeholder="臺北市消防局" oninput="genSquadLabel()"></div>
+        <div class="f"><label>分隊</label><input id="lb-sq" placeholder="信義分隊" oninput="genSquadLabel()"></div>
+      </div>
+      <div class="fg fg2">
+        <div class="f"><label>箱號</label><input id="lb-bn" placeholder="TPE-XY-01" oninput="genSquadLabel()"></div>
+        <div class="f"><label>箱內人數</label><input type="number" id="lb-pc" placeholder="18" oninput="genSquadLabel()"></div>
+      </div>
+      <div class="f" style="margin-bottom:10px"><label>備注</label><input id="lb-note" placeholder="本箱為完整個人配發袋" oninput="genSquadLabel()"></div>
+      <div id="lp-squad" class="lp" style="margin-top:10px"></div>
+      <div class="br"><button class="btn bg bsm" onclick="printEl('lp-squad')">列印</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 07 CHART ════════════════════════════ -->
+<div class="pg" id="pg-chart">
+  <div class="pt">尺碼對照表</div>
+  <div class="ps">依規格文件（歐可立克 115.03.27）— 公分大貨尺寸</div>
+  <div class="br" style="margin-bottom:14px">
+    <button class="btn bg bsm" onclick="showChart('TAC')">🔵 戰術系列</button>
+    <button class="btn bg bsm" onclick="showChart('OPS')">🟢 操作系列</button>
+    <button class="btn bg bsm" onclick="showChart('EMS')">🔴 救護系列</button>
+  </div>
+  <div id="chart-content"></div>
+</div>
+
+<!-- ══ 08 ADMIN ════════════════════════════ -->
+<div class="pg" id="pg-admin">
+  <div class="pt">後台管理</div>
+  <div class="ps">人工覆核 / 尺寸修改 / 備注 / 驗收狀態</div>
+  <div id="admin-gate">
+    <div class="card" style="max-width:280px;margin:0 auto">
+      <div class="ct">後台驗證</div>
+      <div class="f" style="margin-bottom:10px"><label>管理員密碼</label><input type="password" id="adm-pw" placeholder="預設 admin"></div>
+      <button class="btn bp" style="width:100%" id="btn-adm-login">進入後台</button>
+    </div>
+  </div>
+  <div id="admin-panel" style="display:none">
+    <div class="sb si" style="margin-bottom:12px">正式上線時應改為帳號權限、操作紀錄、修改前後版本留存。此版本用來測試備注與尺寸人工覆核流程。</div>
+    <div class="scroll">
+      <table class="dt" id="adm-table">
+        <thead><tr><th>姓名</th><th>識別碼</th><th>狀態</th><th>尺寸覆核</th><th>後台備注</th><th>Sheets 同步</th><th>儲存</th></tr></thead>
+        <tbody id="adm-body"></tbody>
+      </table>
+    </div>
+    <div class="br" style="margin-top:14px">
+      <button class="btn bg bsm" id="btn-sync-sheets">↑ 同步至 Sheets</button>
+      <button class="btn bw bsm" id="btn-clear-all">清除全部本機資料</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 09 SETUP ════════════════════════════ -->
+<div class="pg" id="pg-setup">
+  <div class="pt">系統設定</div>
+  <div class="ps">Google Sheets 連接 / 密碼管理</div>
+  <div class="card">
+    <div class="ct">Google Sheets Apps Script URL</div>
+    <div class="f" style="margin-bottom:10px">
+      <label>部署後的 Web App URL（以 /exec 結尾）</label>
+      <input id="surl" placeholder="https://script.google.com/macros/s/…/exec">
+    </div>
+    <div class="br">
+      <button class="btn bp" id="btn-save-url">儲存並測試連線</button>
+      <button class="btn bg" id="btn-clear-url">清除</button>
+    </div>
+    <div id="conn-st" class="sb" style="display:none;margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <div class="ct">設定步驟說明</div>
+    <div class="ss"><div class="n">1</div><div class="b">開啟 <a href="https://sheets.google.com" target="_blank" style="color:var(--accent)">Google Sheets</a> → 建立新試算表</div></div>
+    <div class="ss"><div class="n">2</div><div class="b"><code>擴充功能</code> → <code>Apps Script</code></div></div>
+    <div class="ss"><div class="n">3</div><div class="b">貼入 AppScript 程式碼 → 儲存</div></div>
+    <div class="ss"><div class="n">4</div><div class="b"><code>部署</code> → <code>新增部署</code> → 網頁應用程式<br>執行身分：<b>我</b> / 存取權限：<b>任何人</b></div></div>
+    <div class="ss"><div class="n">5</div><div class="b">複製部署 URL → 貼到上方 → 儲存並測試</div></div>
+  </div>
+  <div class="card">
+    <div class="ct">管理員密碼</div>
+    <div class="fg fg2">
+      <div class="f"><label>目前密碼</label><input type="password" id="pw-old"></div>
+      <div class="f"><label>新密碼</label><input type="password" id="pw-new"></div>
+    </div>
+    <div class="br"><button class="btn bg" id="btn-chpw">更新密碼</button></div>
+  </div>
+</div>
+
+<!-- MODAL: 驗收狀態 -->
+<div class="mo" id="mo-status">
+  <div class="mbox">
+    <div class="mt">更新驗收狀態</div>
+    <div id="mo-stat-content"></div>
+    <div class="br">
+      <button class="btn bp" id="btn-save-stat">儲存</button>
+      <button class="btn bg" onclick="closeMo('mo-status')">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  DATA — size tables from spec doc (cm, 大貨尺寸)
+// ═══════════════════════════════════════════════
+var ITEMS = [
+  {code:'TL', name:'長袖戰術服', series:'TAC', type:'top',
+   table:[['XS',45,97],['S',46,102],['M',47,107],['L',48,112],['XL',50,117],['2XL',51,122],['3XL',52,127]]},
+  {code:'TS', name:'短袖戰術服', series:'TAC', type:'top',
+   table:[['XS',45,97],['S',46,102],['M',47,107],['L',48,112],['XL',50,117],['2XL',51,122],['3XL',52,127]]},
+  {code:'TV', name:'戰術背心',   series:'TAC', type:'top',
+   table:[['XS',38,98],['S',39,103],['M',41,108],['L',42,113],['XL',43,118],['2XL',44,123],['3XL',46,128]]},
+  {code:'OPL',name:'長袖操作服', series:'OPS', type:'top',
+   table:[['XS',45,99],['S',46,104],['M',47,109],['L',48,114],['XL',50,119],['2XL',51,125],['3XL',52,130]]},
+  {code:'OPS',name:'短袖操作服', series:'OPS', type:'top',
+   table:[['XS',45,99],['S',46,104],['M',47,109],['L',48,114],['XL',50,119],['2XL',51,125],['3XL',52,130]]},
+  {code:'EJ', name:'救護外套',   series:'EMS', type:'top',
+   table:[['XS',46,114],['S',48,119],['M',49,124],['L',50,130],['XL',51,135],['2XL',53,140],['3XL',54,145]]},
+  {code:'EV', name:'救護背心',   series:'EMS', type:'rangeVest',
+   table:[['S',38,91,98],['M',39,101,108],['L',40,112,118],['XL',42,122,128]]},
+];
+var SERIES_ITEMS = { TAC:['TL','TS','TV'], OPS:['OPL','OPS'], EMS:['EJ','EV'] };
+var SERIES_DESC  = {
+  TAC:'🔵 戰術系列：長袖戰術服 / 短袖戰術服 / 戰術背心 / 戰術褲',
+  OPS:'🟢 操作系列：短袖操作服 / 長袖操作服 / 戰術褲',
+  EMS:'🔴 救護系列：救護背心 / 救護外套'
+};
+var ACCEPT_ITEMS = ['戰術服(長袖)','戰術服(短袖)','戰術外套','戰術背心',
+  '操作服(長袖)','操作服(短袖)','戰術褲','戰術褲帶',
+  '救護外套(含長袖內層)','救護背心','戰術帽'];
+var SIZES_TOP = ['XS','S','M','L','XL','2XL','3XL'];
+var SIZES_EMS = ['S','M','L','XL'];
+var SHOES = ['22','23','24','24.5','25','25.5','26','27','28','29'];
+
+// ─── Storage ──────────────────────────────────
+var STORE_KEY = 'firescue_v3_records';
+var records = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+function persist() { localStorage.setItem(STORE_KEY, JSON.stringify(records)); }
+
+// ─── Config ───────────────────────────────────
+var SURL   = localStorage.getItem('ffs_url') || '';
+var ADM_PW = localStorage.getItem('ffs_pw')  || 'admin';
+var currentSeries = 'TAC';
+var editId = null;
+var lastMeas = null;
+var pxPerCm  = null;
+var measLines = [];
+var measImg   = new Image();
+var measDrawing = false, measStart = null;
+
+// ─── Helpers ──────────────────────────────────
+function g(id) { return document.getElementById(id); }
+function v(id) { return (g(id).value || '').trim(); }
+function n(id) { return parseFloat(g(id).value) || 0; }
+
+// ─── Sync dot ─────────────────────────────────
+function setSync(state, lbl) {
+  g('dot').className = 'dot ' + state;
+  g('slbl').textContent = lbl;
+}
+if (SURL) setSync('ok', '已連線'); else setSync('err', '未設定');
+
+// ─── API ──────────────────────────────────────
+async function api(action, payload) {
+  if (!SURL) throw new Error('尚未設定 Script URL');
+  setSync('spin', '同步中…');
+  try {
+    var res = payload
+      ? await fetch(SURL, { method:'POST', body: JSON.stringify({action, payload}) })
+      : await fetch(SURL + '?action=' + action);
+    var d = await res.json();
+    if (d.ok) { setSync('ok','已同步'); return d; }
+    setSync('err','錯誤'); throw new Error(d.msg);
+  } catch(e) { setSync('err','連線失敗'); throw e; }
+}
+
+// ═══════════════════════════════════════════════
+//  SIZE LOGIC (from MVP)
+// ═══════════════════════════════════════════════
+function chooseTop(item, shoulder, chest) {
+  var ease = item.code === 'EJ' ? 12 : 8;
+  var hasSh = shoulder && shoulder > 0;
+  var hasCh = chest && chest > 0;
+  if (!hasSh && !hasCh) return 'M'; // no data → default M
+  for (var i = 0; i < item.table.length; i++) {
+    var r = item.table[i];
+    var shOk = !hasSh || shoulder <= r[1] + 1;
+    var chOk = !hasCh || (chest + ease) <= r[2];
+    if (shOk && chOk) return r[0];
+  }
+  return item.table[item.table.length - 1][0];
+}
+function chooseVest(item, shoulder, chest) {
+  if (!chest && !shoulder) return 'M';
+  for (var i = 0; i < item.table.length; i++) {
+    var r = item.table[i];
+    var shOk = !shoulder || shoulder <= r[1] + 1;
+    var chOk = !chest || (chest >= r[2] - 6 && chest <= r[3] + 4);
+    if (shOk && chOk) return r[0];
+  }
+  return item.table[item.table.length - 1][0];
+}
+function pantSize(waist, inseam, hip) {
+  var w = Math.ceil((waist / 2.54 + 1) / 2) * 2;
+  if (hip > waist + 14) w += 2;
+  var l = inseam < 74 ? 30 : inseam < 79 ? 32 : inseam < 84 ? 34 : 36;
+  return 'W' + w + '-L' + l;
+}
+function beltSize(waist) {
+  return waist < 82 ? 'S' : waist < 90 ? 'M' : waist < 100 ? 'L' : waist < 110 ? 'XL' : '2XL';
+}
+function hatSize(height) {
+  return height < 165 ? 'S' : height < 178 ? 'M' : 'L';
+}
+function recommend(data) {
+  var s = data.shoulder || 0, c = data.chest || 0, w = data.waist || 0;
+  var h = data.hip || 0, ins = data.inseam || 0, ht = data.height || 0;
+  var out = {};
+  ITEMS.forEach(function(it) {
+    out[it.code] = it.type === 'rangeVest' ? chooseVest(it, s, c) : chooseTop(it, s, c);
+  });
+  out['TP']   = pantSize(w, ins, h);
+  out['BELT'] = beltSize(w);
+  out['CAP']  = hatSize(ht);
+  out['SHOE'] = '';
+  return out;
+}
+function kitContent(rec) {
+  var sz = rec.sizes || recommend(rec);
+  var selectedSeries = rec.selectedSeries || [rec.series || 'TAC'];
+  var codes = [];
+  selectedSeries.forEach(function(s) {
+    (SERIES_ITEMS[s] || []).forEach(function(c) { if (codes.indexOf(c) < 0) codes.push(c); });
+  });
+  var lines = codes.map(function(c) {
+    var item = ITEMS.find(function(i){return i.code===c;});
+    return (item ? item.name : c) + ' ' + (sz[c]||'—') + ' ×1';
+  });
+  lines.push('戰術褲 ' + (sz['TP']||'—') + ' ×1');
+  if (sz['BELT']) lines.push('褲帶 ' + sz['BELT'] + ' ×1');
+  if (sz['CAP'])  lines.push('戰術帽 ' + sz['CAP'] + ' ×1');
+  if (sz['SHOE']) lines.push('消防靴 ' + sz['SHOE'] + ' cm ×1');
+  return lines.join('\n');
+}
+
+// ═══════════════════════════════════════════════
+//  UNIT / ID HELPERS
+// ═══════════════════════════════════════════════
+function onUnitChange() {
+  var selectEl = g('funit');
+  if (!selectEl) return;
+  var val = selectEl.value || '';
+  var customRow = g('custom-row');
+  if (val === 'CUSTOM|自訂|XX') {
+    customRow.style.display = 'grid';
+    g('fsquad').value = '';
+  } else if (val) {
+    customRow.style.display = 'none';
+    var parts = val.split('|');
+    // parts[1] is the squad/unit name
+    if (parts.length >= 2 && parts[1]) {
+      g('fsquad').value = parts[1];
+    }
+  }
+  updateID();
+}
+function updateID() {
+  var val = g('funit').value || '';
+  var seq = (g('fseq').value || '').toString().padStart(4, '0');
+  var prefix = 'TPE', bcode = 'XX';
+  if (val === 'CUSTOM|自訂|XX') {
+    prefix = (g('funit-code').value || 'XX').toUpperCase().slice(0, 4);
+    bcode  = prefix.slice(0, 2);
+  } else if (val) {
+    var parts = val.split('|');
+    prefix = parts[0] || 'TPE';
+    bcode  = parts[2] || 'XX';
+  }
+  var id = seq && seq !== '0000' ? prefix + '-' + bcode + '-' + seq : '';
+  g('fid').value = id;
+}
+
+// ═══════════════════════════════════════════════
+//  STEP NAV
+// ═══════════════════════════════════════════════
+function showErr(msg) {
+  var el = g('step1-err');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function syncFromSelect() {
+  var sel = g('funit');
+  if (!sel) return;
+
+  // Read value AND selectedIndex — iOS sometimes has value='' even when option is selected
+  var val = sel.value || '';
+  var idx = sel.selectedIndex;
+
+  // If value is empty but something is visually selected, try to get it from selectedIndex
+  if (!val && idx > 0) {
+    var opt = sel.options[idx];
+    if (opt) val = opt.value || '';
+  }
+
+  if (!val || val === '' || val === '— 請選擇單位 —') return;
+
+  if (val === 'CUSTOM|自訂|XX') {
+    g('custom-row').style.display = 'grid';
+    g('fsquad').value = '';
+    return;
+  }
+
+  g('custom-row').style.display = 'none';
+  var parts = val.split('|');
+  var squadName = (parts.length >= 2 && parts[1]) ? parts[1] : '';
+  var prefix    = parts[0] || 'TPE';
+  var bcode     = (parts.length >= 3 && parts[2]) ? parts[2] : 'XX';
+
+  if (squadName) g('fsquad').value = squadName;
+
+  var seq = ((g('fseq').value || '').toString()).padStart(4, '0');
+  if (seq && seq !== '0000') {
+    g('fid').value = prefix + '-' + bcode + '-' + seq;
+  }
+}
+
+function goStep(n) {
+  showErr('');
+  if (n === 2) {
+    var nameVal = (g('fname').value || '').trim();
+    if (!nameVal) { showErr('⚠️ 請填入姓名'); return; }
+
+    // Read select state directly — do not rely on any prior event
+    var sel = g('funit');
+    var selIdx = sel ? sel.selectedIndex : -1;
+    var selVal = '';
+    var selOpt = null;
+    if (sel && selIdx > 0) {
+      selOpt = sel.options[selIdx];
+      selVal = selOpt ? (selOpt.value || '') : '';
+    } else if (sel) {
+      selVal = sel.value || '';
+    }
+
+    if (!selVal) {
+      // Fallback for iPhone: if user typed search text and the select has visible options, use the first matched option.
+      var searchText = (g('funit-search') ? g('funit-search').value : '').trim();
+      if (searchText && sel && sel.options && sel.options.length > 0) {
+        for (var oi = 0; oi < sel.options.length; oi++) {
+          if (!sel.options[oi].disabled && sel.options[oi].value) {
+            sel.selectedIndex = oi;
+            selVal = sel.options[oi].value;
+            break;
+          }
+        }
+      }
+    }
+    if (!selVal) { showErr('⚠️ 請選擇所屬單位（請點選下拉選單選擇）。若 iPhone 下拉選單沒有反應，請先在搜尋欄輸入分隊名稱，再按下一步。'); return; }
+    if (selVal === 'CUSTOM|自訂|XX') {
+      var customCode = (g('funit-code') ? g('funit-code').value : '').trim();
+      if (!customCode) { showErr('⚠️ 請填入自訂單位代碼'); return; }
+    }
+
+    // Force-fill squad and ID from selected option
+    var parts = selVal.split('|');
+    var squadName = (parts.length >= 2 && parts[1]) ? parts[1] : '';
+    var prefix    = parts[0] || 'TPE';
+    var bcode     = (parts.length >= 3 && parts[2]) ? parts[2] : 'XX';
+
+    if (squadName) g('fsquad').value = squadName;
+
+    var seq = ((g('fseq').value || '').toString()).padStart(4, '0');
+    if (seq && seq !== '0000') {
+      g('fid').value = prefix + '-' + bcode + '-' + seq;
+    } else {
+      // Generate a random 4-digit seq if none entered
+      var rnd = String(Math.floor(Math.random()*9000)+1000);
+      g('fid').value = prefix + '-' + bcode + '-' + rnd;
+      g('fseq').value = rnd;
+    }
+  }
+  if (n === 3) renderStep3();
+  if (n === 4) renderStep4();
+  for (var i = 1; i <= 4; i++) {
+    var sEl = g('s' + i), stEl = g('st' + i);
+    if (sEl)  sEl.style.display = (i === n) ? 'block' : 'none';
+    if (stEl) stEl.classList.toggle('on', i === n);
+  }
+  // Scroll to top on mobile
+  window.scrollTo(0, 0);
+}
+
+
+// iPhone / Safari safety: expose step functions globally for inline onclick.
+window.goStep = goStep;
+window.calcAndShow = calcAndShow;
+
+// ═══════════════════════════════════════════════
+//  STEP 2 — SERIES
+// ═══════════════════════════════════════════════
+function getSelectedSeries() {
+  var sel = [];
+  if (g('chk-tac') && g('chk-tac').checked) sel.push('TAC');
+  if (g('chk-ops') && g('chk-ops').checked) sel.push('OPS');
+  if (g('chk-ems') && g('chk-ems').checked) sel.push('EMS');
+  return sel.length ? sel : ['TAC'];
+}
+function getSelectedCodes() {
+  var codes = [];
+  getSelectedSeries().forEach(function(s) {
+    (SERIES_ITEMS[s] || []).forEach(function(c) { if (codes.indexOf(c) < 0) codes.push(c); });
+  });
+  // Always include pants, belt, cap, shoe
+  ['TP','BELT','CAP','SHOE'].forEach(function(c) { if (codes.indexOf(c) < 0) codes.push(c); });
+  return codes;
+}
+// Keep currentSeries for serial code prefix only
+function setSeries(s) { currentSeries = s; }
+function getMeas() {
+  return {
+    height:   n('ih'),
+    shoulder: n('is'),
+    chest:    n('ic'),
+    waist:    n('iw'),
+    hip:      n('ihp'),
+    inseam:   n('iinseam')
+  };
+}
+function calcAndShow() {
+  var m = getMeas();
+  var sz = recommend(m);
+  g('dh').textContent  = m.height   || '—';
+  g('ds').textContent  = m.shoulder || '—';
+  g('dc').textContent  = m.chest    || '—';
+  g('dw').textContent  = m.waist    || '—';
+  g('dhp').textContent = m.hip      || '—';
+  return sz;
+}
+
+// ═══════════════════════════════════════════════
+//  STEP 3 — CONFIRM SIZES
+// ═══════════════════════════════════════════════
+function renderStep3() {
+  var m = getMeas();
+  var sz = recommend(m);
+  // Debug: show what values came in
+  console.log('Measures:', JSON.stringify(m));
+  var codes = getSelectedCodes();
+
+  g('size-result').innerHTML = codes.map(function(code) {
+    var item = ITEMS.find(function(i){return i.code===code;});
+    var name = item ? item.name : {TP:'戰術褲',BELT:'褲帶',CAP:'戰術帽',SHOE:'消防靴'}[code] || code;
+    return '<div class="rrow"><b>' + name + '</b><span>' + (sz[code]||'—') + '</span></div>';
+  }).join('');
+
+  var allSizes = ['XS','S','M','L','XL','2XL','3XL'];
+  g('ov-fields').innerHTML = codes.map(function(code) {
+    var item = ITEMS.find(function(i){return i.code===code;});
+    var name = item ? item.name : {TP:'戰術褲',BELT:'褲帶',CAP:'戰術帽',SHOE:'消防靴'}[code] || code;
+    var isShoe = code === 'SHOE';
+    var opts = isShoe ? SHOES : allSizes;
+    var autoVal = sz[code] || '';
+    var options = '<option value="">自動(' + autoVal + ')</option>' +
+      opts.map(function(s){ return '<option value="'+s+'"'+(s===autoVal?' selected':'')+'>'+s+(isShoe?' cm':'')+'</option>'; }).join('');
+    return '<div class="f" style="margin-bottom:8px"><label>' + name + '</label>' +
+      '<select id="ov-' + code + '">' + options + '</select></div>';
+  }).join('');
+}
+function getOv() {
+  var codes = getSelectedCodes();
+  var m = getMeas(); var auto = recommend(m); var r = {};
+  codes.forEach(function(code) {
+    var el = g('ov-' + code);
+    r[code] = (el && el.value) ? el.value : (auto[code] || '');
+  });
+  return r;
+}
+
+// ═══════════════════════════════════════════════
+//  STEP 4 — CODE + LABEL
+// ═══════════════════════════════════════════════
+function genKitCode(fid, date) {
+  var d6  = (date || '').replace(/-/g, '').slice(2);
+  var num = (fid || '').replace(/\D/g, '').slice(-4).padStart(4, '0');
+  var unitPart = (fid || '').split('-').slice(0, 2).join('-') || 'TPE-XX';
+  var rnd = String(Math.floor(Math.random() * 900) + 100);
+  return currentSeries + '-' + unitPart + '-' + d6 + '-' + num + '-' + rnd;
+}
+function renderStep4() {
+  var fid    = v('fid') || 'TPE-XX-0000';
+  var date   = v('fdate') || new Date().toISOString().split('T')[0];
+  var serial = genKitCode(fid, date);
+  g('gserial').textContent = serial;
+  g('gdate').textContent   = '登記日：' + date;
+
+  var ov    = getOv();
+  var m     = getMeas();
+  var name  = v('fname');
+  var unit  = g('funit').value.split('|')[0] || '';
+  var squad = v('fsquad');
+  var rank  = v('frank');
+
+  var itemCodes = getSelectedCodes().filter(function(c){ return c !== 'TP' && c !== 'BELT' && c !== 'CAP' && c !== 'SHOE'; });
+  var kitLines = itemCodes.map(function(code){
+    var item = ITEMS.find(function(i){return i.code===code;});
+    return (item?item.name:code) + ' ' + (ov[code]||'—') + ' ×1';
+  }).join('\n');
+  kitLines += '\n戰術褲 ' + (ov['TP']||'—') + ' ×1';
+  if (ov['BELT']) kitLines += '\n褲帶 ' + ov['BELT'] + ' ×1';
+  if (ov['CAP'])  kitLines += '\n戰術帽 ' + ov['CAP'] + ' ×1';
+
+  g('label-preview').innerHTML = buildPersonLabel(fid, name, unit, squad, serial, kitLines);
+
+  g('qr-out').innerHTML = '';
+  try { new QRCode(g('qr-out'), { text: JSON.stringify({serial,name,fid,unit,squad,series:currentSeries,sizes:ov,date}), width:100, height:100, correctLevel:QRCode.CorrectLevel.M }); }
+  catch(e){}
+
+  g('confirm-summary').innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;font-size:12px;line-height:2">' +
+    '<div><span style="color:var(--muted)">姓名</span>　' + name + '</div>' +
+    '<div><span style="color:var(--muted)">識別碼</span>　' + fid + '</div>' +
+    '<div><span style="color:var(--muted)">單位</span>　' + unit + '</div>' +
+    '<div><span style="color:var(--muted)">分隊</span>　' + squad + '</div>' +
+    '<div><span style="color:var(--muted)">職稱</span>　' + rank + '</div>' +
+    '<div><span style="color:var(--muted)">系列</span>　' + currentSeries + '</div>' +
+    '<div><span style="color:var(--muted)">身高</span>　' + (m.height||'—') + ' cm</div>' +
+    '<div><span style="color:var(--muted)">胸圍</span>　' + (m.chest||'—') + ' cm</div>' +
+    Object.entries(ov).map(function(e){ return '<div><span style="color:var(--muted)">'+e[0]+'</span>　<strong style="color:var(--accent)">'+e[1]+'</strong></div>'; }).join('') +
+    '</div>';
+
+  // Store pending record
+  window._pendingRec = {
+    id: editId || crypto.randomUUID(), serial, series: getSelectedSeries().join('+'), selectedSeries: getSelectedSeries(),
+    name, fid, unit, squad, rank,
+    gender: v('fgender'), date, source: v('fsource'),
+    measurer: v('imeasurer'), note: v('inote'), adminNote: '', status: '待確認',
+    height: m.height, shoulder: m.shoulder, chest: m.chest,
+    waist: m.waist, hip: m.hip, inseam: m.inseam,
+    sizes: ov, bagNo: serial,
+    boxNo: (fid.split('-').slice(0,2).join('-')) + '-01',
+    createdAt: new Date().toISOString()
+  };
+}
+
+// ─── Save ─────────────────────────────────────
+async function saveRecord() {
+  var rec = window._pendingRec;
+  if (!rec) return;
+  var btn = g('btn-save');
+  var ss  = g('save-st');
+  btn.disabled = true; btn.textContent = '儲存中…';
+  ss.style.display = 'block';
+
+  // Local save
+  var idx = records.findIndex(function(r){ return r.id === rec.id; });
+  if (idx >= 0) records[idx] = rec; else records.push(rec);
+  persist();
+
+  // Sheets sync if configured
+  if (SURL) {
+    try {
+      await api('addRecord', rec);
+      ss.className = 'sb so'; ss.textContent = '✅ 已儲存至本機並同步 Google Sheets！' + rec.serial;
+    } catch(e) {
+      ss.className = 'sb sw'; ss.textContent = '⚠️ 本機已儲存，Sheets 同步失敗：' + e.message;
+    }
+  } else {
+    ss.className = 'sb so'; ss.textContent = '✅ 已儲存至本機！（未設定 Sheets 連線）';
+  }
+  btn.textContent = '✓ 完成';
+  editId = null;
+  setTimeout(function(){
+    resetForm(); goStep(1);
+    btn.disabled = false; btn.textContent = '✓ 儲存（本機 + Sheets）';
+    ss.style.display = 'none';
+  }, 2500);
+}
+function resetForm() {
+  ['fname','fid','fsquad','inote','imeasurer'].forEach(function(id){ g(id).value = ''; });
+  ['ih','is','ic','iw','ihp','iinseam'].forEach(function(id){ g(id).value = ''; });
+  g('funit').value = ''; g('fseq').value = ''; g('fdate').value = new Date().toISOString().split('T')[0];
+  g('custom-row').style.display = 'none';
+  ['dh','ds','dc','dw','dhp'].forEach(function(id){ g(id).textContent = '—'; });
+  setSeries('TAC');
+  editId = null; window._pendingRec = null;
+}
+
+// ═══════════════════════════════════════════════
+//  RECORDS PAGE
+// ═══════════════════════════════════════════════
+function renderRecords() {
+  var q  = (g('srch').value || '').toLowerCase();
+  var sf = g('series-filter').value || '';
+  var filtered = records.filter(function(r){
+    return (!sf || r.series === sf) &&
+      (!q || Object.values(r).some(function(val){ return String(val).toLowerCase().includes(q); }));
+  });
+  var b = g('rec-body');
+  if (!filtered.length) { b.innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:30px">無符合資料</td></tr>'; return; }
+  b.innerHTML = filtered.map(function(r){
+    var sz = r.sizes || {};
+    return '<tr>' +
+      '<td><span class="serial">' + (r.serial||r.bagNo||'—') + '</span></td>' +
+      '<td><strong>' + (r.name||'—') + '</strong></td>' +
+      '<td><span style="font-size:11px;color:var(--tac)">' + (r.series||'—') + '</span></td>' +
+      '<td>' + (r.squad||'—') + '</td>' +
+      '<td style="font-family:var(--mono)">' + (r.height||'—') + '</td>' +
+      '<td style="font-family:var(--mono)">' + (r.shoulder||'—') + '</td>' +
+      '<td style="font-family:var(--mono)">' + (r.chest||'—') + '</td>' +
+      '<td style="font-family:var(--mono)">' + (r.waist||'—') + '</td>' +
+      '<td style="font-family:var(--mono)">' + (r.hip||'—') + '</td>' +
+      '<td><span class="sz">' + (sz.TL||sz.OPL||'—') + '</span></td>' +
+      '<td><span class="sz">' + (sz.TS||sz.OPS||'—') + '</span></td>' +
+      '<td><span class="sz">' + (sz.TP||'—') + '</span></td>' +
+      '<td><span class="spill s-' + (r.status||'待確認') + '">' + (r.status||'待確認') + '</span></td>' +
+      '<td class="noPrint"><button class="btn bg bsm" onclick="editRec(\'' + r.id + '\')">編輯</button></td>' +
+    '</tr>';
+  }).join('');
+}
+function editRec(id) {
+  var r = records.find(function(x){ return x.id === id; });
+  if (!r) return;
+  editId = id;
+  g('fname').value    = r.name    || '';
+  g('fid').value      = r.fid     || '';
+  g('fsquad').value   = r.squad   || '';
+  g('fdate').value    = r.date    || '';
+  g('frank').value    = r.rank    || '';
+  g('fgender').value  = r.gender  || 'M';
+  g('fsource').value  = r.source  || '';
+  g('imeasurer').value= r.measurer|| '';
+  g('inote').value    = r.note    || '';
+  g('ih').value       = r.height  || '';
+  g('is').value       = r.shoulder|| '';
+  g('ic').value       = r.chest   || '';
+  g('iw').value       = r.waist   || '';
+  g('ihp').value      = r.hip     || '';
+  g('iinseam').value  = r.inseam  || '';
+  currentSeries = r.series || 'TAC';
+  showPg('register', document.querySelector('.nb'));
+  goStep(1);
+}
+function loadDemo() {
+  var demo = [
+    {id:crypto.randomUUID(),serial:'TAC-TPE-B2-260509-0031-482',series:'TAC',
+     unit:'TPE-B2',squad:'信義分隊',name:'王○○',fid:'TPE-B2-0031',rank:'消防士',gender:'M',
+     date:'2026-05-09',height:176,shoulder:48,chest:101,waist:84,hip:96,inseam:78,
+     source:'iPhone 測距儀',measurer:'洪琪',status:'已確認',note:'標準體型',adminNote:'',
+     createdAt:new Date().toISOString()},
+    {id:crypto.randomUUID(),serial:'TAC-TPE-B2-260509-0032-319',series:'TAC',
+     unit:'TPE-B2',squad:'信義分隊',name:'林○○',fid:'TPE-B2-0032',rank:'副小隊長',gender:'M',
+     date:'2026-05-09',height:182,shoulder:51,chest:112,waist:96,hip:105,inseam:82,
+     source:'人工皮尺',measurer:'洪琪',status:'需複量',note:'肩寬與腰圍偏大，褲子建議覆核',adminNote:'',
+     createdAt:new Date().toISOString()},
+  ];
+  demo.forEach(function(r){ r.sizes = recommend(r); r.bagNo = r.serial; r.boxNo = r.unit + '-01'; });
+  records = records.concat(demo);
+  persist(); renderRecords();
+}
+
+// ═══════════════════════════════════════════════
+//  PACKING LABELS
+// ═══════════════════════════════════════════════
+function buildPersonLabel(pid, name, unit, squad, serial, kitContent) {
+  var lines = (kitContent||'').split('\n').map(function(l){ return '<div>　' + l + '</div>'; }).join('');
+  return '<div class="lh">PERSONAL ISSUE BAG</div>' +
+    '<div><span class="lk">UNIT</span>：<span class="lv">' + (unit||'—') + '</span></div>' +
+    '<div><span class="lk">SQUAD</span>：<span class="lv">' + (squad||'—') + '</span></div>' +
+    '<div><span class="lk">NAME</span>：<span class="lv">' + (name||'—') + '</span></div>' +
+    '<div><span class="lk">PERSON ID</span>：<span class="lv">' + (pid||'—') + '</span></div>' +
+    '<div class="lsec"><div style="font-weight:700;margin-bottom:3px">KIT CONTENT</div>' + lines + '</div>' +
+    '<div class="lsec" style="font-size:9px;color:#888">SERIAL：' + (serial||'—') + '</div>';
+}
+
+function genAllLabels() {
+  var groups = {};
+  records.forEach(function(r){ var k = (r.unit||'')+'|'+(r.squad||''); (groups[k]=groups[k]||[]).push(r); });
+  var html = '';
+  records.forEach(function(r){
+    html += '<div class="lp">' + buildPersonLabel(r.fid, r.name, r.unit||'—', r.squad||'—', r.serial||r.bagNo, kitContent(r)) + '</div>';
+  });
+  Object.keys(groups).forEach(function(k){
+    var arr = groups[k], r = arr[0];
+    html += '<div class="lp"><div class="lh">SQUAD BOX</div>' +
+      '<div><span class="lk">UNIT</span>：<span class="lv">' + (r.unit||'—') + '</span></div>' +
+      '<div><span class="lk">SQUAD</span>：<span class="lv">' + (r.squad||'—') + '</span></div>' +
+      '<div><span class="lk">BOX NO.</span>：<span class="lv">' + (r.boxNo||'—') + '</span></div>' +
+      '<div><span class="lk">PERSON COUNT</span>：<span class="lv">' + arr.length + '</span></div>' +
+      '<div class="lsec">PERSONAL KIT ×' + arr.length + '</div></div>';
+  });
+  g('all-labels').innerHTML = html || '<p style="color:var(--muted)">尚無資料</p>';
+}
+
+// ═══════════════════════════════════════════════
+//  LABEL PAGE
+// ═══════════════════════════════════════════════
+function genPersonLabel() {
+  var pid = g('lb-pid').value, name = g('lb-name').value;
+  var unit = g('lb-unit').value, squad = g('lb-squad').value;
+  var kit = g('lb-kit').value;
+  g('lp-person').innerHTML = buildPersonLabel(pid, name, unit, squad, pid, kit);
+  g('qr-person').innerHTML = '';
+  try { new QRCode(g('qr-person'), {text: JSON.stringify({pid,name,unit,squad}), width:80, height:80}); } catch(e){}
+}
+function genSquadLabel() {
+  var unit = g('lb-su').value, squad = g('lb-sq').value;
+  var bn = g('lb-bn').value, pc = g('lb-pc').value, note = g('lb-note').value;
+  g('lp-squad').innerHTML = '<div class="lh">SQUAD BOX</div>' +
+    '<div><span class="lk">UNIT</span>：<span class="lv">'  + (unit||'—')  + '</span></div>' +
+    '<div><span class="lk">SQUAD</span>：<span class="lv">' + (squad||'—') + '</span></div>' +
+    '<div><span class="lk">BOX NO.</span>：<span class="lv">'+ (bn||'—')   + '</span></div>' +
+    '<div><span class="lk">PERSON COUNT</span>：<span class="lv">'+(pc||'—')+'</span></div>' +
+    '<div class="lsec">PERSONAL KIT ×' + (pc||'—') + '</div>' +
+    (note ? '<div class="lsec">' + note + '</div>' : '');
+}
+function printEl(id) {
+  var html = g(id).outerHTML;
+  var w = window.open('','_blank');
+  w.document.write('<html><head><style>body{font-family:monospace;background:#fff;color:#111;padding:20px}' +
+    '.lp{font-size:12px;line-height:1.8;border:2px solid #111;padding:14px;max-width:340px}' +
+    '.lh{font-size:13px;font-weight:700;border-bottom:2px solid #111;margin-bottom:8px;padding-bottom:5px;letter-spacing:.1em}' +
+    '.lk{color:#555;display:inline-block;min-width:78px}.lv{font-weight:700}' +
+    '.lsec{margin-top:7px;padding-top:7px;border-top:1px solid #ddd;font-size:10px;line-height:1.6}' +
+    '</style></head><body>' + html + '</body></html>');
+  w.document.close(); w.print();
+}
+
+// ═══════════════════════════════════════════════
+//  EXPORT / CSV
+// ═══════════════════════════════════════════════
+function csvEscape(v) {
+  v = (v == null ? '' : v).toString().replace(/\r?\n/g, ' / ');
+  return '"' + v.replace(/"/g, '""') + '"';
+}
+function saveFile(name, text, type) {
+  var blob = new Blob([text], {type: type || 'text/csv;charset=utf-8'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+function downloadCSV(kind) {
+  var rows = [], d = new Date().toISOString().slice(0,10);
+  if (kind === 'sizing') {
+    rows = [['消防局','分隊','姓名','人員識別碼','性別','身高','肩寬','胸圍','腰圍','臀圍','褲內長','量測方式','系列','TL','TS','TV','OPL','OPS','EJ','EV','TP','BELT','CAP','狀態','現場備注','後台備注']];
+    records.forEach(function(r){ var sz=r.sizes||{};
+      rows.push([r.unit,r.squad,r.name,r.fid,r.gender,r.height,r.shoulder,r.chest,r.waist,r.hip,r.inseam,r.source,r.series,sz.TL,sz.TS,sz.TV,sz.OPL,sz.OPS,sz.EJ,sz.EV,sz.TP,sz.BELT,sz.CAP,r.status,r.note,r.adminNote]);
+    });
+  } else if (kind === 'packing') {
+    rows = [['UNIT','SQUAD','NAME','PERSONAL ID','BAG NO','KIT CONTENT','NOTE']];
+    records.forEach(function(r){ rows.push([r.unit||'',r.squad||'',r.name||'',r.fid||'',r.serial||r.bagNo||'',kitContent(r),r.note||'']); });
+  } else if (kind === 'box') {
+    var groups = {};
+    records.forEach(function(r){ var k=(r.unit||'')+'|'+(r.squad||''); (groups[k]=groups[k]||[]).push(r); });
+    rows = [['UNIT','SQUAD','BOX NO.','PERSON COUNT','CONTENT','NOTE']];
+    Object.keys(groups).forEach(function(k){ var arr=groups[k],r=arr[0];
+      rows.push([r.unit||'',r.squad||'',r.boxNo||'',arr.length,'PERSONAL KIT ×'+arr.length,'本箱為完整個人配發袋']);
+    });
+  } else if (kind === 'accept') {
+    rows = [['驗收項目','數量','規格 / 證明文件','合格','不合格','備注']];
+    ACCEPT_ITEMS.forEach(function(x){ rows.push([x,'','合格出廠證明文件 + 第三公正單位測試報告','','','']); });
+  }
+  saveFile(kind + '_' + d + '.csv', '\uFEFF' + rows.map(function(r){ return r.map(csvEscape).join(','); }).join('\n'));
+}
+function downloadJSON() {
+  saveFile('firescue_backup_' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(records, null, 2), 'application/json');
+}
+function renderAcceptance() {
+  g('accept-box').innerHTML = '<div class="scroll"><table class="dt"><thead><tr><th>驗收項目</th><th>證明文件要求</th><th>結果</th></tr></thead><tbody>' +
+    ACCEPT_ITEMS.map(function(x){ return '<tr><td>'+x+'</td><td style="font-size:11px;color:var(--muted)">合格出廠證明文件 + 第三公正單位測試報告</td><td>□合格 □不合格</td></tr>'; }).join('') +
+    '</tbody></table></div>';
+}
+
+// ═══════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════
+function showChart(series) {
+  var items = ITEMS.filter(function(it){ return it.series === series; });
+  var html = '';
+  items.forEach(function(item){
+    var cols = item.type === 'rangeVest' ? ['肩寬','胸圍最小','胸圍最大'] : ['肩寬','胸圍'];
+    html += '<div class="card"><div class="ct">' + item.name + ' (' + item.code + ')</div>' +
+      '<div style="overflow-x:auto"><table class="sct"><thead><tr><th>尺碼</th>' +
+      cols.map(function(c){ return '<th>'+c+' (cm)</th>'; }).join('') + '</tr></thead><tbody>' +
+      item.table.map(function(r){ return '<tr><td><span class="sz">'+r[0]+'</span></td>' + r.slice(1).map(function(v){ return '<td>'+v+'</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table></div></div>';
+  });
+  html += '<div class="card"><div class="ct">戰術褲（各系列共用）</div><div style="overflow-x:auto"><table class="sct"><thead><tr><th>尺碼</th><th>腰圍範圍(cm)</th><th>臀圍(cm)</th></tr></thead><tbody>' +
+    [['XS','66~76',94],['S','71~81',99],['M','76~86',104],['L','81~91',109],['XL','86~97',114],['2XL','91~102',119],['3XL','97~107',124]]
+    .map(function(r){ return '<tr><td><span class="sz">'+r[0]+'</span></td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>'; }).join('') +
+    '</tbody></table></div></div>';
+  html += '<div class="card"><div class="ct">消防靴對照</div><div style="overflow-x:auto"><table class="sct"><thead><tr><th>腳長(cm)</th><th>22</th><th>23</th><th>24</th><th>24.5</th><th>25</th><th>25.5</th><th>26</th><th>27</th><th>28</th><th>29</th></tr></thead><tbody><tr><td>日本號</td><td>34</td><td>35</td><td>36</td><td>37</td><td>38</td><td>39</td><td>40</td><td>41</td><td>42</td><td>43</td></tr></tbody></table></div></div>';
+  g('chart-content').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════
+//  ADMIN
+// ═══════════════════════════════════════════════
+function renderAdmin() {
+  var html = '';
+  records.forEach(function(r){
+    var sz = r.sizes || {};
+    html += '<tr>' +
+      '<td><strong>' + (r.name||'—') + '</strong></td>' +
+      '<td style="font-size:11px"><span class="serial">' + (r.fid||'—') + '</span></td>' +
+      '<td><select id="ast_'+r.id+'" style="background:var(--surf);border:1px solid var(--border);color:var(--text);padding:5px;border-radius:4px;font-size:11px">' +
+        ['待確認','已確認','需複量','特殊修改','備料中','已裝袋','已領取'].map(function(s){ return '<option'+(s===r.status?' selected':'')+'>'+s+'</option>'; }).join('') +
+      '</select></td>' +
+      '<td><input id="asz_'+r.id+'" value="'+ Object.entries(sz).filter(function(e){return e[1];}).map(function(e){return e[0]+':'+e[1];}).join(', ') +'" style="background:var(--surf);border:1px solid var(--border);color:var(--text);padding:5px;border-radius:4px;font-size:11px;width:100%"></td>' +
+      '<td><textarea id="aad_'+r.id+'" style="background:var(--surf);border:1px solid var(--border);color:var(--text);padding:5px;border-radius:4px;font-size:11px;width:100%;min-height:50px">'+( r.adminNote||'')+'</textarea></td>' +
+      '<td style="font-size:10px;color:var(--muted)">' + (SURL ? '已設定' : '—') + '</td>' +
+      '<td><button class="btn bg bsm" onclick="saveAdm(\''+r.id+'\')">儲存</button></td>' +
+    '</tr>';
+  });
+  g('adm-body').innerHTML = html || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">尚無資料</td></tr>';
+}
+function saveAdm(id) {
+  var r = records.find(function(x){ return x.id === id; });
+  if (!r) return;
+  r.status    = g('ast_'+id).value;
+  r.adminNote = g('aad_'+id).value;
+  var txt = g('asz_'+id).value;
+  ['TL','TS','TV','OPL','OPS','EJ','EV','TP','BELT','CAP','SHOE'].forEach(function(k){
+    var m = txt.match(new RegExp(k + '\\s*:\\s*([^,]+)'));
+    if (m) r.sizes[k] = m[1].trim();
+  });
+  persist(); alert('✅ 已更新本機資料');
+}
+async function syncToSheets() {
+  if (!SURL) { alert('請先在「設定」頁設定 Script URL'); return; }
+  var btn = g('btn-sync-sheets'); btn.disabled = true; btn.textContent = '同步中…';
+  try {
+    for (var i = 0; i < records.length; i++) { await api('addRecord', records[i]); }
+    alert('✅ 全部 ' + records.length + ' 筆已同步至 Sheets');
+  } catch(e) { alert('同步失敗：' + e.message); }
+  btn.disabled = false; btn.textContent = '↑ 同步至 Sheets';
+}
+
+// ═══════════════════════════════════════════════
+//  SETUP
+// ═══════════════════════════════════════════════
+async function saveUrl() {
+  var url = g('surl').value.trim(); if (!url) { alert('請輸入 URL'); return; }
+  SURL = url; localStorage.setItem('ffs_url', url);
+  var cs = g('conn-st'); cs.style.display = 'block'; cs.className = 'sb si'; cs.textContent = '測試連線中…';
+  try { var r = await api('getAll'); cs.className = 'sb so'; cs.textContent = '✅ 連線成功！已讀取 ' + (r.data||[]).length + ' 筆'; }
+  catch(e) { cs.className = 'sb sw'; cs.textContent = '❌ 連線失敗：' + e.message; }
+}
+function clearUrl() { SURL = ''; localStorage.removeItem('ffs_url'); g('surl').value = ''; setSync('err','未設定'); }
+function changePw() {
+  var o = g('pw-old').value, nw = g('pw-new').value;
+  if (o !== ADM_PW) { alert('目前密碼錯誤'); return; }
+  if (!nw) { alert('請輸入新密碼'); return; }
+  ADM_PW = nw; localStorage.setItem('ffs_pw', nw); alert('密碼已更新');
+  g('pw-old').value = ''; g('pw-new').value = '';
+}
+
+// ═══════════════════════════════════════════════
+//  PHOTO MEASURE
+// ═══════════════════════════════════════════════
+(function initPhoto(){
+  var canvas = g('photo-canvas');
+  var ctx = canvas.getContext('2d');
+  var img = new Image(), drawing = false, start = null, lines = [];
+  var pxPerCm = null, lastMeas = null;
+
+  function pos(e) {
+    var r = canvas.getBoundingClientRect();
+    var t = e.touches ? e.touches[0] : e;
+    return { x:(t.clientX-r.left)*canvas.width/r.width, y:(t.clientY-r.top)*canvas.height/r.height };
+  }
+  function drawLine(a, b, color, txt) {
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+    ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke();
+    [a,b].forEach(function(p){ ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fillStyle=color; ctx.fill(); });
+    if (txt) {
+      var mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
+      ctx.fillStyle='#fff'; ctx.fillRect(mx-45,my-24,100,22);
+      ctx.fillStyle=color; ctx.font='13px sans-serif'; ctx.fillText(txt,mx-40,my-8);
+    }
+  }
+  function redraw() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    if (img.src) ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    lines.forEach(function(l){ drawLine(l.a,l.b,l.color,l.txt); });
+  }
+
+  g('photo-input').onchange = function(e) {
+    var f = e.target.files[0]; if(!f) return;
+    var rd = new FileReader();
+    rd.onload = function(ev) {
+      img.onload = function() {
+        var max=800, w=img.width, h=img.height;
+        if(w>max){h*=max/w;w=max;}
+        canvas.width=w; canvas.height=h;
+        redraw(); g('meas-info').textContent='請先畫身高基準線，再切換成測量部位。';
+      };
+      canvas.__img = img;   // expose for AI handler
+      img.src = ev.target.result;
+    };
+    rd.readAsDataURL(f);
+  };
+
+  canvas.addEventListener('mousedown',  function(e){ drawing=true; start=pos(e); });
+  canvas.addEventListener('touchstart', function(e){ e.preventDefault(); drawing=true; start=pos(e); }, {passive:false});
+  canvas.addEventListener('mousemove',  function(e){ if(!drawing)return; redraw(); drawLine(start,pos(e),'#0070f3'); });
+  canvas.addEventListener('touchmove',  function(e){ e.preventDefault(); if(!drawing)return; redraw(); drawLine(start,pos(e),'#0070f3'); }, {passive:false});
+
+  function up(e) {
+    if(!drawing) return; drawing=false;
+    var ep = e.changedTouches ? {clientX:e.changedTouches[0].clientX,clientY:e.changedTouches[0].clientY} : e;
+    var p = pos(ep);
+    var dist = Math.hypot(p.x-start.x, p.y-start.y);
+    if (dist < 5) return;
+    var mode = g('draw-mode').value;
+    if (mode === 'ref') {
+      pxPerCm = dist / (parseFloat(g('ref-cm').value) || 175);
+      lines.push({a:start,b:p,color:'#b3261e',txt:'身高基準'});
+      g('draw-mode').value = 'measure';
+      g('meas-info').textContent = '基準完成，請拉線測量部位。';
+    } else {
+      var cm = +(dist / (pxPerCm||1)).toFixed(1);
+      var target = g('meas-target').value;
+      var names = {is:'肩寬',ic:'胸圍參考',iw:'腰圍參考',ihp:'臀圍參考',iinseam:'褲內長'};
+      lastMeas = {target, cm};
+      lines.push({a:start,b:p,color:'#0070f3',txt:names[target]+': '+cm+'cm'});
+      g('meas-info').textContent = '最後量測：' + cm + ' cm（' + names[target] + '）— 可點「套用」加到登記表。';
+      g('meas-log').innerHTML += '<div class="rrow"><b>' + names[target] + '</b><span>' + cm + ' cm</span></div>';
+    }
+    redraw();
+  }
+  window.addEventListener('mouseup', up);
+  window.addEventListener('touchend', up);
+
+  g('btn-apply-meas').onclick = function() {
+    var infoEl = g('meas-info');
+    if (!lastMeas) {
+      infoEl.textContent = '⚠️ 尚無量測值，請先拉線或使用 AI 自動偵測';
+      infoEl.className = 'sb sw';
+      return;
+    }
+    if (g(lastMeas.target)) g(lastMeas.target).value = lastMeas.cm;
+    infoEl.textContent = '✅ 已套用 ' + lastMeas.cm + ' cm → 請前往登記頁確認';
+    infoEl.className = 'sb so';
+  };
+  g('btn-reset-canvas').onclick = function() {
+    lines=[]; pxPerCm=null; lastMeas=null;
+    redraw(); g('meas-info').textContent='已重設。'; g('meas-log').innerHTML='';
+  };
+})();
+
+// ═══════════════════════════════════════════════
+//  EVENT BINDINGS (safe — no module scope)
+// ═══════════════════════════════════════════════
+// Trigger sync on any select interaction (iOS-safe)
+['change','click','touchend','blur'].forEach(function(evt) {
+  g('funit').addEventListener(evt, function() { syncFromSelect(); }, {passive:true});
+});
+g('fsquad').addEventListener('input', syncFromSelect);
+g('fseq').addEventListener('input', syncFromSelect);
+g('funit-code') && g('funit-code').addEventListener('input', syncFromSelect);
+g('funit-custom') && g('funit-custom').addEventListener('input', syncFromSelect);
+
+// Series checkboxes — update label border color on change
+['tac','ops','ems'].forEach(function(s) {
+  var chk = g('chk-'+s), lbl = g('lbl-'+s);
+  if (!chk) return;
+  chk.addEventListener('change', function() {
+    lbl.style.borderColor = chk.checked ? 'var(--'+s+')' : 'var(--border)';
+    lbl.style.color = chk.checked ? 'var(--'+s+')' : '';
+  });
+  // Init state
+  if (chk.checked) { lbl.style.borderColor = 'var(--tac)'; lbl.style.color = 'var(--tac)'; }
+});
+
+g('btn-next1').onclick = function(){ goStep(2); };
+g('btn-prev2').onclick = function(){ goStep(1); };
+g('btn-calc').onclick  = function(){ calcAndShow(); };
+g('btn-next2').onclick = function(){ goStep(3); };
+g('btn-prev3').onclick = function(){ goStep(2); };
+g('btn-next3').onclick = function(){ goStep(4); };
+g('btn-prev4').onclick = function(){ goStep(3); };
+g('btn-save').onclick  = saveRecord;
+
+// iPhone Safari sometimes misses normal click after a large <select>. Bind pointer/touch explicitly.
+function bindStepTap(id, fn) {
+  var el = g(id); if (!el) return;
+  ['touchend','pointerup','click'].forEach(function(evt){
+    el.addEventListener(evt, function(e){
+      if (evt !== 'click') { e.preventDefault(); }
+      fn();
+    }, {passive:false});
+  });
+}
+bindStepTap('btn-next1', function(){ goStep(2); });
+bindStepTap('btn-prev2', function(){ goStep(1); });
+bindStepTap('btn-calc',  function(){ calcAndShow(); });
+bindStepTap('btn-next2', function(){ goStep(3); });
+bindStepTap('btn-prev3', function(){ goStep(2); });
+bindStepTap('btn-next3', function(){ goStep(4); });
+bindStepTap('btn-prev4', function(){ goStep(3); });
+
+g('btn-load-recs').onclick  = renderRecords;
+g('btn-load-demo').onclick  = function(){ loadDemo(); renderRecords(); };
+g('srch').addEventListener('input', renderRecords);
+g('series-filter').addEventListener('change', renderRecords);
+
+g('btn-gen-labels').onclick = genAllLabels;
+
+g('btn-csv-sizing').onclick  = function(){ downloadCSV('sizing');  };
+g('btn-csv-packing').onclick = function(){ downloadCSV('packing'); };
+g('btn-csv-box').onclick     = function(){ downloadCSV('box');     };
+g('btn-csv-accept').onclick  = function(){ downloadCSV('accept');  };
+g('btn-json').onclick        = downloadJSON;
+
+g('btn-adm-login').onclick = function(){
+  if(g('adm-pw').value===ADM_PW){ g('admin-gate').style.display='none'; g('admin-panel').style.display='block'; renderAdmin(); }
+  else alert('密碼錯誤。預設密碼：admin');
+};
+g('btn-sync-sheets').onclick = syncToSheets;
+g('btn-clear-all').onclick   = function(){
+  if(confirm('確定清除全部本機資料？')){ records=[]; persist(); renderRecords(); renderAdmin(); }
+};
+
+g('btn-save-url').onclick   = saveUrl;
+g('btn-clear-url').onclick  = clearUrl;
+g('btn-chpw').onclick       = changePw;
+g('btn-save-stat') && (g('btn-save-stat').onclick = function(){
+  var serial = g('btn-save-stat').dataset.serial;
+  var rec = records.find(function(r){ return r.serial===serial||r.bagNo===serial; });
+  if (rec) { rec.status = g('mo-stat-st').value; rec.adminNote = g('mo-stat-note').value; persist(); renderRecords(); }
+  closeMo('mo-status');
+});
+
+// Navigation
+function showPg(id, btn) {
+  if (id === 'measure' && !window._poseReady && !window._poseLoading) {
+    setTimeout(loadMediaPipe, 300);
+  }
+  document.querySelectorAll('.pg').forEach(function(p){ p.classList.remove('on'); });
+  document.querySelectorAll('.nb').forEach(function(b){ b.classList.remove('on'); });
+  g('pg-' + id).classList.add('on');
+  if (btn) btn.classList.add('on');
+  if (id === 'export') renderAcceptance();
+  if (id === 'admin') {
+    g('admin-gate').style.display = '';
+    g('admin-panel').style.display = 'none';
+    g('adm-pw').value = '';
+  }
+}
+window.showPg = showPg;
+window.genPersonLabel = genPersonLabel;
+window.genSquadLabel  = genSquadLabel;
+window.printEl        = printEl;
+window.showChart      = showChart;
+window.editRec        = editRec;
+window.saveAdm        = saveAdm;
+window.closeMo        = function(id){ g(id).classList.remove('on'); };
+
+// nav button clicks
+document.querySelectorAll('.nb').forEach(function(btn){
+  btn.addEventListener('click', function(){ showPg(btn.getAttribute('onclick').match(/\'(\w+)\'/)[1], btn); });
+});
+
+// Init
+g('fdate').value = new Date().toISOString().split('T')[0];
+// Init checkbox state
+var _tacLbl=g('lbl-tac'); if(_tacLbl){_tacLbl.style.borderColor='var(--tac)';_tacLbl.style.color='var(--tac)';}
+if (SURL) g('surl').value = SURL;
+renderAcceptance();
+renderRecords();
+genPersonLabel();
+genSquadLabel();
+showChart('TAC');
+
+// ─── Unit search filter ───────────────────────
+(function() {
+  var searchEl = document.getElementById('funit-search');
+  var selectEl = document.getElementById('funit');
+  if (!searchEl || !selectEl) return;
+
+  // Cache all options with their text and group
+  var allOptions = [];
+  Array.from(selectEl.options).forEach(function(opt) {
+    allOptions.push({ value: opt.value, text: opt.text, group: opt.parentElement.label || '' });
+  });
+
+  searchEl.addEventListener('input', function() {
+    var q = searchEl.value.trim().toLowerCase();
+    selectEl.innerHTML = '';
+
+    if (!q) {
+      // Restore all options grouped
+      var currentGroup = null, groupEl = null;
+      allOptions.forEach(function(o) {
+        if (o.group !== currentGroup) {
+          currentGroup = o.group;
+          groupEl = document.createElement('optgroup');
+          groupEl.label = currentGroup;
+          selectEl.appendChild(groupEl);
+        }
+        var opt = document.createElement('option');
+        opt.value = o.value; opt.text = o.text;
+        (groupEl || selectEl).appendChild(opt);
+      });
+      return;
+    }
+
+    // Filter matching options (flat, no groups)
+    var matched = allOptions.filter(function(o) {
+      return o.text.toLowerCase().includes(q) || o.group.toLowerCase().includes(q) || o.value.toLowerCase().includes(q);
+    });
+
+    if (!matched.length) {
+      var opt = document.createElement('option'); opt.text = '無符合結果'; opt.disabled = true;
+      selectEl.appendChild(opt);
+      return;
+    }
+
+    matched.forEach(function(o) {
+      var opt = document.createElement('option');
+      opt.value = o.value; opt.text = o.group ? '[' + o.group + '] ' + o.text : o.text;
+      selectEl.appendChild(opt);
+    });
+
+    // Auto-select if only one result, or select first if few results
+    if (matched.length === 1) {
+      selectEl.value = matched[0].value;
+      syncFromSelect();
+    } else if (matched.length > 1) {
+      // Pre-select first real result
+      selectEl.selectedIndex = 0;
+    }
+    // After rebuild, always call syncFromSelect so squad/ID update
+    syncFromSelect();
+  });
+})();
+
+
+// ══════════════════════════════════════════════════════
+//  MEDIAPIPE AI 骨架偵測
+// ══════════════════════════════════════════════════════
+var _poseLandmarker = null;
+var _poseLoading = false;
+var _poseReady = false;
+
+function loadMediaPipe() {
+  if (_poseLandmarker || _poseLoading) return;
+  _poseLoading = true;
+  var loadSt = g('ai-load-status');
+  if (loadSt) loadSt.style.display = 'block';
+
+  // Dynamically insert a module script
+  var s = document.createElement('script');
+  s.type = 'module';
+  s.textContent = [
+    'import{PoseLandmarker,FilesetResolver}from"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";',
+    'FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm")',
+    '.then(function(v){return PoseLandmarker.createFromOptions(v,{',
+    '  baseOptions:{modelAssetPath:"https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",delegate:"GPU"},',
+    '  runningMode:"IMAGE",numPoses:1',
+    '});})',
+    '.then(function(lm){',
+    '  window._poseLandmarker=lm;',
+    '  window._poseReady=true;',
+    '  document.dispatchEvent(new Event("poseReady"));',
+    '})',
+    '.catch(function(e){',
+    '  window._poseError=e.message;',
+    '  document.dispatchEvent(new Event("poseError"));',
+    '});',
+  ].join('\n');
+  document.head.appendChild(s);
+}
+
+function runAIPose(imgEl, canvasEl, ctxEl, refHeight, onOk, onFail) {
+  var lm = window._poseLandmarker;
+  if (!lm) { onFail('AI 模型未就緒'); return; }
+  try {
+    var result = lm.detect(imgEl);
+    if (!result.landmarks || !result.landmarks.length) { onFail('未偵測到人物，請確認照片清晰且為全身正面'); return; }
+    var pose = result.landmarks[0];
+    var nose=pose[0],lSh=pose[11],rSh=pose[12],lHip=pose[23],rHip=pose[24];
+    var lAnk=pose[27],rAnk=pose[28],lHeel=pose[29],rHeel=pose[30];
+    var headY = nose.y - ((lSh.y+rSh.y)/2 - nose.y)*0.55;
+    var footY = Math.max(lAnk.y,rAnk.y,lHeel.y,rHeel.y);
+    var pxPerCmAI = (footY - headY) * canvasEl.height / refHeight;
+    var shPx  = Math.abs(lSh.x - rSh.x)  * canvasEl.width;
+    var hipPx = Math.abs(lHip.x - rHip.x) * canvasEl.width;
+    var out = {
+      shoulder: +(shPx / pxPerCmAI).toFixed(1),
+      chest:    +(shPx / pxPerCmAI * 2.28).toFixed(1),
+      waist:    +(hipPx / pxPerCmAI * 1.88).toFixed(1),
+      hip:      +(hipPx / pxPerCmAI * 2.12).toFixed(1)
+    };
+    // Draw skeleton overlay
+    var pairs=[[11,12],[11,23],[12,24],[23,24],[11,13],[13,15],[12,14],[14,16],[23,25],[25,27],[24,26],[26,28]];
+    pairs.forEach(function(pair){
+      ctxEl.beginPath();
+      ctxEl.moveTo(pose[pair[0]].x*canvasEl.width, pose[pair[0]].y*canvasEl.height);
+      ctxEl.lineTo(pose[pair[1]].x*canvasEl.width, pose[pair[1]].y*canvasEl.height);
+      ctxEl.strokeStyle='rgba(224,92,42,0.75)'; ctxEl.lineWidth=2; ctxEl.stroke();
+    });
+    pose.forEach(function(p){
+      ctxEl.beginPath(); ctxEl.arc(p.x*canvasEl.width,p.y*canvasEl.height,3,0,Math.PI*2);
+      ctxEl.fillStyle='rgba(240,136,62,0.9)'; ctxEl.fill();
+    });
+    onOk(out);
+  } catch(e) { onFail(e.message); }
+}
+
+// ── AI detect button handler ──────────────────
+(function bindAIDetect(){
+  var btn = g('btn-ai-detect');
+  if (!btn) return;
+
+  // Shared state with initPhoto IIFE
+  function getPhotoImg() { return document.querySelector('#photo-canvas').__img; }
+
+  btn.onclick = function() {
+    var canvas = g('photo-canvas');
+    var ctx    = canvas.getContext('2d');
+    var imgRef = canvas.__img;   // stored by initPhoto after load
+    var loadSt = g('ai-load-status');
+    var infoEl = g('meas-info');
+
+    if (!imgRef || !imgRef.complete || !imgRef.src) {
+      infoEl.textContent = '⚠️ 請先上傳照片';
+      infoEl.className   = 'sb sw';
+      return;
+    }
+
+    var refH = parseFloat(g('ref-cm').value) || 175;
+
+    function doDetect() {
+      infoEl.textContent = '🔍 AI 骨架辨識中…';
+      infoEl.className   = 'sb si';
+      runAIPose(imgRef, canvas, ctx, refH,
+        function(out) {
+          // Fill form fields
+          var fieldMap = {shoulder:'is', chest:'ic', waist:'iw', hip:'ihp'};
+          var names    = {shoulder:'肩寬', chest:'胸圍', waist:'腰圍', hip:'臀圍'};
+          var logEl    = g('meas-log');
+          logEl.innerHTML = '';
+          Object.keys(out).forEach(function(k) {
+            if (g(fieldMap[k])) g(fieldMap[k]).value = out[k];
+            logEl.innerHTML += '<div class="rrow"><b>' + names[k] + '</b><span>' + out[k] + ' cm</span></div>';
+          });
+          infoEl.textContent = '✅ AI 偵測完成！請確認數值後點「套用至登記表」';
+          infoEl.className   = 'sb so';
+        },
+        function(err) {
+          infoEl.textContent = '⚠️ 偵測失敗：' + err + '　→ 請改用手動拉線量測';
+          infoEl.className   = 'sb sw';
+        }
+      );
+    }
+
+    if (window._poseReady) {
+      doDetect();
+    } else {
+      infoEl.textContent = '⏳ 載入 AI 模型中（需網路）…';
+      infoEl.className   = 'sb si';
+      btn.disabled = true;
+      if (loadSt) loadSt.style.display = 'block';
+      loadMediaPipe();
+      document.addEventListener('poseReady', function onReady(){
+        document.removeEventListener('poseReady', onReady);
+        if (loadSt) loadSt.style.display = 'none';
+        btn.disabled = false;
+        doDetect();
+      });
+      document.addEventListener('poseError', function onErr(){
+        document.removeEventListener('poseError', onErr);
+        if (loadSt) loadSt.style.display = 'none';
+        btn.disabled = false;
+        infoEl.textContent = '❌ AI 模型載入失敗（請確認網路連線）→ 改用手動拉線';
+        infoEl.className   = 'sb sw';
+      });
+    }
+  };
+})();
+
+</script>
+</body>
+</html>
