@@ -667,20 +667,34 @@
         if (!pendingMeasureLine) return;
         
         let finalLabel = labelName;
+        let multiplier = 1;
+        
+        if (labelName === '胸圍') multiplier = 2.6;
+        else if (labelName === '腰圍') multiplier = 2.4;
+        else if (labelName === '臀圍') multiplier = 2.2;
+        
+        if (multiplier !== 1) {
+            finalLabel = `${labelName}(推估)`; 
+        }
+
         if (labelName === 'custom') {
             finalLabel = document.getElementById('customMeasurePart').value.trim();
             if (!finalLabel) finalLabel = "自訂線段";
         }
         
+        const finalVal = (parseFloat(pendingMeasureLine.val) * multiplier).toFixed(1);
+
         if (inputId) {
-            document.getElementById(inputId).value = pendingMeasureLine.val;
+            document.getElementById(inputId).value = finalVal;
         }
         
         measureLines.push({
             p1: pendingMeasureLine.p1, 
             p2: pendingMeasureLine.p2, 
             name: finalLabel, 
-            val: pendingMeasureLine.val
+            val: finalVal,
+            multiplier: multiplier,
+            inputId: inputId
         });
         
         pendingMeasureLine = null;
@@ -753,6 +767,49 @@
     const downEvent = d => {
         if(!img.src) return;
         const p = getCoords(d);
+        
+        if (refLine && refLine.labelBox) {
+            const lb = refLine.labelBox;
+            if (p.x >= lb.x && p.x <= lb.x + lb.w && p.y >= lb.y && p.y <= lb.y + lb.h) {
+                if(d.type==='touchstart') d.preventDefault();
+                let newVal = prompt(`修改 身高基準 (目前: ${refLine.real} cm):`, refLine.real);
+                if (newVal !== null && newVal.trim() !== "" && !isNaN(parseFloat(newVal))) {
+                    const realH = parseFloat(newVal);
+                    refLine.real = realH;
+                    document.getElementById('refHeightInput').value = realH;
+                    document.getElementById('val-height').value = realH;
+                    pxPerCm = dist(refLine.p1, refLine.p2) / realH;
+                    redraw();
+                }
+                return;
+            }
+        }
+        
+        for (let l of measureLines) {
+            if (l.labelBox) {
+                const lb = l.labelBox;
+                if (p.x >= lb.x && p.x <= lb.x + lb.w && p.y >= lb.y && p.y <= lb.y + lb.h) {
+                    if(d.type==='touchstart') d.preventDefault();
+                    let newVal = prompt(`修改 ${l.name} (目前: ${l.val} cm):`, l.val);
+                    if (newVal !== null && newVal.trim() !== "" && !isNaN(parseFloat(newVal))) {
+                        const finalVal = parseFloat(newVal);
+                        const multi = l.multiplier || 1;
+                        const targetDist = (finalVal / multi) * pxPerCm;
+                        const currentDist = dist(l.p1, l.p2);
+                        if (currentDist > 0) {
+                            const ratio = targetDist / currentDist;
+                            const cx = (l.p1.x + l.p2.x) / 2;
+                            const cy = (l.p1.y + l.p2.y) / 2;
+                            l.p1 = { x: cx + (l.p1.x - cx) * ratio, y: cy + (l.p1.y - cy) * ratio };
+                            l.p2 = { x: cx + (l.p2.x - cx) * ratio, y: cy + (l.p2.y - cy) * ratio };
+                        }
+                        redraw();
+                    }
+                    return;
+                }
+            }
+        }
+
         const hp = getPointAt(p);
         
         if(hp) { 
@@ -837,11 +894,15 @@
     function redraw() {
         ctx.clearRect(0,0,canvas.width,canvas.height); if(img.src) ctx.drawImage(img,0,0,canvas.width,canvas.height);
         
-        if(refLine) drawLine(refLine.p1, refLine.p2, '#ef4444', `身高基準: ${refLine.real}`, true);
+        if(refLine) refLine.labelBox = drawLine(refLine.p1, refLine.p2, '#ef4444', `身高基準: ${refLine.real}`, true);
         measureLines.forEach(l => {
-            const reVal = (dist(l.p1, l.p2)/pxPerCm).toFixed(1); 
+            const multi = l.multiplier || 1;
+            const reVal = (dist(l.p1, l.p2)/pxPerCm * multi).toFixed(1); 
             l.val = reVal;
-            drawLine(l.p1, l.p2, '#60a5fa', `${l.name}: ${l.val}`);
+            if (l.inputId) {
+                document.getElementById(l.inputId).value = reVal;
+            }
+            l.labelBox = drawLine(l.p1, l.p2, '#60a5fa', `${l.name}: ${l.val}`);
         });
 
         if(hoveredPoint) {
@@ -868,20 +929,30 @@
             } else {
                 ctx.font=`bold ${fontSize}px 'Segoe UI'`;
                 let tempW = ctx.measureText(txt).width;
-                x = Math.max(p1.x, p2.x) + tempW/2 + (15 * scale);
-                if (x + tempW/2 + 10*scale > canvas.width) {
-                    x = canvas.width - tempW/2 - 10*scale;
-                }
+                x = canvas.width - tempW/2 - 20*scale;
+                
+                const rightP = p1.x > p2.x ? p1 : p2;
+                ctx.beginPath();
+                ctx.setLineDash([5*scale, 5*scale]);
+                ctx.moveTo(rightP.x + 5*scale, rightP.y);
+                ctx.lineTo(x - tempW/2 - 10*scale, y);
+                ctx.strokeStyle = c;
+                ctx.lineWidth = 1.5 * scale;
+                ctx.stroke();
+                ctx.setLineDash([]);
             }
             ctx.font=`bold ${fontSize}px 'Segoe UI'`;
             let w=ctx.measureText(txt).width;
             ctx.fillStyle="rgba(24, 24, 27, 0.85)";
-            ctx.fillRect(x-w/2-10*scale, y-fontSize-10*scale, w+20*scale, fontSize+16*scale);
+            let rx = x-w/2-10*scale, ry = y-fontSize-10*scale, rw = w+20*scale, rh = fontSize+16*scale;
+            ctx.fillRect(rx, ry, rw, rh);
             ctx.fillStyle="#fff";ctx.textAlign="center";
             ctx.fillText(txt,x,y-4*scale);
             ctx.strokeStyle=c;ctx.lineWidth=2*scale;
-            ctx.strokeRect(x-w/2-10*scale, y-fontSize-10*scale, w+20*scale, fontSize+16*scale);
+            ctx.strokeRect(rx, ry, rw, rh);
+            return { x: rx, y: ry, w: rw, h: rh };
         }
+        return null;
     }
 
     document.getElementById('btnAiDetect').onclick = function() {
@@ -932,10 +1003,10 @@
                 const [w_L, w_R]   = makeLine(hL, hR, 1.3, -120*canvas.width/800);
                 const [hp_L, hp_R] = makeLine(hL, hR, 1.7, -35*canvas.width/800);
 
-                const shV = calc(e_sL, e_sR); measureLines.push({p1:e_sL, p2:e_sR, name:'肩寬', val:shV}); document.getElementById('val-shoulder').value = shV;
-                const chV = calc(c_L, c_R, 2.6); measureLines.push({p1:c_L, p2:c_R, name:'胸圍(推估)', val:chV}); document.getElementById('val-chest').value = chV;
-                const waV = calc(w_L, w_R, 2.4); measureLines.push({p1:w_L, p2:w_R, name:'腰圍(推估)', val:waV}); document.getElementById('val-waist').value = waV;
-                const hipV = calc(hp_L, hp_R, 2.2); measureLines.push({p1:hp_L, p2:hp_R, name:'臀圍(推估)', val:hipV}); document.getElementById('val-hip').value = hipV;
+                const shV = calc(e_sL, e_sR); measureLines.push({p1:e_sL, p2:e_sR, name:'肩寬', val:shV, multiplier: 1, inputId: 'val-shoulder'}); document.getElementById('val-shoulder').value = shV;
+                const chV = calc(c_L, c_R, 2.6); measureLines.push({p1:c_L, p2:c_R, name:'胸圍(推估)', val:chV, multiplier: 2.6, inputId: 'val-chest'}); document.getElementById('val-chest').value = chV;
+                const waV = calc(w_L, w_R, 2.4); measureLines.push({p1:w_L, p2:w_R, name:'腰圍(推估)', val:waV, multiplier: 2.4, inputId: 'val-waist'}); document.getElementById('val-waist').value = waV;
+                const hipV = calc(hp_L, hp_R, 2.2); measureLines.push({p1:hp_L, p2:hp_R, name:'臀圍(推估)', val:hipV, multiplier: 2.2, inputId: 'val-hip'}); document.getElementById('val-hip').value = hipV;
                 
                 document.getElementById('val-height').value = realH;
                 document.getElementById('measureSource').value = "AI 自動量測";
