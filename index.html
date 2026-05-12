@@ -48,8 +48,8 @@
         /* ======== 視圖1：測量與登記 ======== */
         .main-content { flex: 1.2; background-color: #000; display: flex; flex-direction: column; padding: 15px; position: relative; border-right: 1px solid var(--border);}
         
-        .canvas-container { flex: 1; width: 100%; overflow-y: auto; overflow-x: hidden; display: block; background-color: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; }
-        canvas { display: block; width: 100%; height: auto; cursor: crosshair; margin: 0 auto; }
+        .canvas-container { flex: 1; width: 100%; height: 100%; overflow: hidden; display: flex; justify-content: center; align-items: center; background-color: var(--bg-base); border: 1px solid var(--border); border-radius: 6px; }
+        canvas { display: block; max-width: 100%; max-height: 100%; object-fit: contain; cursor: crosshair; margin: 0 auto; }
         
         .canvas-toolbar { background: var(--bg-surface); border: 1px solid var(--border); padding: 12px; border-radius: 8px; margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
         .toolbar-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -166,7 +166,8 @@
 
             #view-measure.active { flex-direction: column; overflow-y: auto; display: block;}
             .main-content { flex: none; height: auto; min-height: 50vh; padding: 10px; border-right: none;}
-            .canvas-container { height: 50vh; overflow-y: auto; }
+            .canvas-container { height: 50vh; overflow-y: auto; display: block; }
+            canvas { max-height: none; width: 100%; height: auto; }
             .sidebar { width: 100%; min-width: 0; flex: none; border-left: none; border-top: 1px solid var(--border); padding: 15px; overflow-y: visible;}
             
             .modal-content { flex-direction: column; height: 95vh; }
@@ -297,7 +298,10 @@
             <div class="form-row">
                 <div class="form-group"><label>腰圍</label><input type="number" id="val-waist"></div>
                 <div class="form-group"><label>臀圍</label><input type="number" id="val-hip"></div>
+            </div>
+            <div class="form-row">
                 <div class="form-group"><label>褲內長</label><input type="number" id="val-inseam" placeholder="選填"></div>
+                <div class="form-group"><label>腳掌長</label><input type="number" id="val-foot" placeholder="cm"></div>
             </div>
             <div class="form-group" style="margin-top:10px;">
                 <label>量測方式</label>
@@ -726,7 +730,7 @@
                 cStatus.innerText = `基準已設定 (${realH}cm)。請繼續測量肩寬/胸圍。`;
             } else if (pxPerCm > 0) {
                 const val = (d / pxPerCm).toFixed(1);
-                const target = prompt(`測量結果: ${val} cm\n\n請輸入要帶入的欄位代碼：\n1: 肩寬\n2: 胸圍\n3: 腰圍\n4: 臀圍\n5: 褲內長\n(輸入其他文字可作自訂標籤)`, "1");
+                const target = prompt(`測量結果: ${val} cm\n\n請輸入要帶入的欄位代碼：\n1: 肩寬\n2: 胸圍\n3: 腰圍\n4: 臀圍\n5: 褲內長\n6: 腳掌長\n(輸入其他文字可作自訂標籤)`, "1");
                 
                 let labelName = "自訂線段";
                 if(target==="1"){ labelName="肩寬"; document.getElementById('val-shoulder').value = val;}
@@ -734,6 +738,7 @@
                 else if(target==="3"){ labelName="腰圍"; document.getElementById('val-waist').value = val;}
                 else if(target==="4"){ labelName="臀圍"; document.getElementById('val-hip').value = val;}
                 else if(target==="5"){ labelName="褲內長"; document.getElementById('val-inseam').value = val;}
+                else if(target==="6"){ labelName="腳掌長"; document.getElementById('val-foot').value = val;}
                 else if(target) { labelName=target; }
 
                 if(target) measureLines.push({p1:startP, p2:currentP, name: labelName, val: val});
@@ -774,6 +779,13 @@
                 x = p1.y < p2.y ? p1.x : p2.x;
                 y = Math.min(p1.y, p2.y) - (30 * scale); 
                 if(y < 30) y = Math.max(p1.y, p2.y) + (40 * scale); 
+            } else {
+                ctx.font=`bold ${fontSize}px 'Segoe UI'`;
+                let tempW = ctx.measureText(txt).width;
+                x = Math.max(p1.x, p2.x) + tempW/2 + (15 * scale);
+                if (x + tempW/2 + 10*scale > canvas.width) {
+                    x = canvas.width - tempW/2 - 10*scale;
+                }
             }
             ctx.font=`bold ${fontSize}px 'Segoe UI'`;
             let w=ctx.measureText(txt).width;
@@ -858,6 +870,19 @@
         let l = ins < 74 ? 30 : ins < 79 ? 32 : ins < 84 ? 34 : 36;
         return `W${waistInch}-L${l}`;
     }
+    function calcShoe(f) {
+        if (!f) return '';
+        const sizes = [
+            {cm: 22, jp: 34}, {cm: 23, jp: 35}, {cm: 24, jp: 36}, {cm: 24.5, jp: 37}, 
+            {cm: 25, jp: 38}, {cm: 25.5, jp: 39}, {cm: 26, jp: 40}, {cm: 27, jp: 41}, 
+            {cm: 28, jp: 42}, {cm: 29, jp: 43}
+        ];
+        let fv = parseFloat(f);
+        for (let s of sizes) {
+            if (s.cm >= fv) return `${s.cm % 1 === 0 ? s.cm + '.0' : s.cm} (日本號 ${s.jp})`;
+        }
+        return '29.0 (日本號 43)';
+    }
 
     // ✅ 防呆版本的步驟切換邏輯
     window.goToStep = function(stepNum) {
@@ -891,7 +916,13 @@
                 addField('戰術褲 (TP)', 'TP',[], calcPant(w, ins, hip));
                 addField('戰術腰帶', 'BELT',['S','M','L','XL','2XL'], w<82?'S':w<90?'M':w<100?'L':w<110?'XL':'2XL');
                 addField('戰術帽', 'CAP',['S','M','L'], h<165?'S':h<178?'M':'L');
-                addField('消防靴 (cm)', 'SHOE',['22','23','24','24.5','25','25.5','26','27','28','29'], '');
+                const foot = document.getElementById('val-foot').value;
+                const shoeOpts = [
+                    '22.0 (日本號 34)', '23.0 (日本號 35)', '24.0 (日本號 36)', '24.5 (日本號 37)', 
+                    '25.0 (日本號 38)', '25.5 (日本號 39)', '26.0 (日本號 40)', '27.0 (日本號 41)', 
+                    '28.0 (日本號 42)', '29.0 (日本號 43)'
+                ];
+                addField('消防靴', 'SHOE', shoeOpts, calcShoe(foot));
 
                 document.getElementById('sizing-fields').innerHTML = html;
             }
@@ -1010,7 +1041,7 @@
         document.getElementById('val-height').value = ''; document.getElementById('val-shoulder').value = '';
         document.getElementById('val-chest').value = ''; document.getElementById('val-waist').value = '';
         document.getElementById('val-hip').value = ''; document.getElementById('val-inseam').value = '';
-        document.getElementById('val-note').value = '';
+        document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = '';
         
         document.getElementById('submitStatus').style.display = 'none';
         document.getElementById('submitBtns').style.display = 'flex';
@@ -1045,6 +1076,22 @@
                 <table class="sct"><thead><tr><th>尺碼</th>${item.type==='vest'?'<th>肩寬(cm)</th><th>胸圍最小(cm)</th><th>胸圍最大(cm)</th>':'<th>肩寬(cm)</th><th>胸圍(cm)</th>'}</tr></thead>
                 <tbody>${item.table.map(r => `<tr><td><span class="sz-badge">${r[0]}</span></td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
         });
+        html += `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">消防靴 (SHOE)</h3>
+        <div style="overflow-x: auto; margin-bottom: 30px;">
+            <table class="sct"><thead><tr><th>腳長(cm)</th><th>日本號</th></tr></thead>
+            <tbody>
+                <tr><td><span class="sz-badge">22.0</span></td><td>34</td></tr>
+                <tr><td><span class="sz-badge">23.0</span></td><td>35</td></tr>
+                <tr><td><span class="sz-badge">24.0</span></td><td>36</td></tr>
+                <tr><td><span class="sz-badge">24.5</span></td><td>37</td></tr>
+                <tr><td><span class="sz-badge">25.0</span></td><td>38</td></tr>
+                <tr><td><span class="sz-badge">25.5</span></td><td>39</td></tr>
+                <tr><td><span class="sz-badge">26.0</span></td><td>40</td></tr>
+                <tr><td><span class="sz-badge">27.0</span></td><td>41</td></tr>
+                <tr><td><span class="sz-badge">28.0</span></td><td>42</td></tr>
+                <tr><td><span class="sz-badge">29.0</span></td><td>43</td></tr>
+            </tbody></table>
+        </div>`;
         document.getElementById('static-chart-container').innerHTML = html;
     };
     renderStaticChart();
