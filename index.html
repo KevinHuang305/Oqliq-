@@ -219,20 +219,24 @@
 <div id="view-measure" class="view-container active">
     <!-- 左側畫布區 -->
     <div class="main-content">
-        <div class="canvas-container" id="canvasContainer">
+        <div class="canvas-container" id="canvasContainer" style="position: relative;">
+            <button id="btnCenterUpload" class="btn btn-primary" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);" onclick="document.getElementById('imageUpload').click()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                選擇照片
+            </button>
             <canvas id="canvas"></canvas>
         </div>
-        <div class="canvas-toolbar">
-            <div class="toolbar-group">
-                <button class="btn btn-ghost" onclick="document.getElementById('imageUpload').click()">選擇照片</button>
-                <button class="btn btn-primary" id="btnAiDetect" disabled>AI 自動測量</button>
+        <input type="hidden" id="refHeightInput" value="175">
+        <div class="canvas-toolbar" style="flex-direction: column; align-items: stretch; gap: 12px;">
+            <div class="toolbar-group" style="width: 100%; color:var(--text-muted); font-size:12px; justify-content: flex-start; gap: 10px;">
+                <button class="btn btn-primary" id="btnAiDetect" disabled style="min-width: max-content;">AI 自動測量</button>
+                <div style="flex: 1;"></div>
+                <button class="btn btn-ghost" onclick="document.getElementById('imageUpload').click()" style="min-width: max-content;">更換照片</button>
+                <button class="btn btn-ghost" onclick="resetCanvas()" style="min-width: max-content;">清空畫布</button>
             </div>
-            <div class="toolbar-group" style="color:var(--text-muted); font-size:12px;">
-                <span>基準(cm):</span>
-                <input type="number" id="refHeightInput" value="175" style="width:60px; padding:6px; text-align:center;">
-                <button id="btnToolRef" class="btn btn-outline" onclick="setTool('ref')">身高基準</button>
-                <button id="btnToolMeas" class="btn btn-outline" onclick="setTool('measure')">測量部位</button>
-                <button class="btn btn-ghost" onclick="resetCanvas()">清空畫布</button>
+            <div class="toolbar-group" style="width: 100%; color:var(--text-muted); font-size:12px; justify-content: flex-start; gap: 10px;">
+                <button id="btnToolRef" class="btn btn-outline" onclick="promptHeightAndSetRef()" style="min-width: max-content;">身高基準線</button>
+                <button id="btnToolMeas" class="btn btn-outline" onclick="setTool('measure')" style="min-width: max-content;">測量部位</button>
             </div>
         </div>
         <div id="canvasStatus" style="color:var(--text-muted); font-size:12px; margin-top:5px; text-align:right;">等待載入照片...</div>
@@ -505,6 +509,26 @@
         </div>
     </div>
 </div>
+<!-- 測量部位選單 (Modal) -->
+<div class="modal" id="measureModal" style="z-index: 3000;">
+    <div class="login-box" style="width: 320px; text-align: center; padding: 25px;">
+        <h2 style="margin-top: 0; margin-bottom: 15px; color: var(--primary); font-size: 18px;">選擇測量部位</h2>
+        <p style="color:var(--text-muted); font-size:14px; margin-bottom: 20px;">測量結果: <span id="measureResultText" style="color:var(--text-main); font-weight:bold; font-size:22px; font-family: monospace;"></span> cm</p>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+            <button class="btn btn-outline" onclick="selectMeasurePart('肩寬', 'val-shoulder')">肩寬</button>
+            <button class="btn btn-outline" onclick="selectMeasurePart('胸圍', 'val-chest')">胸圍</button>
+            <button class="btn btn-outline" onclick="selectMeasurePart('腰圍', 'val-waist')">腰圍</button>
+            <button class="btn btn-outline" onclick="selectMeasurePart('臀圍', 'val-hip')">臀圍</button>
+            <button class="btn btn-outline" onclick="selectMeasurePart('褲內長', 'val-inseam')">褲內長</button>
+            <button class="btn btn-outline" onclick="selectMeasurePart('腳掌長', 'val-foot')">腳掌長</button>
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <input type="text" id="customMeasurePart" placeholder="自訂標籤名稱..." style="flex:1;">
+            <button class="btn btn-primary" onclick="selectMeasurePart('custom', null)" style="white-space: nowrap;">加入自訂</button>
+        </div>
+        <button class="btn btn-ghost" style="width: 100%;" onclick="cancelMeasurePart()">取消 (不紀錄)</button>
+    </div>
+</div>
 
 <!-- ==============================================
      JAVASCRIPT 邏輯區
@@ -611,15 +635,63 @@
     // ==========================================
     let poseLandmarker = null, img = new Image(), uploadedFileName = "無照片";
     let isDrawing = false, startP = null, currentP = null, refLine = null, measureLines =[];
-    let pxPerCm = 0, currentTool = null;
+    let pxPerCm = 0, currentTool = null, pendingMeasureLine = null;
     const DRAG_RADIUS = 20; let hoveredPoint = null, draggingPoint = null;
     const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
     const cStatus = document.getElementById('canvasStatus');
 
     window.setTool = function(tool) {
+        if (currentTool === tool) {
+            tool = null;
+        }
         currentTool = tool;
         document.getElementById('btnToolRef').classList.toggle('active', tool === 'ref');
         document.getElementById('btnToolMeas').classList.toggle('active', tool === 'measure');
+    };
+
+    window.promptHeightAndSetRef = function() {
+        if (currentTool === 'ref') {
+            setTool('ref');
+            return;
+        }
+        let defaultHeight = document.getElementById('refHeightInput').value || "175";
+        let heightInput = prompt("請輸入被測量者的實際身高 (公分)，做為基準比例：", defaultHeight);
+        if (heightInput === null || heightInput.trim() === "" || isNaN(parseFloat(heightInput))) {
+            return;
+        }
+        document.getElementById('refHeightInput').value = parseFloat(heightInput);
+        setTool('ref');
+    };
+
+    window.selectMeasurePart = function(labelName, inputId) {
+        if (!pendingMeasureLine) return;
+        
+        let finalLabel = labelName;
+        if (labelName === 'custom') {
+            finalLabel = document.getElementById('customMeasurePart').value.trim();
+            if (!finalLabel) finalLabel = "自訂線段";
+        }
+        
+        if (inputId) {
+            document.getElementById(inputId).value = pendingMeasureLine.val;
+        }
+        
+        measureLines.push({
+            p1: pendingMeasureLine.p1, 
+            p2: pendingMeasureLine.p2, 
+            name: finalLabel, 
+            val: pendingMeasureLine.val
+        });
+        
+        pendingMeasureLine = null;
+        document.getElementById('measureModal').classList.remove('active');
+        redraw();
+    };
+
+    window.cancelMeasurePart = function() {
+        pendingMeasureLine = null;
+        document.getElementById('measureModal').classList.remove('active');
+        redraw();
     };
 
     async function initAI() {
@@ -649,6 +721,7 @@
         canvas.height = img.height;
         window.resetCanvas();
         cStatus.innerText = "照片已載入。可選擇上方工具開始測量。";
+        document.getElementById('btnCenterUpload').style.display = 'none';
     };
 
     window.resetCanvas = function() {
@@ -679,23 +752,26 @@
 
     const downEvent = d => {
         if(!img.src) return;
-        if(d.type==='touchstart') d.preventDefault();
         const p = getCoords(d);
         const hp = getPointAt(p);
         
-        if(hp) { draggingPoint = hp; isDrawing = false; return; }
-        if(!currentTool) return alert("請先從上方選擇「畫身高基準」或「測量部位」工具！");
+        if(hp) { 
+            if(d.type==='touchstart') d.preventDefault();
+            draggingPoint = hp; isDrawing = false; return; 
+        }
+        if(!currentTool) return;
         if(currentTool==='measure' && pxPerCm===0) { alert("請先畫出身高基準線！"); setTool('ref'); return; }
         
+        if(d.type==='touchstart') d.preventDefault();
         isDrawing = true; startP = p; currentP = p;
     };
     canvas.addEventListener('mousedown', downEvent); canvas.addEventListener('touchstart', downEvent, {passive:false});
     
     const moveEvent = m => {
-        if(m.type==='touchmove') m.preventDefault();
         const p = getCoords(m);
         
         if(draggingPoint) {
+            if(m.type==='touchmove') m.preventDefault();
             canvas.style.cursor = 'grabbing';
             draggingPoint.line[draggingPoint.pt] = p; 
             if(draggingPoint.line === refLine) pxPerCm = dist(refLine.p1, refLine.p2) / refLine.real; 
@@ -708,6 +784,7 @@
             redraw(); return;
         }
 
+        if(m.type==='touchmove') m.preventDefault();
         currentP = p; redraw();
         const color = currentTool==='ref' ? '#ef4444' : '#60a5fa';
         let txt = currentTool==='ref' ? '基準線' : (pxPerCm>0 ? (dist(startP, currentP)/pxPerCm).toFixed(1)+'cm' : '請先設基準');
@@ -730,18 +807,27 @@
                 cStatus.innerText = `基準已設定 (${realH}cm)。請繼續測量肩寬/胸圍。`;
             } else if (pxPerCm > 0) {
                 const val = (d / pxPerCm).toFixed(1);
-                const target = prompt(`測量結果: ${val} cm\n\n請輸入要帶入的欄位代碼：\n1: 肩寬\n2: 胸圍\n3: 腰圍\n4: 臀圍\n5: 褲內長\n6: 腳掌長\n(輸入其他文字可作自訂標籤)`, "1");
+                pendingMeasureLine = { p1: startP, p2: currentP, val: val };
+                document.getElementById('measureResultText').innerText = val;
+                document.getElementById('customMeasurePart').value = "";
                 
-                let labelName = "自訂線段";
-                if(target==="1"){ labelName="肩寬"; document.getElementById('val-shoulder').value = val;}
-                else if(target==="2"){ labelName="胸圍"; document.getElementById('val-chest').value = val;}
-                else if(target==="3"){ labelName="腰圍"; document.getElementById('val-waist').value = val;}
-                else if(target==="4"){ labelName="臀圍"; document.getElementById('val-hip').value = val;}
-                else if(target==="5"){ labelName="褲內長"; document.getElementById('val-inseam').value = val;}
-                else if(target==="6"){ labelName="腳掌長"; document.getElementById('val-foot').value = val;}
-                else if(target) { labelName=target; }
+                const existingParts = measureLines.map(l => l.name);
+                document.querySelectorAll('#measureModal .btn-outline').forEach(btn => {
+                    const part = btn.innerText.split(' ')[0];
+                    const exists = existingParts.some(ep => ep.startsWith(part));
+                    btn.disabled = exists;
+                    if(exists) {
+                        btn.style.opacity = '0.4';
+                        btn.style.cursor = 'not-allowed';
+                        btn.innerText = part + " (已測量)";
+                    } else {
+                        btn.style.opacity = '1';
+                        btn.style.cursor = 'pointer';
+                        btn.innerText = part;
+                    }
+                });
 
-                if(target) measureLines.push({p1:startP, p2:currentP, name: labelName, val: val});
+                document.getElementById('measureModal').classList.add('active');
             }
         }
         redraw();
@@ -853,7 +939,7 @@
                 
                 document.getElementById('val-height').value = realH;
                 document.getElementById('measureSource').value = "AI 自動量測";
-                setTool('measure'); 
+                setTool(null); 
                 redraw();
                 cStatus.innerText = "AI 骨架偵測完成！線段節點可滑鼠拖曳微調。";
             } else { cStatus.innerText = "找不到人物，請手動量測。"; }
@@ -1080,6 +1166,7 @@
         document.getElementById('fileNameDisplay').style.borderColor = "var(--border)";
         document.getElementById('fileNameDisplay').style.color = "var(--text-muted)";
         cStatus.innerText = '等待載入照片...';
+        document.getElementById('btnCenterUpload').style.display = 'flex';
 
         goToStep(1);
     };
