@@ -8,38 +8,44 @@
     <style>
         :root {
             /* 深黑與質感橘 色彩計畫 */
-            --bg-base: #09090b;       /* 極深黑背 */
-            --bg-surface: #18181b;    /* 面板背景 */
-            --bg-hover: #27272a;      /* 懸停背景 */
-            --primary: #f97316;       /* 琥珀橘 */
-            --primary-hover: #ea580c; /* 深橘色 */
-            --text-main: #f4f4f5;     /* 主白灰字 */
-            --text-muted: #a1a1aa;    /* 輔助灰字 */
-            --border: #27272a;        /* 邊框線 */
+            --bg-base: #09090b;       
+            --bg-surface: #18181b;    
+            --bg-hover: #27272a;      
+            --primary: #f97316;       
+            --primary-hover: #ea580c; 
+            --text-main: #f4f4f5;     
+            --text-muted: #a1a1aa;    
+            --border: #27272a;        
             --danger: #ef4444;        
             --success: #10b981;
         }
 
         /* 基礎設定 & 捲軸 */
         *, *::before, *::after { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', 'SF Pro TC', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background-color: var(--bg-base); color: var(--text-main); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+        body { font-family: 'Segoe UI', 'SF Pro TC', Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; background-color: var(--bg-base); color: var(--text-main); -webkit-font-smoothing: antialiased; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: var(--bg-base); }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-        /* 頂部導覽列 */
-        .navbar { background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; padding: 0 20px; z-index: 50; overflow-x: auto; white-space: nowrap; flex-shrink: 0; }
+        /* 頂部導覽列 (加入漢堡選單設計) */
+        .navbar { background: var(--bg-surface); border-bottom: 1px solid var(--border); display: flex; padding: 0 20px; z-index: 1000; align-items: center; height: 55px; position: relative;}
         .nav-brand { font-size: 16px; font-weight: 800; margin-right: 30px; display: flex; align-items: center; color: var(--text-main); letter-spacing: 2px;}
         .nav-brand span { color: var(--primary); margin-left: 5px; }
-        .nav-tab { padding: 16px 20px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 600; color: var(--text-muted); transition: 0.2s; letter-spacing: 1px; }
-        .nav-tab:hover { color: var(--text-main); }
-        .nav-tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+        
+        .hamburger { display: none; font-size: 24px; cursor: pointer; color: var(--text-main); user-select: none; }
+        .nav-menu { display: flex; height: 100%; align-items: center; }
+        
+        .nav-tab { padding: 0 20px; height: 100%; display: flex; align-items: center; cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 600; color: var(--text-muted); transition: 0.2s; letter-spacing: 1px; }
+        .nav-tab:hover { color: var(--text-main); background: rgba(255,255,255,0.05); }
+        .nav-tab.active { border-bottom-color: var(--primary); color: var(--primary); background: rgba(255,255,255,0.02); }
 
         /* 視圖切換區 */
         .view-container { display: none; flex: 1; height: calc(100vh - 55px); overflow: hidden; width: 100%; }
         #view-measure.active { display: flex; flex-direction: row; }
-        #view-admin.active, #view-chart.active, #view-labels.active { display: flex; flex-direction: column; }
+        
+        /* ✅ 修正後台被擋住的核心：改用 block 讓整個區域自然滑動 */
+        #view-admin.active, #view-chart.active, #view-labels.active { display: block; }
 
         /* ======== 視圖1：測量與登記 ======== */
         .main-content { flex: 1.2; background-color: #000; display: flex; flex-direction: column; padding: 15px; position: relative; border-right: 1px solid var(--border);}
@@ -52,14 +58,12 @@
         
         .sidebar { width: 420px; min-width: 320px; background: var(--bg-base); padding: 25px; display: flex; flex-direction: column; overflow-y: auto; z-index: 10; }
         
-        /* 步驟導覽 */
         .steps { display: flex; margin-bottom: 25px; border-bottom: 1px solid var(--border); }
         .step-tab { flex: 1; text-align: center; padding: 10px 5px; font-size: 13px; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
         .step-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
         .step-content { display: none; flex-direction: column; gap: 18px; padding-bottom: 30px; }
         .step-content.active { display: flex; }
 
-        /* 表單元素 */
         .section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 5px; }
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         .form-group label { font-size: 12px; color: var(--text-muted); }
@@ -77,7 +81,6 @@
         .status-box.success { border-color: var(--success); color: var(--success); }
         .status-box.highlight { border-color: var(--primary); color: var(--primary); }
 
-        /* 按鈕設計 */
         .btn { padding: 12px 16px; border: 1px solid transparent; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; transition: 0.2s; text-align: center; display: inline-block; white-space: nowrap;}
         .btn-ghost { background: transparent; color: var(--text-main); border-color: var(--border); }
         .btn-ghost:hover { background: var(--bg-hover); }
@@ -98,10 +101,10 @@
         .filters { display: flex; gap: 10px; flex: 1; flex-wrap: wrap; align-items: center;}
         
         /* 表格設計 */
-        .table-container { background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; }
+        .table-container { background: var(--bg-surface); border-radius: 8px; border: 1px solid var(--border); overflow-x: auto; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; }
-        th { background: #1f1f22; font-weight: 600; color: var(--text-muted); position: sticky; top: 0; white-space: nowrap; text-transform: uppercase; letter-spacing: 1px; font-size: 11px;}
+        th, td { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+        th { background: #1f1f22; font-weight: 600; color: var(--text-muted); position: sticky; top: 0; text-transform: uppercase; letter-spacing: 1px; font-size: 11px; z-index: 2;}
         tr:hover { background: var(--bg-hover); cursor: pointer; }
         td { color: var(--text-main); }
         
@@ -151,23 +154,33 @@
         .info-item.full { grid-column: span 2; }
         .edit-inp { display: none; margin-top: 4px; padding: 6px; }
 
-        /* 手機版 RWD */
+        /* =====================================
+           📱 手機版 RWD (漢堡選單 + 防擋表格)
+           ===================================== */
         @media (max-width: 850px) {
+            .navbar { justify-content: space-between; }
+            .hamburger { display: block; }
+            .nav-brand span { display: none; }
+            
+            /* 漢堡選單內容 */
+            .nav-menu { display: none; flex-direction: column; position: absolute; top: 55px; left: 0; width: 100%; background: var(--bg-surface); border-bottom: 1px solid var(--border); box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+            .nav-menu.show { display: flex; }
+            .nav-tab { width: 100%; padding: 15px 20px; border-bottom: 1px solid var(--border); border-left: 4px solid transparent; height: auto; }
+            .nav-tab.active { border-bottom: 1px solid var(--border); border-left-color: var(--primary); color: var(--primary); background: transparent; }
+
             #view-measure.active { flex-direction: column; overflow-y: auto; display: block;}
             .main-content { flex: none; height: auto; min-height: 50vh; padding: 10px; border-right: none;}
             .canvas-container { height: 50vh; overflow-y: auto; }
             .sidebar { width: 100%; min-width: 0; flex: none; border-left: none; border-top: 1px solid var(--border); padding: 15px; overflow-y: visible;}
-            
-            .nav-brand span { display: none; }
-            .nav-tab { padding: 16px 12px; font-size: 13px; }
-            .navbar { padding: 0 10px; }
             
             .modal-content { flex-direction: column; height: 95vh; }
             .modal-img-container { flex: 0.8; }
             .modal-info { flex: 1; padding: 20px; border-left: none; border-top: 1px solid var(--border);}
             
             .form-row { flex-direction: column; gap: 8px; }
-            .toolbar { flex-direction: column; align-items: stretch; }
+            .scroll-view { padding: 15px; }
+            .toolbar, .dashboard-cards, .filters { flex-direction: column; align-items: stretch; width: 100%; }
+            .filters input, .filters select { width: 100%; }
         }
 
         /* 列印專用 CSS */
@@ -186,13 +199,16 @@
 
 <input type="file" id="imageUpload" accept="image/*" style="display:none;">
 
-<!-- 導覽列 -->
+<!-- 導覽列 (加入漢堡按鈕) -->
 <div class="navbar">
     <div class="nav-brand">FIRESCUE <span>v4</span></div>
-    <div class="nav-tab active" onclick="switchTab('measure')">登記與量測</div>
-    <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
-    <div class="nav-tab" onclick="switchTab('admin')">管理後台</div>
-    <div class="nav-tab" onclick="switchTab('labels')">標籤列印</div>
+    <div class="hamburger" onclick="toggleMenu()">☰</div>
+    <div class="nav-menu" id="navMenu">
+        <div class="nav-tab active" onclick="switchTab('measure')">登記與量測</div>
+        <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
+        <div class="nav-tab" onclick="switchTab('admin')">管理後台</div>
+        <div class="nav-tab" onclick="switchTab('labels')">標籤列印</div>
+    </div>
 </div>
 
 <!-- ==============================================
@@ -304,17 +320,15 @@
             </div>
         </div>
 
-        <!-- Step 4 (💡 完整補回的預覽區塊) -->
+        <!-- Step 4 (✅ 確認摘要與 QR Code 均已補回) -->
         <div class="step-content" id="step4">
             <div class="section-title">最終確認與標籤預覽</div>
             
-            <!-- 標籤預覽區塊 -->
-            <div style="background:#fff; border:2px solid #111; color:#000; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                <div id="labelContent" style="font-family: 'JetBrains Mono', monospace; font-size:12px; font-weight:600; line-height:1.6;"></div>
+            <div class="label-preview" style="background:#fff; border:2px solid #111; color:#000; padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <div class="label-text" id="labelContent" style="font-family: 'JetBrains Mono', monospace; font-size:12px; font-weight:600; line-height:1.6;"></div>
                 <div class="qr-box" id="qrCodeContainer"></div>
             </div>
 
-            <!-- 確認摘要區塊 -->
             <div style="background:var(--bg-surface); padding:15px; border-radius:6px; border:1px solid var(--border); margin-bottom:15px; line-height:1.6; font-size: 13px;">
                 <span style="color:var(--text-muted)">姓名：</span><strong id="summaryName"></strong><br>
                 <span style="color:var(--text-muted)">單位：</span><strong id="summaryUnit"></strong><br>
@@ -325,11 +339,11 @@
             <div id="submitStatus" class="status-box" style="display:none; margin-bottom:15px;"></div>
             
             <div id="nextPersonZone" style="display:none; margin-top:15px;">
-                <button class="btn btn-primary" style="width:100%; padding:14px; font-size:16px;" onclick="measureNext()">🚀 測量下一位</button>
+                <button class="btn btn-primary" style="width:100%; padding:14px; font-size:15px;" onclick="measureNext()">🚀 測量下一位</button>
             </div>
             
             <div class="nav-btns" id="submitBtns" style="flex-direction: column; gap:10px; margin-top:0; padding-top:0; border:none;">
-                <button class="btn btn-success" id="btnSubmitToSheet" style="padding:14px; font-size: 15px;">☁️ 上傳雲端存檔</button>
+                <button class="btn btn-primary" id="btnSubmitToSheet" style="padding:14px; font-size: 15px; background: var(--success); color: white;">☁️ 上傳雲端存檔</button>
                 <button class="btn btn-ghost" onclick="goToStep(3)">⬅ 返回修改</button>
             </div>
         </div>
@@ -347,7 +361,7 @@
 </div>
 
 <!-- ==============================================
-     視圖 3：管理後台 
+     視圖 3：管理後台 (✅ 改為 block 可捲動 + 表格橫向防縮水)
      ============================================== -->
 <div id="view-admin" class="view-container scroll-view" style="position:relative;">
     <div class="login-overlay" id="loginOverlay">
@@ -381,10 +395,11 @@
         </div>
         <div style="display:flex; gap:10px;">
             <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
-            <button class="btn btn-primary" style="background:#10b981; color:white;" onclick="exportCSV()">匯出 CSV</button>
+            <button class="btn" style="background:#10b981; color:white;" onclick="exportCSV()">匯出 CSV</button>
         </div>
     </div>
 
+    <!-- 表格區塊 -->
     <div class="table-container">
         <table>
             <thead><tr><th>裝袋序號</th><th>單位</th><th>姓名</th><th>性別</th><th>狀態</th><th>登記日期</th><th>身高/肩/胸/腰/臀</th></tr></thead>
@@ -447,12 +462,12 @@
                 <h2 style="margin:0; font-size:20px; color:var(--primary);">審查與編輯</h2>
                 <div style="display:flex; gap:8px;">
                     <button class="btn btn-outline" id="btnToggleEdit" style="padding:6px 12px; font-size:12px;" onclick="toggleEditMode(true)">修改</button>
-                    <button class="btn btn-success" id="btnSaveEdit" style="display:none; padding:6px 12px; font-size:12px;" onclick="saveEditInfo()">儲存</button>
+                    <button class="btn btn-success" id="btnSaveEdit" style="display:none; padding:6px 12px; font-size:12px; border:none;" onclick="saveEditInfo()">儲存</button>
                     <button class="btn btn-ghost" id="btnCancelEdit" style="display:none; padding:6px 12px; font-size:12px;" onclick="toggleEditMode(false)">取消</button>
                 </div>
             </div>
             
-            <div class="info-grid">
+            <div class="info-grid" style="margin-top:10px;">
                 <div class="info-item full"><span>裝袋序號 (Bag No)</span><strong id="mBagNo" style="color:var(--primary);"></strong></div>
                 <div class="info-item"><span>識別碼</span><strong id="mPersonId"></strong></div>
                 <div class="info-item"><span>單位</span><strong id="mUnit"></strong></div>
@@ -461,7 +476,7 @@
                 <div class="info-item full"><span>身體量測 (高/肩/胸/腰/臀)</span><strong id="mBodySize"></strong></div>
             </div>
 
-            <div class="info-grid">
+            <div class="info-grid" style="margin-top:10px;">
                 <div class="info-item">
                     <span>配發狀態</span>
                     <strong id="mStatus_txt" class="edit-txt tag-status"></strong>
@@ -497,12 +512,25 @@
     let currentRecordSizes = {}; 
     let labelQRCodes =[], currentLabelType = 'inner';
 
+    // --- 漢堡選單切換 ---
+    window.toggleMenu = function() {
+        document.getElementById('navMenu').classList.toggle('show');
+    };
+
     // --- 頁籤切換 ---
     window.switchTab = function(tab) {
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
-        event.target.classList.add('active');
+        
+        // 處理手機選單點擊
+        if(event && event.target && event.target.classList.contains('nav-tab')) {
+            event.target.classList.add('active');
+        } else {
+            document.querySelector(`.nav-tab[onclick*="${tab}"]`).classList.add('active');
+        }
+        
         document.getElementById('view-' + tab).classList.add('active');
+        document.getElementById('navMenu').classList.remove('show'); 
         
         if ((tab === 'admin' || tab === 'labels') && !adminLoggedIn) {
             document.getElementById('loginOverlay').style.display = 'flex';
@@ -620,8 +648,7 @@
 
     function getCoords(e) {
         const rect = canvas.getBoundingClientRect();
-        let cX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-        let cY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+        let cX = e.clientX || (e.touches ? e.touches[0].clientX : 0), cY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
         return { x: (cX - rect.left) * (canvas.width / rect.width), y: (cY - rect.top) * (canvas.height / rect.height) };
     }
     function dist(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
@@ -814,7 +841,7 @@
         return `W${waistInch}-L${l}`;
     }
 
-    // ✅ 這是防呆版的切換邏輯，已補齊缺失 ID
+    // 解決切換步驟時 QR Code 產生異常的修復版
     window.goToStep = function(stepNum) {
         try {
             if (stepNum === 2) {
@@ -864,10 +891,8 @@
 
                 document.getElementById('labelContent').innerHTML = `
                     <b>PERSONAL ISSUE BAG</b><br>UNIT: ${unit}<br>NAME: ${pName}<br>ID: ${pId}<br>BAG NO: ${bagNo}<br>
-                    <hr style="border:0; border-top:1px dashed #a1a1aa; margin:5px 0;"><b>CONTENT:</b><br>${kitText}
+                    <hr><b>CONTENT:</b><br>${kitText}
                 `;
-                
-                // 確保這裡不會因為找不到 ID 報錯
                 document.getElementById('summaryName').innerText = pName;
                 document.getElementById('summaryUnit').innerText = unit;
                 document.getElementById('summaryBagNo').innerText = bagNo;
@@ -894,7 +919,7 @@
 
     function submitFinalData(bagNo) {
         const btn = document.getElementById('btnSubmitToSheet');
-        btn.innerText = "⏳ 上傳雲端中..."; btn.disabled = true;
+        btn.innerText = "⏳ 上傳雲端中...(需幾秒鐘)"; btn.disabled = true;
 
         const formData = new URLSearchParams();
         formData.append("action", "createRecord");
@@ -951,7 +976,6 @@
         });
     }
 
-    // 🚀 測量下一位
     window.measureNext = function() {
         document.getElementById('personName').value = ''; document.getElementById('personAge').value = '';
         document.getElementById('val-height').value = ''; document.getElementById('val-shoulder').value = '';
@@ -1125,9 +1149,9 @@
         formData.append("sz_cap", document.getElementById('mSz_CAP').value); formData.append("sz_shoe", document.getElementById('mSz_SHOE').value);
         try {
             const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
-            if (result.success) { alert("✅ 修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("❌ 修改失敗：" + (result.error || "未知錯誤"));
-        } catch(e) { alert("❌ 儲存失敗，請檢查網路連線。"); }
-        btnSave.innerText = "💾 儲存"; btnSave.disabled = false;
+            if (result.success) { alert("修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("修改失敗：" + (result.error || "未知錯誤"));
+        } catch(e) { alert("儲存失敗，請檢查網路。"); }
+        btnSave.innerText = "儲存"; btnSave.disabled = false;
     };
 
     // ==========================================
