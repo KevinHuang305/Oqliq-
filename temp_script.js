@@ -510,6 +510,55 @@
                 ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.fill();
                 ctx.strokeStyle = "#10b981"; ctx.lineWidth = 3; ctx.stroke();
             }
+
+            // --- 放大鏡 (Loupe) 邏輯 ---
+            if (draggingPoint || (isDrawing && currentP)) {
+                let fX = draggingPoint ? draggingPoint.line[draggingPoint.pt].x : currentP.x;
+                let fY = draggingPoint ? draggingPoint.line[draggingPoint.pt].y : currentP.y;
+                
+                const r = 50; 
+                const zoom = 2;
+                
+                let cx = fX - r - 20;
+                let cy = fY - r - 40;
+                
+                if (cy - r < 0) cy = fY + r + 40;
+                if (cx - r < 0) cx = fX + r + 20;
+                if (cx + r > canvas.width) cx = canvas.width - r - 10;
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = '#fff';
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.shadowBlur = 10;
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.clip();
+                
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                
+                ctx.translate(cx, cy);
+                ctx.scale(zoom, zoom);
+                ctx.translate(-fX, -fY);
+                if (views[currentView].img.src) {
+                    ctx.drawImage(views[currentView].img, 0, 0, canvas.width, canvas.height);
+                }
+                ctx.restore();
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(cx - 10, cy); ctx.lineTo(cx + 10, cy);
+                ctx.moveTo(cx, cy - 10); ctx.lineTo(cx, cy + 10);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+                ctx.stroke();
+                ctx.restore();
+            }
         }
 
         function drawLine(p1, p2, c, txt, isTop = false) {
