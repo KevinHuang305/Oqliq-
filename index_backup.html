@@ -6,8 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FIRESCUE 裝備配發與 AI 測量系統</title>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <style>
         :root {
             /* 深黑與質感橘 色彩計畫 */
@@ -679,19 +677,6 @@
         .modal.active {
             display: flex;
         }
-        .view-tabs { display: flex; background: var(--bg-hover); padding: 4px; border-radius: 12px; margin-bottom: 10px; }
-        .view-tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s; color: var(--text-muted); background: transparent; border: none; }
-        .view-tab.active { background: var(--bg-surface); color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
-        /* 放大 Cropper 控制點 */
-        .cropper-point { width: 32px !important; height: 32px !important; background-color: var(--primary) !important; opacity: 0.8 !important; border-radius: 50% !important; }
-        .cropper-point.point-n { top: -16px !important; margin-left: -16px !important; }
-        .cropper-point.point-s { bottom: -16px !important; margin-left: -16px !important; }
-        .cropper-point.point-e { right: -16px !important; margin-top: -16px !important; }
-        .cropper-point.point-w { left: -16px !important; margin-top: -16px !important; }
-        .cropper-point.point-ne { top: -16px !important; right: -16px !important; }
-        .cropper-point.point-nw { top: -16px !important; left: -16px !important; }
-        .cropper-point.point-se { bottom: -16px !important; right: -16px !important; }
-        .cropper-point.point-sw { bottom: -16px !important; left: -16px !important; }
 
         .modal-content {
             background: var(--bg-base);
@@ -715,7 +700,7 @@
             overflow: hidden;
         }
 
-        .modal-img-container views[currentView].img {
+        .modal-img-container img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
@@ -998,7 +983,6 @@
 <body>
 
     <input type="file" id="imageUpload" accept="image/*" style="display:none;">
-    <input type="file" id="imageUploadSide" accept="image/*" style="display:none;">
 
     <!-- 導覽列 -->
     <div class="navbar">
@@ -1018,17 +1002,6 @@
     <div id="view-measure" class="view-container active">
         <!-- 左側畫布區 -->
         <div class="main-content">
-            <div class="view-tabs">
-                <button id="btnViewFront" class="view-tab active" onclick="switchCanvasView('front')">正面照</button>
-                <button id="btnViewSide" class="view-tab" onclick="switchCanvasView('side')">側面照</button>
-            </div>
-            
-            <div class="toolbar-group" id="topToolbar" style="display: flex; width: 100%; color:var(--text-muted); font-size:12px; justify-content: flex-start; gap: 10px; margin-bottom: 10px;">
-                <button class="btn btn-primary" id="btnAiDetect" disabled style="min-width: max-content; flex: 1;">AI 自動測量</button>
-                <button id="btnToolRef" class="btn btn-outline" onclick="promptHeightAndSetRef()" style="min-width: max-content; flex: 1;">身高基準線</button>
-                <button id="btnToolMeas" class="btn btn-outline" onclick="setTool('measure')" style="min-width: max-content; flex: 1;">測量部位</button>
-            </div>
-
             <div class="canvas-container" id="canvasContainer" style="position: relative;">
                 <button id="btnCenterUpload" class="btn btn-primary"
                     style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 5; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);"
@@ -1046,10 +1019,20 @@
             <input type="hidden" id="refHeightInput" value="175">
             <div class="canvas-toolbar" style="flex-direction: column; align-items: stretch; gap: 12px;">
                 <div class="toolbar-group"
-                    style="width: 100%; color:var(--text-muted); font-size:12px; justify-content: space-between; gap: 10px;">
-                    <button class="btn btn-ghost" onclick="openCropModal()" style="min-width: max-content; flex: 1;">裁切照片</button>
-                    <button class="btn btn-ghost" onclick="document.getElementById(currentView === 'front' ? 'imageUpload' : 'imageUploadSide').click()" style="min-width: max-content; flex: 1;">更換照片</button>
-                    <button class="btn btn-ghost" onclick="resetCanvas()" style="min-width: max-content; flex: 1;">清空畫布</button>
+                    style="width: 100%; color:var(--text-muted); font-size:12px; justify-content: flex-start; gap: 10px;">
+                    <button class="btn btn-primary" id="btnAiDetect" disabled style="min-width: max-content;">AI
+                        自動測量</button>
+                    <div style="flex: 1;"></div>
+                    <button class="btn btn-ghost" onclick="document.getElementById('imageUpload').click()"
+                        style="min-width: max-content;">更換照片</button>
+                    <button class="btn btn-ghost" onclick="resetCanvas()" style="min-width: max-content;">清空畫布</button>
+                </div>
+                <div class="toolbar-group"
+                    style="width: 100%; color:var(--text-muted); font-size:12px; justify-content: flex-start; gap: 10px;">
+                    <button id="btnToolRef" class="btn btn-outline" onclick="promptHeightAndSetRef()"
+                        style="min-width: max-content;">身高基準線</button>
+                    <button id="btnToolMeas" class="btn btn-outline" onclick="setTool('measure')"
+                        style="min-width: max-content;">測量部位</button>
                 </div>
             </div>
             <div id="canvasStatus" style="color:var(--text-muted); font-size:12px; margin-top:5px; text-align:right;">
@@ -1067,8 +1050,8 @@
 
             <!-- Step 1 -->
             <div class="step-content active" id="step1">
-                <div class="section-title" style="display:none;">上傳照片</div>
-                <div class="file-btn" id="fileNameDisplay" style="display:none;" onclick="document.getElementById('imageUpload').click()">
+                <div class="section-title">上傳照片</div>
+                <div class="file-btn" id="fileNameDisplay" onclick="document.getElementById('imageUpload').click()">
                     點擊選擇照片</div>
 
                 <div class="section-title" style="margin-top:10px;">單位與識別碼</div>
@@ -1406,23 +1389,6 @@
         </div>
     </div>
     <!-- 測量部位選單 (Modal) -->
-    <!-- 裁切 Modal -->
-    <div id="cropModal" class="modal">
-        <div class="modal-content" style="max-width: 90vw; width: 600px; height: 80vh; display: flex; flex-direction: column;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0;">裁切照片</h3>
-                <span class="modal-close" onclick="closeCropModal()">&times;</span>
-            </div>
-            <div style="flex: 1; min-height: 0; background: var(--bg-base); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                <img id="cropImage" style="max-width: 100%; max-height: 100%; display: block;" src="">
-            </div>
-            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-ghost" onclick="closeCropModal()">取消</button>
-                <button class="btn btn-primary" onclick="confirmCrop()">確認裁切</button>
-            </div>
-        </div>
-    </div>
-
     <div class="modal" id="measureModal" style="z-index: 3000;">
         <div class="login-box" style="width: 320px; text-align: center; padding: 25px;">
             <h2 style="margin-top: 0; margin-bottom: 15px; color: var(--primary); font-size: 18px;">選擇測量部位</h2>
@@ -1549,39 +1515,10 @@
         // ==========================================
         //  2. 畫布與 AI 測量
         // ==========================================
-        let poseLandmarker = null, uploadedFileName = "無正面照片", uploadedFileNameSide = "無側面照片";
-        let isDrawing = false, startP = null, currentP = null, currentTool = null, pendingMeasureLine = null;
+        let poseLandmarker = null, img = new Image(), uploadedFileName = "無照片";
+        let isDrawing = false, startP = null, currentP = null, refLine = null, measureLines = [];
+        let pxPerCm = 0, currentTool = null, pendingMeasureLine = null;
         const DRAG_RADIUS = 20; let hoveredPoint = null, draggingPoint = null;
-        
-        let currentView = 'front';
-        const views = {
-            front: { img: new Image(), refLine: null, measureLines: [], pxPerCm: 0 },
-            side: { img: new Image(), refLine: null, measureLines: [], pxPerCm: 0 }
-        };
-
-        window.switchCanvasView = function (view) {
-            currentView = view;
-            document.getElementById('btnViewFront').className = view === 'front' ? 'view-tab active' : 'view-tab';
-            document.getElementById('btnViewSide').className = view === 'side' ? 'view-tab active' : 'view-tab';
-            document.getElementById('btnAiDetect').style.display = 'block';
-            document.getElementById('btnToolRef').style.display = view === 'front' ? 'block' : 'none';
-            
-            if (views[view].img.src) {
-                canvas.width = views[view].img.width;
-                canvas.height = views[view].img.height;
-                document.getElementById('btnCenterUpload').style.display = 'none';
-                cStatus.innerText = view === 'front' ? "正面照片已載入" : "側面照片已載入，請手動拉線測量厚度";
-            } else {
-                canvas.width = 0;
-                canvas.height = 0;
-                document.getElementById('btnCenterUpload').style.display = 'flex';
-                document.getElementById('btnCenterUpload').onclick = function() {
-                    document.getElementById(view === 'front' ? 'imageUpload' : 'imageUploadSide').click();
-                };
-                cStatus.innerText = "等待載入照片...";
-            }
-            redraw();
-        };
         const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
         const cStatus = document.getElementById('canvasStatus');
 
@@ -1618,9 +1555,6 @@
             else if (labelName === '腰圍') multiplier = 2.4;
             else if (labelName === '臀圍') multiplier = 2.2;
 
-            let rawVal = parseFloat(pendingMeasureLine.val);
-            let finalVal = (rawVal * multiplier).toFixed(1);
-
             if (multiplier !== 1) {
                 finalLabel = `${labelName}(推估)`;
             }
@@ -1630,20 +1564,19 @@
                 if (!finalLabel) finalLabel = "自訂線段";
             }
 
-            // 精準計算已移至 redraw() 動態處理
+            const finalVal = (parseFloat(pendingMeasureLine.val) * multiplier).toFixed(1);
+
             if (inputId) {
                 document.getElementById(inputId).value = finalVal;
             }
 
-            views[currentView].measureLines.push({
+            measureLines.push({
                 p1: pendingMeasureLine.p1,
                 p2: pendingMeasureLine.p2,
                 name: finalLabel,
                 val: finalVal,
-                rawVal: rawVal,
                 multiplier: multiplier,
-                inputId: inputId,
-                baseLabel: labelName
+                inputId: inputId
             });
 
             pendingMeasureLine = null;
@@ -1670,71 +1603,25 @@
         document.getElementById('imageUpload').addEventListener('change', function (e) {
             if (!e.target.files[0]) return;
             uploadedFileName = e.target.files[0].name;
-            document.getElementById('fileNameDisplay').innerText = uploadedFileName + (views.side.img.src ? " (已上傳雙面)" : "");
+            document.getElementById('fileNameDisplay').innerText = uploadedFileName;
             document.getElementById('fileNameDisplay').style.borderColor = "var(--primary)";
             document.getElementById('fileNameDisplay').style.color = "var(--primary)";
             cStatus.innerText = "圖片載入中...";
             const reader = new FileReader();
-            reader.onload = e => { 
-                views.front.img.onload = function() {
-                    if (currentView === 'front') {
-                        canvas.width = views.front.img.width;
-                        canvas.height = views.front.img.height;
-                        window.resetCanvas();
-                        cStatus.innerText = "正面照片已載入。可選擇上方工具開始測量。";
-                        document.getElementById('btnCenterUpload').style.display = 'none';
-                    }
-                };
-                views.front.img.src = e.target.result; 
-            };
-            reader.readAsDataURL(e.target.files[0]);
-        });
-        
-        document.getElementById('imageUploadSide').addEventListener('change', function (e) {
-            if (!e.target.files[0]) return;
-            uploadedFileNameSide = e.target.files[0].name;
-            document.getElementById('fileNameDisplay').innerText = (views.front.img.src ? uploadedFileName + " (已上傳雙面)" : uploadedFileNameSide + " (僅側面)");
-            document.getElementById('fileNameDisplay').style.borderColor = "var(--primary)";
-            document.getElementById('fileNameDisplay').style.color = "var(--primary)";
-            cStatus.innerText = "圖片載入中...";
-            const reader = new FileReader();
-            reader.onload = e => { 
-                views.side.img.onload = function() {
-                    if (currentView === 'side') {
-                        canvas.width = views.side.img.width;
-                        canvas.height = views.side.img.height;
-                        window.resetCanvas();
-                        cStatus.innerText = "側面照片已載入。請手動拉線測量厚度。";
-                        document.getElementById('btnCenterUpload').style.display = 'none';
-                    }
-                };
-                views.side.img.src = e.target.result; 
-            };
+            reader.onload = e => { img.src = e.target.result; };
             reader.readAsDataURL(e.target.files[0]);
         });
 
-        views.front.img.onload = function () {
-            if (currentView === 'front') {
-                canvas.width = views.front.img.width;
-                canvas.height = views.front.img.height;
-                window.resetCanvas();
-                cStatus.innerText = "正面照片已載入。可選擇上方工具開始測量。";
-                document.getElementById('btnCenterUpload').style.display = 'none';
-            }
-        };
-        
-        views.side.img.onload = function () {
-            if (currentView === 'side') {
-                canvas.width = views.side.img.width;
-                canvas.height = views.side.img.height;
-                window.resetCanvas();
-                cStatus.innerText = "側面照片已載入。請手動拉線測量厚度。";
-                document.getElementById('btnCenterUpload').style.display = 'none';
-            }
+        img.onload = function () {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            window.resetCanvas();
+            cStatus.innerText = "照片已載入。可選擇上方工具開始測量。";
+            document.getElementById('btnCenterUpload').style.display = 'none';
         };
 
         window.resetCanvas = function () {
-            views[currentView].refLine = null; views[currentView].measureLines = []; views[currentView].pxPerCm = 0; currentTool = null;
+            refLine = null; measureLines = []; pxPerCm = 0; currentTool = null;
             document.getElementById('btnToolRef').classList.remove('active');
             document.getElementById('btnToolMeas').classList.remove('active');
             redraw();
@@ -1748,11 +1635,11 @@
         function dist(p1, p2) { return Math.hypot(p2.x - p1.x, p2.y - p1.y); }
 
         function getPointAt(p) {
-            if (views[currentView].refLine) {
-                if (dist(p, views[currentView].refLine.p1) < (DRAG_RADIUS * canvas.width / 500)) return { line: views[currentView].refLine, pt: 'p1' };
-                if (dist(p, views[currentView].refLine.p2) < (DRAG_RADIUS * canvas.width / 500)) return { line: views[currentView].refLine, pt: 'p2' };
+            if (refLine) {
+                if (dist(p, refLine.p1) < (DRAG_RADIUS * canvas.width / 500)) return { line: refLine, pt: 'p1' };
+                if (dist(p, refLine.p2) < (DRAG_RADIUS * canvas.width / 500)) return { line: refLine, pt: 'p2' };
             }
-            for (let l of views[currentView].measureLines) {
+            for (let l of measureLines) {
                 if (dist(p, l.p1) < (DRAG_RADIUS * canvas.width / 500)) return { line: l, pt: 'p1' };
                 if (dist(p, l.p2) < (DRAG_RADIUS * canvas.width / 500)) return { line: l, pt: 'p2' };
             }
@@ -1760,33 +1647,27 @@
         }
 
         const downEvent = d => {
-            if (!views[currentView].img.hasAttribute('src')) return;
+            if (!img.src) return;
             const p = getCoords(d);
 
-            const hp = getPointAt(p);
-            if (hp) {
-                if (d.type === 'touchstart') d.preventDefault();
-                draggingPoint = hp; isDrawing = false; return;
-            }
-
-            if (views[currentView].refLine && views[currentView].refLine.labelBox) {
-                const lb = views[currentView].refLine.labelBox;
+            if (refLine && refLine.labelBox) {
+                const lb = refLine.labelBox;
                 if (p.x >= lb.x && p.x <= lb.x + lb.w && p.y >= lb.y && p.y <= lb.y + lb.h) {
                     if (d.type === 'touchstart') d.preventDefault();
-                    let newVal = prompt(`修改 身高基準 (目前: ${views[currentView].refLine.real} cm):`, views[currentView].refLine.real);
+                    let newVal = prompt(`修改 身高基準 (目前: ${refLine.real} cm):`, refLine.real);
                     if (newVal !== null && newVal.trim() !== "" && !isNaN(parseFloat(newVal))) {
                         const realH = parseFloat(newVal);
-                        views[currentView].refLine.real = realH;
+                        refLine.real = realH;
                         document.getElementById('refHeightInput').value = realH;
                         document.getElementById('val-height').value = realH;
-                        views[currentView].pxPerCm = dist(views[currentView].refLine.p1, views[currentView].refLine.p2) / realH;
+                        pxPerCm = dist(refLine.p1, refLine.p2) / realH;
                         redraw();
                     }
                     return;
                 }
             }
 
-            for (let l of views[currentView].measureLines) {
+            for (let l of measureLines) {
                 if (l.labelBox) {
                     const lb = l.labelBox;
                     if (p.x >= lb.x && p.x <= lb.x + lb.w && p.y >= lb.y && p.y <= lb.y + lb.h) {
@@ -1795,7 +1676,7 @@
                         if (newVal !== null && newVal.trim() !== "" && !isNaN(parseFloat(newVal))) {
                             const finalVal = parseFloat(newVal);
                             const multi = l.multiplier || 1;
-                            const targetDist = (finalVal / multi) * views[currentView].pxPerCm;
+                            const targetDist = (finalVal / multi) * pxPerCm;
                             const currentDist = dist(l.p1, l.p2);
                             if (currentDist > 0) {
                                 const ratio = targetDist / currentDist;
@@ -1810,8 +1691,15 @@
                     }
                 }
             }
+
+            const hp = getPointAt(p);
+
+            if (hp) {
+                if (d.type === 'touchstart') d.preventDefault();
+                draggingPoint = hp; isDrawing = false; return;
+            }
             if (!currentTool) return;
-            if (currentTool === 'measure' && views[currentView].pxPerCm === 0) { alert("請先畫出身高基準線！"); setTool('ref'); return; }
+            if (currentTool === 'measure' && pxPerCm === 0) { alert("請先畫出身高基準線！"); setTool('ref'); return; }
 
             if (d.type === 'touchstart') d.preventDefault();
             isDrawing = true; startP = p; currentP = p;
@@ -1825,29 +1713,7 @@
                 if (m.type === 'touchmove') m.preventDefault();
                 canvas.style.cursor = 'grabbing';
                 draggingPoint.line[draggingPoint.pt] = p;
-                if (draggingPoint.line === views[currentView].refLine) {
-                    const otherPt = draggingPoint.pt === 'p1' ? 'p2' : 'p1';
-                    draggingPoint.line[otherPt].x = p.x;
-                    views[currentView].pxPerCm = dist(views[currentView].refLine.p1, views[currentView].refLine.p2) / views[currentView].refLine.real;
-                    
-                    if (currentView === 'side' && views.front.refLine && views.front.measureLines.length > 0) {
-                        const frontRef = views.front.refLine;
-                        const frontH = frontRef.p2.y - frontRef.p1.y;
-                        if (frontH !== 0) {
-                            views.side.measureLines.forEach(l => {
-                                if (l.baseLabel) {
-                                    const fl = views.front.measureLines.find(fl => fl.baseLabel === l.baseLabel);
-                                    if (fl) {
-                                        const ratioY = (fl.p1.y - frontRef.p1.y) / frontH;
-                                        const newY = views.side.refLine.p1.y + ratioY * (views.side.refLine.p2.y - views.side.refLine.p1.y);
-                                        l.p1.y = newY;
-                                        l.p2.y = newY;
-                                    }
-                                }
-                            });
-                        }
-                    }
-                }
+                if (draggingPoint.line === refLine) pxPerCm = dist(refLine.p1, refLine.p2) / refLine.real;
                 redraw(); return;
             }
 
@@ -1858,10 +1724,9 @@
             }
 
             if (m.type === 'touchmove') m.preventDefault();
-            currentP = currentTool === 'ref' ? { x: startP.x, y: p.y } : p; 
-            redraw();
+            currentP = p; redraw();
             const color = currentTool === 'ref' ? '#ef4444' : '#60a5fa';
-            let txt = currentTool === 'ref' ? '基準線' : (views[currentView].pxPerCm > 0 ? (dist(startP, currentP) / views[currentView].pxPerCm).toFixed(1) + 'cm' : '請先設基準');
+            let txt = currentTool === 'ref' ? '基準線' : (pxPerCm > 0 ? (dist(startP, currentP) / pxPerCm).toFixed(1) + 'cm' : '請先設基準');
             drawLine(startP, currentP, color, txt, currentTool === 'ref');
         };
         canvas.addEventListener('mousemove', moveEvent); canvas.addEventListener('touchmove', moveEvent, { passive: false });
@@ -1874,18 +1739,18 @@
             if (d > (10 * canvas.width / 500)) {
                 if (currentTool === 'ref') {
                     const realH = parseFloat(document.getElementById('refHeightInput').value);
-                    views[currentView].refLine = { p1: startP, p2: currentP, real: realH };
-                    views[currentView].pxPerCm = d / realH;
+                    refLine = { p1: startP, p2: currentP, real: realH };
+                    pxPerCm = d / realH;
                     setTool('measure');
                     document.getElementById('val-height').value = realH;
                     cStatus.innerText = `基準已設定 (${realH}cm)。請繼續測量肩寬/胸圍。`;
-                } else if (views[currentView].pxPerCm > 0) {
-                    const val = (d / views[currentView].pxPerCm).toFixed(1);
+                } else if (pxPerCm > 0) {
+                    const val = (d / pxPerCm).toFixed(1);
                     pendingMeasureLine = { p1: startP, p2: currentP, val: val };
                     document.getElementById('measureResultText').innerText = val;
                     document.getElementById('customMeasurePart').value = "";
 
-                    const existingParts = views[currentView].measureLines.map(l => l.name);
+                    const existingParts = measureLines.map(l => l.name);
                     document.querySelectorAll('#measureModal .btn-outline').forEach(btn => {
                         const part = btn.innerText.split(' ')[0];
                         const exists = existingParts.some(ep => ep.startsWith(part));
@@ -1909,49 +1774,17 @@
         window.addEventListener('mouseup', upEvent); window.addEventListener('touchend', upEvent);
 
         function redraw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height); if (views[currentView].img.src) ctx.drawImage(views[currentView].img, 0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height); if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            if (views[currentView].refLine) views[currentView].refLine.labelBox = drawLine(views[currentView].refLine.p1, views[currentView].refLine.p2, '#ef4444', `身高基準: ${views[currentView].refLine.real}`, true);
-            views[currentView].measureLines.forEach(l => {
-                let multi = l.multiplier || 1;
-                let rawVal = dist(l.p1, l.p2) / views[currentView].pxPerCm;
-                l.rawVal = rawVal;
-                let reVal = (rawVal * multi).toFixed(1);
-                let finalName = l.baseLabel || l.name;
-                let isPrecise = false;
-                
-                if (l.baseLabel && (l.baseLabel === '胸圍' || l.baseLabel === '腰圍' || l.baseLabel === '臀圍')) {
-                    let otherView = currentView === 'front' ? 'side' : 'front';
-                    let otherLine = views[otherView].measureLines.find(ol => ol.baseLabel === l.baseLabel);
-                    if (otherLine && otherLine.rawVal) {
-                        let a = currentView === 'front' ? rawVal : otherLine.rawVal;
-                        let b = currentView === 'front' ? otherLine.rawVal : rawVal;
-                        let perimeter = Math.PI * Math.sqrt(2 * (Math.pow(a/2, 2) + Math.pow(b/2, 2)));
-                        reVal = perimeter.toFixed(1);
-                        finalName = `${l.baseLabel}(精準)`;
-                        isPrecise = true;
-                    } else if (multi !== 1) {
-                        finalName = `${l.baseLabel}(推估)`;
-                    }
-                }
-                
+            if (refLine) refLine.labelBox = drawLine(refLine.p1, refLine.p2, '#ef4444', `身高基準: ${refLine.real}`, true);
+            measureLines.forEach(l => {
+                const multi = l.multiplier || 1;
+                const reVal = (dist(l.p1, l.p2) / pxPerCm * multi).toFixed(1);
                 l.val = reVal;
-                l.name = finalName;
-                
                 if (l.inputId) {
-                    const inp = document.getElementById(l.inputId);
-                    if (inp) {
-                        inp.value = reVal;
-                        if (isPrecise) {
-                            inp.style.color = "#10b981";
-                            inp.style.fontWeight = "bold";
-                        } else {
-                            inp.style.color = "";
-                            inp.style.fontWeight = "normal";
-                        }
-                    }
+                    document.getElementById(l.inputId).value = reVal;
                 }
-                l.labelBox = drawLine(l.p1, l.p2, isPrecise ? '#10b981' : '#60a5fa', `${finalName}: ${l.val}`);
+                l.labelBox = drawLine(l.p1, l.p2, '#60a5fa', `${l.name}: ${l.val}`);
             });
 
             if (hoveredPoint) {
@@ -1965,21 +1798,19 @@
 
         function drawLine(p1, p2, c, txt, isTop = false) {
             const scale = canvas.width / 800;
-            const fontSize = Math.max(22 * scale, 16);
+            const fontSize = Math.max(16 * scale, 14);
 
             ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.strokeStyle = c; ctx.lineWidth = 4 * scale; ctx.stroke();
             ctx.fillStyle = c; ctx.beginPath(); ctx.arc(p1.x, p1.y, 5 * scale, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(p2.x, p2.y, 5 * scale, 0, Math.PI * 2); ctx.fill();
             if (txt) {
                 let x = (p1.x + p2.x) / 2, y = (p1.y + p2.y) / 2;
-                let parts = txt.split(': ');
-                
                 if (isTop) {
                     x = p1.y < p2.y ? p1.x : p2.x;
                     y = Math.min(p1.y, p2.y) - (30 * scale);
                     if (y < 30) y = Math.max(p1.y, p2.y) + (40 * scale);
                 } else {
                     ctx.font = `bold ${fontSize}px 'Segoe UI'`;
-                    let tempW = parts.length === 2 ? Math.max(ctx.measureText(parts[0]).width, ctx.measureText(parts[1]).width) : ctx.measureText(txt).width;
+                    let tempW = ctx.measureText(txt).width;
                     x = canvas.width - tempW / 2 - 20 * scale;
 
                     const rightP = p1.x > p2.x ? p1 : p2;
@@ -1992,26 +1823,13 @@
                     ctx.stroke();
                     ctx.setLineDash([]);
                 }
-                
                 ctx.font = `bold ${fontSize}px 'Segoe UI'`;
-                let w = parts.length === 2 ? Math.max(ctx.measureText(parts[0]).width, ctx.measureText(parts[1]).width) : ctx.measureText(txt).width;
+                let w = ctx.measureText(txt).width;
                 ctx.fillStyle = "rgba(24, 24, 27, 0.85)";
-                
-                let isMulti = parts.length === 2;
-                let rh = isMulti ? (fontSize * 2 + 20 * scale) : (fontSize + 16 * scale);
-                let ry = isMulti ? y - fontSize - 15 * scale : y - fontSize - 10 * scale;
-                let rx = x - w / 2 - 10 * scale, rw = w + 20 * scale;
-                
+                let rx = x - w / 2 - 10 * scale, ry = y - fontSize - 10 * scale, rw = w + 20 * scale, rh = fontSize + 16 * scale;
                 ctx.fillRect(rx, ry, rw, rh);
                 ctx.fillStyle = "#fff"; ctx.textAlign = "center";
-                
-                if (isMulti) {
-                    ctx.fillText(parts[0], x, ry + fontSize + 4 * scale);
-                    ctx.fillText(parts[1], x, ry + fontSize * 2 + 10 * scale);
-                } else {
-                    ctx.fillText(txt, x, y - 4 * scale);
-                }
-                
+                ctx.fillText(txt, x, y - 4 * scale);
                 ctx.strokeStyle = c; ctx.lineWidth = 2 * scale;
                 ctx.strokeRect(rx, ry, rw, rh);
                 return { x: rx, y: ry, w: rw, h: rh };
@@ -2020,55 +1838,36 @@
         }
 
         document.getElementById('btnAiDetect').onclick = function () {
-            if (!views[currentView].img.src || !poseLandmarker) return alert("請先上傳照片並等待 AI 載入完成。");
+            if (!img.src || !poseLandmarker) return alert("請先上傳照片並等待 AI 載入完成。");
 
-            let realH = null;
-            if (currentView === 'side' && views.front.refLine && views.front.refLine.real) {
-                realH = views.front.refLine.real;
-            } else {
-                let defaultHeight = document.getElementById('refHeightInput').value || "175";
-                let heightInput = prompt("開始 AI 測量前，請輸入被測量者的實際身高 (公分)：", defaultHeight);
-                if (heightInput === null || heightInput.trim() === "" || isNaN(parseFloat(heightInput))) {
-                    return;
-                }
-                realH = parseFloat(heightInput);
+            let defaultHeight = document.getElementById('refHeightInput').value || "175";
+            let heightInput = prompt("開始 AI 測量前，請輸入被測量者的實際身高 (公分)：", defaultHeight);
+
+            if (heightInput === null || heightInput.trim() === "" || isNaN(parseFloat(heightInput))) {
+                return;
             }
+
+            const realH = parseFloat(heightInput);
             document.getElementById('refHeightInput').value = realH;
 
             cStatus.innerText = "AI 運算中...";
-            const btnAi = document.getElementById('btnAiDetect');
-            const originalBtnHtml = btnAi.innerHTML;
-            btnAi.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top:2px solid transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:8px; vertical-align:middle;"></span>運算中...';
-            btnAi.disabled = true;
-            document.body.style.cursor = 'wait';
-
             setTimeout(() => {
-                let res;
-                try {
-                    res = poseLandmarker.detect(views[currentView].img);
-                } catch (e) {
-                    document.body.style.cursor = 'default';
-                    btnAi.innerHTML = originalBtnHtml;
-                    btnAi.disabled = false;
-                    alert("AI 偵測發生錯誤");
-                    return;
-                }
+                const res = poseLandmarker.detect(img);
                 if (res.landmarks && res.landmarks.length > 0) {
                     const pose = res.landmarks[0], tX = v => v * canvas.width, tY = v => v * canvas.height;
                     const nose = pose[0], lSh = pose[11], rSh = pose[12], lHip = pose[23], rHip = pose[24], footY = Math.max(pose[29].y, pose[30].y, pose[31].y, pose[32].y);
 
                     let headY = nose.y - ((lSh.y + rSh.y) / 2 - nose.y) * 0.75; if (headY < 0) headY = 0.02;
 
-                    const refCx = (tX(nose.x) + tX((pose[27].x + pose[28].x) / 2)) / 2;
-                    views[currentView].refLine = { p1: { x: refCx, y: tY(headY) }, p2: { x: refCx, y: tY(footY) }, real: realH };
-                    views[currentView].pxPerCm = dist(views[currentView].refLine.p1, views[currentView].refLine.p2) / realH;
+                    refLine = { p1: { x: tX(nose.x), y: tY(headY) }, p2: { x: tX((pose[27].x + pose[28].x) / 2), y: tY(footY) }, real: realH };
+                    pxPerCm = dist(refLine.p1, refLine.p2) / realH;
 
                     const sL = { x: tX(lSh.x), y: tY(lSh.y) }, sR = { x: tX(rSh.x), y: tY(rSh.y) }, hL = { x: tX(lHip.x), y: tY(lHip.y) }, hR = { x: tX(rHip.x), y: tY(rHip.y) };
-                    views[currentView].measureLines = [];
-                    const calc = (pA, pB, multi = 1) => (dist(pA, pB) / views[currentView].pxPerCm * multi).toFixed(1);
+                    measureLines = [];
+                    const calc = (pA, pB, multi = 1) => (dist(pA, pB) / pxPerCm * multi).toFixed(1);
 
                     const getRefX = (y) => {
-                        const r1 = views[currentView].refLine.p1, r2 = views[currentView].refLine.p2;
+                        const r1 = refLine.p1, r2 = refLine.p2;
                         return r2.y === r1.y ? r1.x : r1.x + (r2.x - r1.x) * (y - r1.y) / (r2.y - r1.y);
                     };
 
@@ -2080,39 +1879,16 @@
                             [{ x: cx - halfW, y: cy }, { x: cx + halfW, y: cy }] :
                             [{ x: cx + halfW, y: cy }, { x: cx - halfW, y: cy }];
                     };
-                    
-                    if (currentView === 'front') {
-                        const [e_sL, e_sR] = makeLine(sL, sR, 1.25, 0);
-                        const [c_L, c_R] = makeLine(sL, sR, 0.95, 75 * canvas.width / 800);
-                        const [w_L, w_R] = makeLine(hL, hR, 1.3, -120 * canvas.width / 800);
-                        const [hp_L, hp_R] = makeLine(hL, hR, 1.7, -35 * canvas.width / 800);
 
-                        const shV = calc(e_sL, e_sR); views[currentView].measureLines.push({ p1: e_sL, p2: e_sR, name: '肩寬', val: shV, rawVal: dist(e_sL, e_sR)/views[currentView].pxPerCm, multiplier: 1, inputId: 'val-shoulder', baseLabel: '肩寬' }); document.getElementById('val-shoulder').value = shV;
-                        const chV = calc(c_L, c_R, 2.6); views[currentView].measureLines.push({ p1: c_L, p2: c_R, name: '胸圍(推估)', val: chV, rawVal: dist(c_L, c_R)/views[currentView].pxPerCm, multiplier: 2.6, inputId: 'val-chest', baseLabel: '胸圍' }); document.getElementById('val-chest').value = chV;
-                        const waV = calc(w_L, w_R, 2.4); views[currentView].measureLines.push({ p1: w_L, p2: w_R, name: '腰圍(推估)', val: waV, rawVal: dist(w_L, w_R)/views[currentView].pxPerCm, multiplier: 2.4, inputId: 'val-waist', baseLabel: '腰圍' }); document.getElementById('val-waist').value = waV;
-                        const hipV = calc(hp_L, hp_R, 2.2); views[currentView].measureLines.push({ p1: hp_L, p2: hp_R, name: '臀圍(推估)', val: hipV, rawVal: dist(hp_L, hp_R)/views[currentView].pxPerCm, multiplier: 2.2, inputId: 'val-hip', baseLabel: '臀圍' }); document.getElementById('val-hip').value = hipV;
-                    } else if (currentView === 'side') {
-                        const frontRef = views.front.refLine;
-                        if (frontRef && views.front.measureLines.length > 0) {
-                            const frontH = frontRef.p2.y - frontRef.p1.y;
-                            ['胸圍', '腰圍', '臀圍'].forEach(lbl => {
-                                const fl = views.front.measureLines.find(l => l.baseLabel === lbl);
-                                if (fl) {
-                                    const ratioY = (fl.p1.y - frontRef.p1.y) / frontH;
-                                    const sideY = views[currentView].refLine.p1.y + ratioY * (views[currentView].refLine.p2.y - views[currentView].refLine.p1.y);
-                                    const cx = getRefX(sideY);
-                                    const halfW = 12.5 * views[currentView].pxPerCm;
-                                    const p1 = { x: cx - halfW, y: sideY };
-                                    const p2 = { x: cx + halfW, y: sideY };
-                                    let mult = 1; let inputId = '';
-                                    if (lbl === '胸圍') { mult = 2.6; inputId = 'val-chest'; }
-                                    else if (lbl === '腰圍') { mult = 2.4; inputId = 'val-waist'; }
-                                    else if (lbl === '臀圍') { mult = 2.2; inputId = 'val-hip'; }
-                                    views[currentView].measureLines.push({ p1: p1, p2: p2, name: lbl, rawVal: 25, multiplier: mult, inputId: inputId, baseLabel: lbl });
-                                }
-                            });
-                        }
-                    }
+                    const [e_sL, e_sR] = makeLine(sL, sR, 1.25, 0);
+                    const [c_L, c_R] = makeLine(sL, sR, 0.95, 40 * canvas.width / 800);
+                    const [w_L, w_R] = makeLine(hL, hR, 1.3, -120 * canvas.width / 800);
+                    const [hp_L, hp_R] = makeLine(hL, hR, 1.7, -35 * canvas.width / 800);
+
+                    const shV = calc(e_sL, e_sR); measureLines.push({ p1: e_sL, p2: e_sR, name: '肩寬', val: shV, multiplier: 1, inputId: 'val-shoulder' }); document.getElementById('val-shoulder').value = shV;
+                    const chV = calc(c_L, c_R, 2.6); measureLines.push({ p1: c_L, p2: c_R, name: '胸圍(推估)', val: chV, multiplier: 2.6, inputId: 'val-chest' }); document.getElementById('val-chest').value = chV;
+                    const waV = calc(w_L, w_R, 2.4); measureLines.push({ p1: w_L, p2: w_R, name: '腰圍(推估)', val: waV, multiplier: 2.4, inputId: 'val-waist' }); document.getElementById('val-waist').value = waV;
+                    const hipV = calc(hp_L, hp_R, 2.2); measureLines.push({ p1: hp_L, p2: hp_R, name: '臀圍(推估)', val: hipV, multiplier: 2.2, inputId: 'val-hip' }); document.getElementById('val-hip').value = hipV;
 
                     document.getElementById('val-height').value = realH;
                     document.getElementById('measureSource').value = "AI 自動量測";
@@ -2120,77 +1896,7 @@
                     redraw();
                     cStatus.innerText = "AI 骨架偵測完成！線段節點可滑鼠拖曳微調。";
                 } else { cStatus.innerText = "找不到人物，請手動量測。"; }
-                
-                document.body.style.cursor = 'default';
-                btnAi.innerHTML = originalBtnHtml;
-                btnAi.disabled = false;
             }, 50);
-        };
-
-        // ==========================================
-        //  Cropper.js 裁切邏輯
-        // ==========================================
-        let cropper = null;
-        
-        window.openCropModal = function() {
-            const imgSrc = views[currentView].img.src;
-            if (!imgSrc || !views[currentView].img.hasAttribute('src')) {
-                alert('請先上傳照片！');
-                return;
-            }
-            
-            const cropImage = document.getElementById('cropImage');
-            cropImage.src = imgSrc;
-            document.getElementById('cropModal').classList.add('active');
-            
-            if (cropper) { cropper.destroy(); }
-            
-            cropper = new Cropper(cropImage, {
-                viewMode: 1,
-                dragMode: 'crop',
-                autoCropArea: 0.8,
-                restore: false,
-                guides: true,
-                center: true,
-                highlight: false,
-                cropBoxMovable: true,
-                cropBoxResizable: true,
-                toggleDragModeOnDblclick: false,
-            });
-        };
-        
-        window.closeCropModal = function() {
-            document.getElementById('cropModal').classList.remove('active');
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-        };
-        
-        window.confirmCrop = function() {
-            if (!cropper) return;
-            const canvasData = cropper.getCroppedCanvas();
-            if (!canvasData) { closeCropModal(); return; }
-            
-            const croppedDataUrl = canvasData.toDataURL("image/jpeg", 0.9);
-            
-            views[currentView].refLine = null;
-            views[currentView].measureLines = [];
-            views[currentView].pxPerCm = 0;
-            
-            cStatus.innerText = "重新載入裁切後的照片...";
-            views[currentView].img.onload = function() {
-                // Ensure it targets the view that was just cropped
-                let targetView = currentView;
-                canvas.width = views[targetView].img.width;
-                canvas.height = views[targetView].img.height;
-                window.resetCanvas();
-                cStatus.innerText = targetView === 'front' ? "裁切完成。請重新設定基準或 AI 測量。" : "裁切完成。請手動拉線測量厚度。";
-                document.getElementById('btnCenterUpload').style.display = 'none';
-            };
-            views[currentView].img.src = croppedDataUrl;
-            
-            closeCropModal();
         };
 
         // ==========================================
@@ -2368,59 +2074,8 @@
 
             formData.append("note", document.getElementById('val-note').value);
 
-            let finalDataURL = "";
-            if (views.front.img.src || views.side.img.src) {
-                const originalView = currentView;
-                
-                const renderToTemp = (v) => {
-                    if (!views[v].img.src) return null;
-                    currentView = v;
-                    canvas.width = views[v].img.width;
-                    canvas.height = views[v].img.height;
-                    redraw();
-                    const tc = document.createElement('canvas');
-                    tc.width = canvas.width; tc.height = canvas.height;
-                    tc.getContext('2d').drawImage(canvas, 0, 0);
-                    return tc;
-                };
-                
-                const frontC = renderToTemp('front');
-                const sideC = renderToTemp('side');
-                
-                if (frontC && sideC) {
-                    const mergeC = document.createElement('canvas');
-                    const maxH = Math.max(frontC.height, sideC.height);
-                    const scaleF = maxH / frontC.height;
-                    const scaleS = maxH / sideC.height;
-                    const newW_F = frontC.width * scaleF;
-                    const newW_S = sideC.width * scaleS;
-                    
-                    mergeC.width = newW_F + newW_S;
-                    mergeC.height = maxH;
-                    const mCtx = mergeC.getContext('2d');
-                    mCtx.drawImage(frontC, 0, 0, newW_F, maxH);
-                    mCtx.drawImage(sideC, newW_F, 0, newW_S, maxH);
-                    
-                    finalDataURL = mergeC.toDataURL("image/jpeg", 0.7);
-                } else if (frontC) {
-                    finalDataURL = frontC.toDataURL("image/jpeg", 0.7);
-                } else if (sideC) {
-                    finalDataURL = sideC.toDataURL("image/jpeg", 0.7);
-                }
-                
-                // Restore original view
-                currentView = originalView;
-                if (views[currentView].img.src) {
-                    canvas.width = views[currentView].img.width;
-                    canvas.height = views[currentView].img.height;
-                } else {
-                    canvas.width = 0; canvas.height = 0;
-                }
-                redraw();
-            }
-
-            if (finalDataURL) {
-                formData.append("fileData", finalDataURL);
+            if (img.src && uploadedFileName !== "無照片") {
+                formData.append("fileData", canvas.toDataURL("image/jpeg", 0.8));
             }
 
             fetch(APPS_SCRIPT_URL, { method: "POST", body: formData })
@@ -2453,27 +2108,20 @@
             document.getElementById('unitSelect').dispatchEvent(new Event('change'));
 
             document.getElementById('imageUpload').value = '';
-            document.getElementById('imageUploadSide').value = '';
-            views.front.img = new Image();
-            views.side.img = new Image();
-            
-            views.front.refLine = null; views.front.measureLines = []; views.front.pxPerCm = 0;
-            views.side.refLine = null; views.side.measureLines = []; views.side.pxPerCm = 0;
+            img.removeAttribute('src');
+            img.src = '';
 
             window.resetCanvas();
-            setTimeout(() => { ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.width = 0; canvas.height = 0; }, 10);
+            setTimeout(() => { ctx.clearRect(0, 0, canvas.width, canvas.height); }, 10);
 
-            uploadedFileName = "無正面照片";
-            uploadedFileNameSide = "無側面照片";
+            uploadedFileName = "無照片";
             document.getElementById('fileNameDisplay').innerText = '點擊選擇照片';
             document.getElementById('fileNameDisplay').style.borderColor = "var(--border)";
             document.getElementById('fileNameDisplay').style.color = "var(--text-muted)";
             cStatus.innerText = '等待載入照片...';
             document.getElementById('btnCenterUpload').style.display = 'flex';
-            
-            window.switchCanvasView('front');
+
             goToStep(1);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         // ==========================================
