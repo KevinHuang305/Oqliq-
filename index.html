@@ -1967,15 +1967,14 @@
                 let fX = draggingPoint ? draggingPoint.line[draggingPoint.pt].x : currentP.x;
                 let fY = draggingPoint ? draggingPoint.line[draggingPoint.pt].y : currentP.y;
                 
-                const r = 150; 
+                const r = 200; 
                 const zoom = 2;
                 
-                let cx = fX - r - 20;
-                let cy = fY - r - 40;
+                let cx = fX;
+                let cy = fY - r - 60;
                 
-                if (cy - r < 0) cy = fY + r + 40;
-                if (cx - r < 0) cx = fX + r + 20;
-                if (cx + r > canvas.width) cx = canvas.width - r - 10;
+                if (cy - r < 0) cy = fY + r + 60;
+                cx = Math.max(r + 10, Math.min(canvas.width - r - 10, cx));
                 
                 ctx.save();
                 ctx.beginPath();
