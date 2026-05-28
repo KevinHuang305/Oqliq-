@@ -1967,14 +1967,21 @@
                 let fX = draggingPoint ? draggingPoint.line[draggingPoint.pt].x : currentP.x;
                 let fY = draggingPoint ? draggingPoint.line[draggingPoint.pt].y : currentP.y;
                 
-                const r = 200; 
+                const r = 150; 
                 const zoom = 2;
                 
                 let cx = fX;
-                let cy = fY - r - 60;
+                let cy = fY - r - 50; // 預設在正上方
                 
-                if (cy - r < 0) cy = fY + r + 60;
-                cx = Math.max(r + 10, Math.min(canvas.width - r - 10, cx));
+                if (cy - r < 0) { 
+                    // 如果上方空間不夠，改放左右兩側
+                    cy = Math.max(r + 5, fY); 
+                    cx = (fX > canvas.width / 2) ? (fX - r - 50) : (fX + r + 50);
+                }
+                
+                // 最後做邊界保護，確保放大鏡 100% 在畫布內
+                cx = Math.max(r + 5, Math.min(canvas.width - r - 5, cx));
+                cy = Math.max(r + 5, Math.min(canvas.height - r - 5, cy));
                 
                 ctx.save();
                 ctx.beginPath();
