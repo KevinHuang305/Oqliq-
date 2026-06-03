@@ -3436,6 +3436,8 @@
                 let isChunked = false;
                 let chunkIdx = 0, totalChunks = 1;
                 let boxInfoStr = "";
+                window.currentBoxId = null;
+                
                 if (idxParam !== null && capParam !== null) {
                     chunkIdx = parseInt(idxParam, 10);
                     const cap = parseInt(capParam, 10);
@@ -3443,14 +3445,22 @@
                     boxInfoStr = ` (第 ${chunkIdx + 1} 箱 / 共 ${totalChunks} 箱)`;
                     records = records.slice(chunkIdx * cap, (chunkIdx + 1) * cap);
                     isChunked = true;
+                    window.currentBoxId = `${box}_箱${chunkIdx + 1}`;
                 }
 
                 if (records.length > 0) {
                     currentScanRecords = records;
+                    const boxStatusStr = window.currentBoxId && window.boxStatuses && window.boxStatuses[window.currentBoxId] ? window.boxStatuses[window.currentBoxId] : '尚未紀錄';
                     document.getElementById('scanSubtitle').innerText = isChunked ? `分隊箱掃描${boxInfoStr}` : `分隊箱掃描`;
                     area.innerHTML = `
                         <div style="font-size:20px; font-weight:bold; margin-bottom:10px; color:var(--primary);">箱號：${box}${boxInfoStr}</div>
                         <div style="margin-bottom:5px;"><strong>單位：</strong>${records[0]['機關名稱']} - ${records[0]['大隊/分類']} - ${records[0]['單位名稱']}</div>
+                        
+                        <div style="margin-top:10px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+                            <div style="color:#166534; font-size:14px; font-weight:bold;">📦 本箱實體狀態：</div>
+                            <div style="font-size:24px; font-weight:900; color:#15803d; margin-top:4px;">${boxStatusStr}</div>
+                        </div>
+
                         <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border);">
                             <span style="color:var(--text-muted); font-size:14px;">本箱包含人數：</span>
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
