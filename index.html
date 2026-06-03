@@ -3240,33 +3240,6 @@
         document.getElementById('settingApiUrl').value = APPS_SCRIPT_URL;
         document.getElementById('settingAdminPwd').value = DEFAULT_ADMIN_PWD;
 
-        const params = new URLSearchParams(window.location.search);
-        const scanMode = params.get('scan');
-        if (scanMode) {
-            document.querySelector('.nav-menu').style.display = 'none';
-            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
-            document.getElementById('view-scan').classList.add('active');
-            document.getElementById('view-scan').style.display = 'block';
-
-            if (!DEFAULT_ADMIN_PWD) {
-                document.getElementById('scanSubtitle').innerText = "未登入，請先輸入管理員密碼";
-                document.getElementById('scanLoginArea').style.display = 'block';
-                window.submitScanLogin = function() {
-                    const p = document.getElementById('scanPwdInput').value.trim();
-                    if (p) {
-                        localStorage.setItem('admin_pwd', p);
-                        DEFAULT_ADMIN_PWD = p;
-                        window.location.reload();
-                    }
-                };
-            } else {
-                window.initScanMode(scanMode, params);
-            }
-        } else {
-            if (DEFAULT_ADMIN_PWD) {
-                document.getElementById('adminPwdInput').value = DEFAULT_ADMIN_PWD;
-            }
-        }
 
         window.saveSettings = function () {
             const baseUrl = document.getElementById('settingBaseUrl').value.trim();
@@ -3391,6 +3364,34 @@
             alert(`處理完成！成功更新 ${successCount} 筆資料。`);
             window.location.reload();
         };
+
+        const params = new URLSearchParams(window.location.search);
+        const scanMode = params.get('scan');
+        if (scanMode) {
+            document.querySelector('.nav-menu').style.display = 'none';
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-scan').classList.add('active');
+            document.getElementById('view-scan').style.display = 'block';
+
+            if (!DEFAULT_ADMIN_PWD) {
+                document.getElementById('scanSubtitle').innerText = "未登入，請先輸入管理員密碼";
+                document.getElementById('scanLoginArea').style.display = 'block';
+                window.submitScanLogin = function() {
+                    const p = document.getElementById('scanPwdInput').value.trim();
+                    if (p) {
+                        localStorage.setItem('admin_pwd', p);
+                        DEFAULT_ADMIN_PWD = p;
+                        window.location.reload();
+                    }
+                };
+            } else {
+                window.initScanMode(scanMode, params);
+            }
+        } else {
+            if (DEFAULT_ADMIN_PWD) {
+                document.getElementById('adminPwdInput').value = DEFAULT_ADMIN_PWD;
+            }
+        }
     </script>
 </body>
 
