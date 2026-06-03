@@ -1346,10 +1346,14 @@
                 <select id="filterAgency">
                     <option value="">所有機關</option>
                 </select>
+                <select id="filterBrigade">
+                    <option value="">所有大隊</option>
+                </select>
                 <select id="filterUnit">
                     <option value="">所有單位</option>
                 </select>
                 <input type="text" id="filterSearch" placeholder="搜尋姓名或序號..." style="min-width:180px;">
+                <button class="btn btn-primary" onclick="queryAdminTable()">查詢</button>
             </div>
             <div style="display:flex; gap:10px; align-items: center; flex-wrap: wrap;">
                 <select id="bulkStatusSelect" style="padding: 10px; border-radius: 6px; font-size: 13px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);">
@@ -1396,12 +1400,11 @@
             <div class="filters">
                 <button class="btn btn-outline active" id="btnLblInner" onclick="renderLabels('inner')">個人分袋</button>
                 <button class="btn btn-outline" id="btnLblSquad" onclick="renderLabels('squad')">分隊箱</button>
-                <button class="btn btn-outline" id="btnLblUnit" onclick="renderLabels('unit')">單位主箱</button>
                 <button class="btn btn-ghost" id="btnLblRes" onclick="renderLabels('reserve')">補件備援</button>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <div id="globalCopiesWrap" style="display:none; align-items:center; gap:5px; font-size:14px; font-weight:bold; color:var(--text-main);">
-                    每箱列印張數: <input type="number" id="globalCopiesInp" value="1" min="1" style="width:60px; padding:4px;" onchange="renderLabels(currentLabelType)">
+                    每箱容納個人袋數量上限: <input type="number" id="boxCapacityInp" value="20" min="1" style="width:60px; padding:4px;" onchange="renderLabels(currentLabelType)">
                 </div>
                 <button class="btn btn-primary" style="background:#10b981; color:white;"
                     onclick="window.print()">列印標籤</button>
@@ -1692,9 +1695,37 @@
 
                 dbHierarchy = data.hierarchy; dbSystemCodes = data.systemCodes;
 
-                const agencySel = document.getElementById('agencySelect'), filterAgency = document.getElementById('filterAgency');
-                agencySel.innerHTML = '<option value="">請選擇機關...</option>'; filterAgency.innerHTML = '<option value="">所有機關</option>';
-                for (let agency in dbHierarchy) { agencySel.innerHTML += `<option value="${agency}">${agency}</option>`; filterAgency.innerHTML += `<option value="${agency}">${agency}</option>`; }
+                const agencySel = document.getElementById('agencySelect'), filterAgency = document.getElementById('filterAgency'), lblAgency = document.getElementById('lblFiltAgency');
+                agencySel.innerHTML = '<option value="">請選擇機關...</option>'; 
+                filterAgency.innerHTML = '<option value="">所有機關</option>';
+                lblAgency.innerHTML = '<option value="">所有機關</option>';
+                for (let agency in dbHierarchy) { 
+                    agencySel.innerHTML += `<option value="${agency}">${agency}</option>`; 
+                    filterAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
+                    lblAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
+                }
+                
+                function setupCascadingDropdowns(agencyId, brigadeId, unitId) {
+                    const aSel = document.getElementById(agencyId), bSel = document.getElementById(brigadeId), uSel = document.getElementById(unitId);
+                    if(!aSel || !bSel || !uSel) return;
+                    aSel.addEventListener('change', function() {
+                        bSel.innerHTML = '<option value="">所有大隊</option>';
+                        uSel.innerHTML = '<option value="">所有單位</option>';
+                        if (this.value && dbHierarchy[this.value]) {
+                            for (let brigade in dbHierarchy[this.value]) bSel.innerHTML += `<option value="${brigade}">${brigade}</option>`;
+                        }
+                    });
+                    bSel.addEventListener('change', function() {
+                        uSel.innerHTML = '<option value="">所有單位</option>';
+                        const agency = aSel.value;
+                        if (this.value && dbHierarchy[agency] && dbHierarchy[agency][this.value]) {
+                            dbHierarchy[agency][this.value].forEach(u => uSel.innerHTML += `<option value="${u}">${u}</option>`);
+                        }
+                    });
+                }
+                setupCascadingDropdowns('filterAgency', 'filterBrigade', 'filterUnit');
+                setupCascadingDropdowns('lblFiltAgency', 'lblFiltBrigade', 'lblFiltUnit');
+
             } catch (e) { document.getElementById('agencySelect').innerHTML = `<option value="">⚠️ ${e.message}</option>`; }
         }
 
@@ -2806,21 +2837,22 @@
                 document.getElementById('dashCollected').innerText = allRecords.filter(r => r['狀態'] === '已領取').length;
                 document.getElementById('dashRemesure').innerText = allRecords.filter(r => r['狀態'] === '需複量').length;
 
-                const units = new Set(); allRecords.forEach(r => { if (r['單位名稱']) units.add(r['單位名稱']); });
-                const fU = document.getElementById('filterUnit');
-                const currUnit = fU.value;
-                fU.innerHTML = '<option value="">所有單位</option>'; units.forEach(u => fU.innerHTML += `<option value="${u}">${u}</option>`);
-                fU.value = currUnit;
-
-                document.getElementById('filterAgency').onchange = filterTable; document.getElementById('filterUnit').onchange = filterTable; document.getElementById('filterSearch').oninput = filterTable;
-                filterTable();
+                const tbody = document.getElementById('tableBody'); 
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
             }
         }
 
-        function filterTable() {
-            const vA = document.getElementById('filterAgency').value, vU = document.getElementById('filterUnit').value, vS = document.getElementById('filterSearch').value.toLowerCase();
+        window.queryAdminTable = function() {
+            const vA = document.getElementById('filterAgency').value, vB = document.getElementById('filterBrigade').value, vU = document.getElementById('filterUnit').value, vS = document.getElementById('filterSearch').value.trim().toLowerCase();
+            if (!vA && !vB && !vU && !vS) {
+                alert("請至少選擇一個機關、大隊、單位，或輸入搜尋條件。");
+                return;
+            }
+            
             const filtered = allRecords.filter(r => {
-                if (vA && r['機關名稱'] !== vA) return false; if (vU && r['單位名稱'] !== vU) return false;
+                if (vA && r['機關名稱'] !== vA) return false; 
+                if (vB && r['大隊/分類'] !== vB) return false;
+                if (vU && r['單位名稱'] !== vU) return false;
                 if (vS && !(r['姓名'].toLowerCase().includes(vS) || r['人員識別碼'].toLowerCase().includes(vS) || r['裝袋序號'].toLowerCase().includes(vS))) return false;
                 return true;
             });
@@ -3083,6 +3115,10 @@
             let targetRecords = allRecords;
             if (type === 'inner' || type === 'squad') {
                 const vA = document.getElementById('lblFiltAgency').value, vB = document.getElementById('lblFiltBrigade').value, vU = document.getElementById('lblFiltUnit').value;
+                if (!vA && !vB && !vU) {
+                    renderArea.innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center;">請選擇上方的過濾條件並點選「查詢」才會產生標籤。</div>';
+                    return;
+                }
                 targetRecords = allRecords.filter(r => {
                     if (vA && r['機關名稱'] !== vA) return false;
                     if (vB && r['大隊/分類'] !== vB) return false;
@@ -3092,11 +3128,11 @@
             }
 
             if (targetRecords.length === 0) {
-                renderArea.innerHTML = '<div style="color:var(--text-muted); padding:20px;">該條件下無符合的標籤資料。</div>'; return;
+                renderArea.innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center;">該條件下無符合的標籤資料。</div>'; return;
             }
 
             let html = ''; labelQRCodes = [];
-            const copies = (type === 'squad' || type === 'unit') ? (parseInt(document.getElementById('globalCopiesInp').value) || 1) : 1;
+            const capacity = (type === 'squad' || type === 'unit') ? (parseInt(document.getElementById('boxCapacityInp').value) || 20) : 1;
             const getPrintTool = () => `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="printSingleLabel(this.closest('.label-card'), this.previousElementSibling.value)">🖨️列印</button></div>`;
 
             if (type === 'inner') {
@@ -3118,15 +3154,27 @@
                 Object.keys(squads).forEach((k, idx) => {
                     const group = squads[k]; const first = group[0];
                     const boxNo = `${first['人員識別碼'].split('-')[0]}-${first['人員識別碼'].split('-')[1]}-01`;
-                    for(let i=0; i<copies; i++) {
-                        const qrId = `qr_squad_${idx}_${i}`;
-                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${i+1}/${copies}</div></div>
-                        <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNo}</div><div>PERSON COUNT: ${group.length}</div>
-                        <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT:</strong><br><div>　PERSONAL KIT × ${group.length}</div></div>
-                        <div style="margin-top:5px; font-size:11px; color:#555;">NOTE: 本箱為完整個人配發袋</div></div>
-                        <div class="label-qr-wrap"><div style="font-size:11px; color:#555;">掃描確認分隊資料</div><div id="${qrId}" class="qr-box"></div></div></div>`;
-                        labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=squad&box=${encodeURIComponent(boxNo)}` });
+                    
+                    const chunks = [];
+                    for (let i = 0; i < group.length; i += capacity) {
+                        chunks.push(group.slice(i, i + capacity));
                     }
+                    const totalBoxes = chunks.length;
+
+                    chunks.forEach((chunk, chunkIdx) => {
+                        let personList = '<div style="display:flex; flex-wrap:wrap; gap:2px; font-size:11px;">';
+                        chunk.forEach(p => {
+                            personList += `<div style="flex:1 1 48%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">[${p['裝袋序號']}] ${p['姓名']}</div>`;
+                        });
+                        personList += '</div>';
+
+                        const qrId = `qr_squad_${idx}_${chunkIdx}`;
+                        html += `<div class="label-card" style="height:auto; min-height:10cm;">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
+                        <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNo}</div><div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
+                        <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div>
+                        <div class="label-qr-wrap" style="position:relative; margin-top:20px; align-self:flex-end;"><div style="font-size:11px; color:#555;">掃描確認分隊箱 (${chunkIdx+1}/${totalBoxes})</div><div id="${qrId}" class="qr-box"></div></div></div>`;
+                        labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=squad&box=${encodeURIComponent(boxNo)}&idx=${chunkIdx}&cap=${capacity}` });
+                    });
                 });
             }
             else if (type === 'unit') {
@@ -3336,18 +3384,34 @@
                 }
             } else if (scanMode === 'squad') {
                 const box = params.get('box');
-                const records = allRecords.filter(r => {
+                const idxParam = params.get('idx');
+                const capParam = params.get('cap');
+                
+                let records = allRecords.filter(r => {
                     const rBox = `${r['人員識別碼'].split('-')[0]}-${r['人員識別碼'].split('-')[1]}-01`;
                     return rBox === box;
                 });
+                
+                let isChunked = false;
+                let chunkIdx = 0, totalChunks = 1;
+                let boxInfoStr = "";
+                if (idxParam !== null && capParam !== null) {
+                    chunkIdx = parseInt(idxParam, 10);
+                    const cap = parseInt(capParam, 10);
+                    totalChunks = Math.ceil(records.length / cap);
+                    boxInfoStr = ` (第 ${chunkIdx + 1} 箱 / 共 ${totalChunks} 箱)`;
+                    records = records.slice(chunkIdx * cap, (chunkIdx + 1) * cap);
+                    isChunked = true;
+                }
+
                 if (records.length > 0) {
                     currentScanRecords = records;
-                    document.getElementById('scanSubtitle').innerText = "分隊箱掃描";
+                    document.getElementById('scanSubtitle').innerText = isChunked ? `分隊箱掃描${boxInfoStr}` : `分隊箱掃描`;
                     area.innerHTML = `
-                        <div style="font-size:20px; font-weight:bold; margin-bottom:10px; color:var(--primary);">箱號：${box}</div>
+                        <div style="font-size:20px; font-weight:bold; margin-bottom:10px; color:var(--primary);">箱號：${box}${boxInfoStr}</div>
                         <div style="margin-bottom:5px;"><strong>單位：</strong>${records[0]['機關名稱']} - ${records[0]['大隊/分類']} - ${records[0]['單位名稱']}</div>
                         <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border);">
-                            <span style="color:var(--text-muted); font-size:14px;">包含總人數：</span>
+                            <span style="color:var(--text-muted); font-size:14px;">本箱包含人數：</span>
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
                         </div>
                     `;
