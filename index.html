@@ -1462,13 +1462,13 @@
             
             <div style="margin-bottom:20px; display:block;">
                 <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--text-main);">API 介接網址 (GAS URL)</label>
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">Google Apps Script 發佈的 Web App 網址</div>
-                <input type="text" id="settingApiUrl" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%; box-sizing:border-box; padding:12px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-size:16px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">此網址固定寫在程式碼中作為系統進入點，不可更改</div>
+                <input type="text" id="settingApiUrl" readonly style="width:100%; box-sizing:border-box; padding:12px; border-radius:6px; border:1px solid var(--border); background:var(--bg-base); color:var(--text-muted); font-size:16px; cursor:not-allowed;">
             </div>
             
             <div style="margin-bottom:30px; display:block;">
-                <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--text-main);">預設管理員密碼</label>
-                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">儲存於本機瀏覽器，掃碼工作站時可免輸密碼</div>
+                <label style="display:block; margin-bottom:8px; font-weight:bold; color:var(--text-main);">變更系統管理員密碼</label>
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">將更新雲端密碼，同時儲存於本機免重複登入 (若不變更請留空)</div>
                 <input type="password" id="settingAdminPwd" placeholder="輸入密碼" style="width:100%; box-sizing:border-box; padding:12px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-size:16px;">
             </div>
             
@@ -1497,8 +1497,6 @@
             </div>
             
             <div id="scanActionArea" style="margin-top:20px; display:none; gap:10px; flex-direction:column;">
-                <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已裝袋')">設為已裝袋</button>
-                <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已領取')">設為已領取</button>
             </div>
         </div>
     </div>
@@ -1635,8 +1633,8 @@
         // 🌟 系統設定與全域變數
         // ==========================================
         const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbws9PMRaMg4-rQ0fwVKTXAGO6ePX0TjAoJdVaTpfgmdAxDvZMfK9zDPio9N824b6KqC/exec";
-        let APPS_SCRIPT_URL = localStorage.getItem('api_url') || DEFAULT_API_URL;
-        let SYSTEM_BASE_URL = localStorage.getItem('base_url') || (window.location.origin + window.location.pathname);
+        let APPS_SCRIPT_URL = DEFAULT_API_URL;
+        let SYSTEM_BASE_URL = window.location.origin + window.location.pathname;
         let DEFAULT_ADMIN_PWD = localStorage.getItem('admin_pwd') || "";
 
         let dbHierarchy = {}, dbSystemCodes = {};
@@ -3122,7 +3120,7 @@
                     const boxNo = `${first['人員識別碼'].split('-')[0]}-${first['人員識別碼'].split('-')[1]}-01`;
                     for(let i=0; i<copies; i++) {
                         const qrId = `qr_squad_${idx}_${i}`;
-                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX</div>
+                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${i+1}/${copies}</div></div>
                         <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNo}</div><div>PERSON COUNT: ${group.length}</div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT:</strong><br><div>　PERSONAL KIT × ${group.length}</div></div>
                         <div style="margin-top:5px; font-size:11px; color:#555;">NOTE: 本箱為完整個人配發袋</div></div>
@@ -3137,7 +3135,7 @@
                 Object.keys(units).forEach((u, idx) => {
                     for(let i=0; i<copies; i++) {
                         const qrId = `qr_unit_${idx}_${i}`;
-                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>UNIT SUPPLY CRATE</div>
+                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>UNIT SUPPLY CRATE <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${i+1}/${copies}</div></div>
                         <div>UNIT: ${u}</div><div>TOTAL BOX: ________</div><div>THIS BOX: ________</div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT TYPE:</strong><br><div>　PERSONAL KIT + RESERVE ITEMS</div></div>
                         <div style="margin-top:10px;">DELIVERY POINT:<br><strong>${u}</strong></div></div>
@@ -3236,22 +3234,56 @@
 
         // --- 系統設定與掃碼工作站邏輯 ---
         // 模組已經是延遲執行的，這裡的 DOM 必定已經載入完成，不需使用 DOMContentLoaded
-        document.getElementById('settingBaseUrl').value = SYSTEM_BASE_URL;
-        document.getElementById('settingApiUrl').value = APPS_SCRIPT_URL;
-        document.getElementById('settingAdminPwd').value = DEFAULT_ADMIN_PWD;
+        // --- 系統設定初始化與儲存 ---
+        window.initSystemSettings = async function () {
+            document.getElementById('settingApiUrl').value = APPS_SCRIPT_URL;
+            try {
+                const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + 'action=getSettings';
+                const res = await fetch(url);
+                const result = await res.json();
+                if (result.status === 'success' && result.data) {
+                    if (result.data.base_url) SYSTEM_BASE_URL = result.data.base_url;
+                }
+            } catch (e) {
+                console.warn("無法從雲端取得設定，使用預設值", e);
+            }
+            document.getElementById('settingBaseUrl').value = SYSTEM_BASE_URL;
+        };
 
-
-        window.saveSettings = function () {
+        window.saveSettings = async function () {
             const baseUrl = document.getElementById('settingBaseUrl').value.trim();
-            const apiUrl = document.getElementById('settingApiUrl').value.trim();
             const pwd = document.getElementById('settingAdminPwd').value.trim();
+            
+            const btn = document.querySelector('#view-system-config .btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "儲存中...";
+            btn.disabled = true;
 
-            localStorage.setItem('base_url', baseUrl || (window.location.origin + window.location.pathname));
-            localStorage.setItem('api_url', apiUrl || DEFAULT_API_URL);
-            localStorage.setItem('admin_pwd', pwd);
+            const formData = new URLSearchParams();
+            formData.append("action", "saveSettings");
+            formData.append("base_url", baseUrl);
+            if (pwd) formData.append("admin_pwd", pwd);
 
-            alert("設定已儲存！將重新載入頁面。");
-            window.location.href = window.location.href.split('?')[0];
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    alert("✅ 設定已成功同步至 Google 雲端！");
+                    SYSTEM_BASE_URL = baseUrl;
+                    if (pwd) {
+                        localStorage.setItem('admin_pwd', pwd);
+                        DEFAULT_ADMIN_PWD = pwd;
+                        document.getElementById('settingAdminPwd').value = "";
+                    }
+                } else {
+                    alert("儲存失敗，請確認 API 是否已更新。");
+                }
+            } catch (e) {
+                alert("儲存時發生網路錯誤。");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         };
 
         window.initScanMode = async function (scanMode, params) {
@@ -3292,6 +3324,12 @@
                             <span class="st-${record['狀態'] || '待確認'}" style="font-weight:bold; padding:4px 8px; border-radius:4px; font-size:16px;">${record['狀態'] || '待確認'}</span>
                         </div>
                     `;
+                    actionArea.innerHTML = `
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#eab308; color:#eab308;" onclick="executeScanAction('待處理')">設為待處理</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已裝袋')">設為已裝袋</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已領取')">設為已領取</button>
+                    `;
                 } else {
                     area.innerHTML = "找不到此裝袋資料";
                     actionArea.style.display = 'none';
@@ -3313,6 +3351,10 @@
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
                         </div>
                     `;
+                    actionArea.innerHTML = `
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已完成裝箱')">設為已完成裝箱</button>
+                    `;
                 } else {
                     area.innerHTML = "找不到此分隊箱資料";
                     actionArea.style.display = 'none';
@@ -3329,6 +3371,11 @@
                             <span style="color:var(--text-muted); font-size:14px;">包含總人數：</span>
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
                         </div>
+                    `;
+                    actionArea.innerHTML = `
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已完成裝箱')">設為已完成裝箱</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已出貨')">設為已出貨</button>
                     `;
                 } else {
                     area.innerHTML = "找不到此單位資料";
@@ -3391,6 +3438,7 @@
             if (DEFAULT_ADMIN_PWD) {
                 document.getElementById('adminPwdInput').value = DEFAULT_ADMIN_PWD;
             }
+            window.initSystemSettings();
         }
     </script>
 </body>
