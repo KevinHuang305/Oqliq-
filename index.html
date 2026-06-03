@@ -2804,11 +2804,15 @@
                 const res = await fetch(url);
                 const textData = await res.text();
                 let data; try { data = JSON.parse(textData); } catch (err) { throw new Error("API_NOT_JSON"); }
+                
                 if (data.error) { errorMsg.innerText = data.error; errorMsg.style.display = 'block'; btn.innerText = "登入"; btn.disabled = false; }
-                else if (!Array.isArray(data)) { throw new Error("VERSION_MISMATCH"); }
                 else {
                     document.getElementById('loginOverlay').style.display = 'none';
-                    adminLoggedIn = true; savedAdminPwd = pwd; allRecords = data;
+                    adminLoggedIn = true; savedAdminPwd = pwd;
+                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; }
+                    else { throw new Error("VERSION_MISMATCH"); }
+                    
                     window.refreshAdminData(true).then(() => {
                         if (document.getElementById('view-labels').classList.contains('active')) {
                             document.getElementById('btnLblInner').click();
@@ -2828,8 +2832,9 @@
             try {
                 const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `action=getRecords&password=${encodeURIComponent(savedAdminPwd)}`;
                 const res = await fetch(url); const data = await res.json();
-                if (Array.isArray(data)) {
-                    allRecords = data;
+                if (!data.error) {
+                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; }
                     renderAdminBoard();
                     populateLabelFilters();
                     if (document.getElementById('view-labels').classList.contains('active')) {
@@ -3067,36 +3072,25 @@
             btn.innerText = "處理中...";
             btn.disabled = true;
             
-            let successCount = 0;
-            let failCount = 0;
+            const bagNos = Array.from(chks).map(c => c.value).join(',');
+            const formData = new URLSearchParams();
+            formData.append("action", "bulkUpdate");
+            formData.append("bagNos", bagNos);
+            formData.append("status", newStatus);
             
-            for (let i = 0; i < chks.length; i++) {
-                const chk = chks[i];
-                const bagNo = chk.value;
-                const formData = new URLSearchParams();
-                formData.append("action", "updateRecord");
-                formData.append("bagNo", bagNo);
-                formData.append("status", newStatus);
-                try {
-                    const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
-                    const result = await res.json();
-                    if (result.success) {
-                        const record = allRecords.find(r => r['裝袋序號'] === bagNo);
-                        if(record) record['狀態'] = newStatus;
-                        successCount++;
-                    } else {
-                        failCount++;
-                    }
-                } catch (e) {
-                    failCount++;
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if(result.success) {
+                    alert(`成功更新 ${result.updatedCount || '多'} 筆資料為「${newStatus}」`);
+                    chks.forEach(c => c.checked = false);
+                    await window.refreshAdminData(true);
+                } else {
+                    alert("更新失敗，請稍後再試。");
                 }
+            } catch(e) {
+                alert("連線失敗！");
             }
-            
-            alert(`批次變更完成。\n成功: ${successCount} 筆\n失敗: ${failCount} 筆`);
-            
-            document.getElementById('selectAllAdmin').checked = false;
-            bulkSelect.value = '';
-            filterTable();
             btn.innerText = originalText;
             btn.disabled = false;
         };
@@ -3322,9 +3316,6 @@
             link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         };
 
-        // --- 系統設定與掃碼工作站邏輯 ---
-        // 模組已經是延遲執行的，這裡的 DOM 必定已經載入完成，不需使用 DOMContentLoaded
-        // --- 系統設定初始化與儲存 ---
         window.initSystemSettings = async function () {
             document.getElementById('settingApiUrl').value = APPS_SCRIPT_URL;
             try {
@@ -3383,6 +3374,11 @@
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     allRecords = data;
+                    window.boxStatuses = {};
+                    window.renderScanResult(scanMode, params);
+                } else if (data.records) {
+                    allRecords = data.records;
+                    window.boxStatuses = data.boxStatuses || {};
                     window.renderScanResult(scanMode, params);
                 } else {
                     document.getElementById('scanSubtitle').innerText = "密碼錯誤或無法取得資料";
@@ -3498,24 +3494,29 @@
             const btns = document.querySelectorAll('#scanActionArea button');
             btns.forEach(b => b.disabled = true);
 
-            let successCount = 0;
-            document.getElementById('scanSubtitle').innerText = `處理中... (0/${currentScanRecords.length})`;
-
-            for (let i = 0; i < currentScanRecords.length; i++) {
-                const record = currentScanRecords[i];
-                const formData = new URLSearchParams();
-                formData.append("action", "updateRecord");
-                formData.append("bagNo", record['裝袋序號']);
-                formData.append("status", newStatus);
-                try {
-                    const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
-                    const result = await res.json();
-                    if (result.success) successCount++;
-                } catch (e) { }
-                document.getElementById('scanSubtitle').innerText = `處理中... (${i + 1}/${currentScanRecords.length})`;
+            document.getElementById('scanSubtitle').innerText = `處理中...`;
+            
+            const bagNos = currentScanRecords.map(r => r['裝袋序號']).join(',');
+            const formData = new URLSearchParams();
+            formData.append("action", "bulkUpdate");
+            formData.append("bagNos", bagNos);
+            formData.append("status", newStatus);
+            if (scanMode === 'squad' && window.currentBoxId) {
+                formData.append("boxId", window.currentBoxId);
+                formData.append("boxStatus", newStatus);
             }
 
-            alert(`處理完成！成功更新 ${successCount} 筆資料。`);
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    alert(`處理完成！成功更新資料。`);
+                } else {
+                    alert("更新發生錯誤，請稍後再試。");
+                }
+            } catch (e) {
+                alert("連線失敗！");
+            }
             window.location.reload();
         };
 
