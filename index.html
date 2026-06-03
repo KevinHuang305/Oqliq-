@@ -1073,7 +1073,7 @@
         <div class="nav-menu" id="navMenu">
             <div class="nav-tab active" onclick="switchTab('measure')">登記與量測</div>
             <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
-            <div class="nav-tab" onclick="switchTab('admin')">管理後台</div>
+            <div class="nav-tab" onclick="switchTab('admin')">建檔名單</div>
             <div class="nav-tab" onclick="switchTab('labels')">標籤列印</div>
             <div class="nav-tab" onclick="switchTab('system-config')">系統設定</div>
         </div>
@@ -1292,7 +1292,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 3：管理後台 
+     視圖 3：建檔名單 
      ============================================== -->
     <div class="login-overlay" id="loginOverlay" style="display:none;">
         <div class="login-box">
@@ -1306,38 +1306,39 @@
 
     <div id="view-admin" class="view-container scroll-view" style="position:relative;">
         <!-- 橫向數據統計 -->
-        <div class="admin-stats-grid">
-            <div class="stat-box" style="background:var(--primary);">
-                <h3>總建檔</h3>
-                <div class="value" id="dashTotal">0</div>
+        <div class="admin-stats-grid" id="adminStatsGrid">
+            <div class="stat-box active" style="background:var(--primary);" onclick="setAdminQuickFilter('')">
+                <h3>總建檔</h3><div class="value" id="dashTotal">0</div>
             </div>
-            <div class="stat-box" style="background:#3b82f6;">
-                <h3>男性</h3>
-                <div class="value" id="dashMale">0</div>
+            <div class="stat-box" style="background:#3b82f6;" onclick="setAdminQuickFilter('MALE')">
+                <h3>男性</h3><div class="value" id="dashMale">0</div>
             </div>
-            <div class="stat-box" style="background:#ec4899;">
-                <h3>女性</h3>
-                <div class="value" id="dashFemale">0</div>
+            <div class="stat-box" style="background:#ec4899;" onclick="setAdminQuickFilter('FEMALE')">
+                <h3>女性</h3><div class="value" id="dashFemale">0</div>
             </div>
-            <div class="stat-box" style="background:#a1a1aa;">
-                <h3>待確認</h3>
-                <div class="value" id="dashPending">0</div>
+            <div class="stat-box" style="background:#a1a1aa;" onclick="setAdminQuickFilter('待確認')">
+                <h3>待確認</h3><div class="value" id="dashPending">0</div>
             </div>
-            <div class="stat-box" style="background:#eab308;">
-                <h3>備料中</h3>
-                <div class="value" id="dashPrep">0</div>
+            <div class="stat-box" style="background:#eab308;" onclick="setAdminQuickFilter('備料中')">
+                <h3>備料中</h3><div class="value" id="dashPrep">0</div>
             </div>
-            <div class="stat-box" style="background:#0ea5e9;">
-                <h3>已裝袋</h3>
-                <div class="value" id="dashBagged">0</div>
+            <div class="stat-box" style="background:#ef4444;" onclick="setAdminQuickFilter('需複量')">
+                <h3>需複量</h3><div class="value" id="dashRemesure">0</div>
             </div>
-            <div class="stat-box" style="background:#10b981;">
-                <h3>已領取</h3>
-                <div class="value" id="dashCollected">0</div>
+            <div class="stat-box" style="background:#64748b;" onclick="setAdminQuickFilter('未裝袋')">
+                <h3>未裝袋</h3><div class="value" id="dashNotBagged">0</div>
             </div>
-            <div class="stat-box" style="background:#ef4444;">
-                <h3>需複量</h3>
-                <div class="value" id="dashRemesure">0</div>
+            <div class="stat-box" style="background:#0ea5e9;" onclick="setAdminQuickFilter('已裝袋')">
+                <h3>已裝袋</h3><div class="value" id="dashBagged">0</div>
+            </div>
+            <div class="stat-box" style="background:#8b5cf6;" onclick="setAdminQuickFilter('未裝箱')">
+                <h3>未裝箱</h3><div class="value" id="dashNotBoxed">0</div>
+            </div>
+            <div class="stat-box" style="background:#f59e0b;" onclick="setAdminQuickFilter('已裝箱')">
+                <h3>已裝箱</h3><div class="value" id="dashBoxed">0</div>
+            </div>
+            <div class="stat-box" style="background:#10b981;" onclick="setAdminQuickFilter('已寄送')">
+                <h3>已寄送</h3><div class="value" id="dashCollected">0</div>
             </div>
         </div>
 
@@ -1360,9 +1361,12 @@
                     <option value="">批次狀態變更</option>
                     <option value="待確認">待確認</option>
                     <option value="備料中">備料中</option>
-                    <option value="已裝袋">已裝袋</option>
-                    <option value="已領取">已領取</option>
                     <option value="需複量">需複量</option>
+                    <option value="未裝袋">未裝袋</option>
+                    <option value="已裝袋">已裝袋</option>
+                    <option value="未裝箱">未裝箱</option>
+                    <option value="已裝箱">已裝箱</option>
+                    <option value="已寄送">已寄送</option>
                 </select>
                 <button class="btn btn-outline" style="padding: 10px 14px; font-size: 13px;" onclick="applyBulkStatus()">套用</button>
                 <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
@@ -1404,7 +1408,8 @@
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <div id="globalCopiesWrap" style="display:none; align-items:center; gap:5px; font-size:14px; font-weight:bold; color:var(--text-main);">
-                    每箱容納個人袋數量上限: <input type="number" id="boxCapacityInp" value="20" min="1" style="width:60px; padding:4px;" onchange="renderLabels(currentLabelType)">
+                    每箱容納個人袋數量上限: <input type="number" id="boxCapacityInp" value="20" min="1" style="width:60px; padding:4px;">
+                    <button class="btn" style="padding:4px 8px; font-size:12px; border:1px solid #d4d4d8; background:white;" onclick="renderLabels(window.currentLabelType)">更新標籤</button>
                 </div>
                 <button class="btn btn-primary" style="background:#10b981; color:white;"
                     onclick="window.print()">列印標籤</button>
@@ -1557,8 +1562,11 @@
                             <option>待確認</option>
                             <option>備料中</option>
                             <option>已裝袋</option>
-                            <option>已領取</option>
                             <option>需複量</option>
+                            <option>未裝袋</option>
+                            <option>未裝箱</option>
+                            <option>已裝箱</option>
+                            <option>已寄送</option>
                         </select>
                     </div>
                     <div class="info-item" style="cursor: pointer;" onclick="openNoteModal()">
@@ -1643,12 +1651,19 @@
         let dbHierarchy = {}, dbSystemCodes = {};
         let allRecords = [], adminLoggedIn = false, savedAdminPwd = DEFAULT_ADMIN_PWD;
         let currentRecordSizes = {};
-        let labelQRCodes = [], currentLabelType = 'inner';
+        let labelQRCodes = [];
+        window.currentLabelType = 'inner';
         let currentScanRecords = [];
+        window.adminQuickFilter = '';
 
         // --- 漢堡選單切換 ---
         window.toggleMenu = function () {
             document.getElementById('navMenu').classList.toggle('show');
+        };
+
+        window.setAdminQuickFilter = function(filter) {
+            window.adminQuickFilter = filter;
+            window.queryAdminTable();
         };
 
         // --- 頁籤切換 ---
@@ -2429,7 +2444,7 @@
         };
         
         window.closeCropModal = function() {
-            document.getElementById('cropModal').classList.remove('active');
+            document.getElementById('cropModal').classList.add('active');
             if (cropper) {
                 cropper.destroy();
                 cropper = null;
@@ -2818,7 +2833,7 @@
                     renderAdminBoard();
                     populateLabelFilters();
                     if (document.getElementById('view-labels').classList.contains('active')) {
-                        renderLabels(currentLabelType);
+                        renderLabels(window.currentLabelType);
                     }
                 }
             } catch (e) { console.error("更新失敗"); }
@@ -2833,9 +2848,12 @@
                 
                 document.getElementById('dashPending').innerText = allRecords.filter(r => !r['狀態'] || r['狀態'] === '待確認').length;
                 document.getElementById('dashPrep').innerText = allRecords.filter(r => r['狀態'] === '備料中').length;
-                document.getElementById('dashBagged').innerText = allRecords.filter(r => r['狀態'] === '已裝袋').length;
-                document.getElementById('dashCollected').innerText = allRecords.filter(r => r['狀態'] === '已領取').length;
                 document.getElementById('dashRemesure').innerText = allRecords.filter(r => r['狀態'] === '需複量').length;
+                document.getElementById('dashNotBagged').innerText = allRecords.filter(r => r['狀態'] === '未裝袋').length;
+                document.getElementById('dashBagged').innerText = allRecords.filter(r => r['狀態'] === '已裝袋').length;
+                document.getElementById('dashNotBoxed').innerText = allRecords.filter(r => r['狀態'] === '未裝箱').length;
+                document.getElementById('dashBoxed').innerText = allRecords.filter(r => r['狀態'] === '已裝箱').length;
+                document.getElementById('dashCollected').innerText = allRecords.filter(r => r['狀態'] === '已寄送').length;
 
                 const tbody = document.getElementById('tableBody'); 
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
@@ -2850,6 +2868,14 @@
             }
             
             const filtered = allRecords.filter(r => {
+                if (window.adminQuickFilter) {
+                    if (window.adminQuickFilter === 'MALE' && r['性別'] !== '男') return false;
+                    if (window.adminQuickFilter === 'FEMALE' && r['性別'] !== '女') return false;
+                    if (window.adminQuickFilter !== 'MALE' && window.adminQuickFilter !== 'FEMALE') {
+                        const st = r['狀態'] || '待確認';
+                        if (st !== window.adminQuickFilter) return false;
+                    }
+                }
                 if (vA && r['機關名稱'] !== vA) return false; 
                 if (vB && r['大隊/分類'] !== vB) return false;
                 if (vU && r['單位名稱'] !== vU) return false;
@@ -3096,11 +3122,11 @@
         };
 
         window.applyLabelFilter = function () {
-            renderLabels(currentLabelType);
+            renderLabels(window.currentLabelType);
         };
 
         window.renderLabels = function (type) {
-            currentLabelType = type;
+            window.currentLabelType = type;
             document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('active'));
             if (event && event.target && event.target.classList.contains('btn-outline')) event.target.classList.add('active');
 
@@ -3164,7 +3190,7 @@
                     chunks.forEach((chunk, chunkIdx) => {
                         let personList = '<div style="display:flex; flex-wrap:wrap; gap:2px; font-size:11px;">';
                         chunk.forEach(p => {
-                            personList += `<div style="flex:1 1 48%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">[${p['裝袋序號']}] ${p['姓名']}</div>`;
+                            personList += `<div style="flex:1 1 48%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="display:inline-block; width:10px; height:10px; border:1px solid #000; margin-right:4px; vertical-align:middle;"></span>[${p['裝袋序號']}] ${p['姓名']}</div>`;
                         });
                         personList += '</div>';
 
@@ -3192,8 +3218,24 @@
                     }
                 });
             }
-            renderArea.innerHTML = html;
-            setTimeout(() => { labelQRCodes.forEach(qr => { try { new QRCode(document.getElementById(qr.id), { text: qr.text, width: 96, height: 96 }); } catch (e) { } }); }, 100);
+            
+            renderArea.innerHTML = `<div style="padding:40px; text-align:center; font-size:18px; color:var(--primary); font-weight:bold;"><div style="display:inline-block; border:4px solid #e4e4e7; border-top:4px solid var(--primary); border-radius:50%; width:30px; height:30px; animation:spin 1s linear infinite; vertical-align:middle; margin-right:10px;"></div>正在產生標籤與條碼，請稍候... (共 ${labelQRCodes.length} 張)</div><style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>`;
+            
+            setTimeout(() => {
+                renderArea.innerHTML = html;
+                let qrIndex = 0;
+                function processQRBatch() {
+                    const end = Math.min(qrIndex + 50, labelQRCodes.length);
+                    for (; qrIndex < end; qrIndex++) {
+                        const qr = labelQRCodes[qrIndex];
+                        try { new QRCode(document.getElementById(qr.id), { text: qr.text, width: 96, height: 96 }); } catch (e) { }
+                    }
+                    if (qrIndex < labelQRCodes.length) {
+                        setTimeout(processQRBatch, 10);
+                    }
+                }
+                processQRBatch();
+            }, 50);
         };
 
         window.printSingleLabel = function(cardEl, copies) {
@@ -3376,7 +3418,7 @@
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#eab308; color:#eab308;" onclick="executeScanAction('待處理')">設為待處理</button>
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已裝袋')">設為已裝袋</button>
-                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已領取')">設為已領取</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已寄送')">設為已寄送</button>
                     `;
                 } else {
                     area.innerHTML = "找不到此裝袋資料";
@@ -3417,7 +3459,7 @@
                     `;
                     actionArea.innerHTML = `
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
-                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已完成裝箱')">設為已完成裝箱</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已裝箱')">設為已裝箱</button>
                     `;
                 } else {
                     area.innerHTML = "找不到此分隊箱資料";
