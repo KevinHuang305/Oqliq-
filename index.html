@@ -501,10 +501,30 @@
             border: 1px solid var(--border);
         }
 
+        .quick-status-sel {
+            background-color: #000 !important;
+        }
+
+        table input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            appearance: auto;
+            cursor: pointer;
+            margin: 0;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
         .st-待確認 {
             color: #facc15;
             border-color: rgba(250, 204, 21, 0.3);
             background: rgba(250, 204, 21, 0.05);
+        }
+
+        .st-備料中 {
+            color: var(--primary);
+            border-color: rgba(249, 115, 22, 0.3);
+            background: rgba(249, 115, 22, 0.05);
         }
 
         .st-已裝袋 {
@@ -517,6 +537,12 @@
             color: #34d399;
             border-color: rgba(52, 211, 153, 0.3);
             background: rgba(52, 211, 153, 0.05);
+        }
+
+        .st-需複量 {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.05);
         }
 
         .dashboard-cards {
@@ -1264,7 +1290,16 @@
                 </select>
                 <input type="text" id="filterSearch" placeholder="搜尋姓名或序號..." style="min-width:180px;">
             </div>
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; align-items: center; flex-wrap: wrap;">
+                <select id="bulkStatusSelect" style="padding: 10px; border-radius: 6px; font-size: 13px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);">
+                    <option value="">批次狀態變更</option>
+                    <option value="待確認">待確認</option>
+                    <option value="備料中">備料中</option>
+                    <option value="已裝袋">已裝袋</option>
+                    <option value="已領取">已領取</option>
+                    <option value="需複量">需複量</option>
+                </select>
+                <button class="btn btn-outline" style="padding: 10px 14px; font-size: 13px;" onclick="applyBulkStatus()">套用</button>
                 <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
                 <button class="btn btn-primary" style="background:#10b981; color:white;" onclick="exportCSV()">匯出
                     CSV</button>
@@ -1275,11 +1310,14 @@
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center; cursor: pointer;" onclick="const cb = this.querySelector('input'); if(event.target !== cb) { cb.checked = !cb.checked; toggleAllAdminRows(cb); }">
+                            <input type="checkbox" id="selectAllAdmin" style="pointer-events: none;">
+                        </th>
+                        <th>狀態</th>
                         <th>裝袋序號</th>
                         <th>單位</th>
                         <th>姓名</th>
                         <th>性別</th>
-                        <th>狀態</th>
                         <th>登記日期</th>
                         <th>身高/肩/胸/腰/臀</th>
                     </tr>
@@ -1350,7 +1388,7 @@
             <div class="modal-img-container">
                 <span id="loadingImg" style="color:var(--text-muted);">載入照片中...</span>
                 <img id="modalImg" src="" style="display:none;"
-                    onload="document.getElementById('loadingImg').style.display='none'; this.style.display='block';">
+                    onload="document.getElementById('loadingImg').style.display='none'; this.style.display='block'; if(window.modalViewer) window.modalViewer.destroy(); window.modalViewer = new Cropper(this, {viewMode: 1, dragMode: 'move', autoCrop: false, background: false, zoomable: true, scalable: true, guides: false, center: false, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: true});">
             </div>
             <div class="modal-info">
                 <div
@@ -1375,7 +1413,14 @@
                     <div class="info-item"><span>單位</span><strong id="mUnit"></strong></div>
                     <div class="info-item"><span>姓名</span><strong><span id="mName"></span></strong></div>
                     <div class="info-item"><span>登記日期</span><strong id="mDate"></strong></div>
-                    <div class="info-item"><span>配發系列</span><strong id="mSeries" style="color:var(--primary);"></strong>
+                    <div class="info-item"><span>配發系列</span>
+                        <strong id="mSeries_txt" class="edit-txt" style="color:var(--primary);"></strong>
+                        <select id="mSeries_inp" class="edit-inp">
+                            <option value="">(無)</option>
+                            <option value="TAC">TAC</option>
+                            <option value="OPS">OPS</option>
+                            <option value="EMS">EMS</option>
+                        </select>
                     </div>
                     <div class="info-item"><span>量測方式</span><strong id="mSource"></strong></div>
                     <div class="info-item full"><span>身體量測 (高/肩/胸/腰/臀)</span><strong id="mBodySize"></strong></div>
@@ -1393,15 +1438,27 @@
                             <option>需複量</option>
                         </select>
                     </div>
-                    <div class="info-item">
-                        <span>後台備註</span>
-                        <strong id="mAdminNote_txt" class="edit-txt"></strong>
-                        <input type="text" id="mAdminNote_inp" class="edit-inp" placeholder="填寫備註...">
+                    <div class="info-item" style="cursor: pointer;" onclick="openNoteModal()">
+                        <span>後台備註 <span style="font-size:10px; color:var(--primary);">(點選檢視)</span></span>
+                        <strong id="mAdminNote_txt" class="edit-txt" style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;"></strong>
+                        <input type="hidden" id="mAdminNote_inp" class="edit-inp">
                     </div>
                 </div>
 
                 <div class="section-title" style="margin-top:10px;">核定配發尺碼</div>
                 <div class="info-grid" id="modalSizingArea"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 備註 Modal -->
+    <div class="modal" id="noteModal" style="z-index: 3000;">
+        <div class="login-box" style="width: 400px; text-align: left;">
+            <h3 style="margin-top: 0; color: var(--primary);">後台備註</h3>
+            <textarea id="noteModalText" style="width: 100%; height: 150px; margin-bottom: 15px; padding: 10px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); border-radius: 6px; font-family: inherit; resize: none;" placeholder="點擊填寫備註..."></textarea>
+            <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-ghost" onclick="closeNoteModal()">關閉</button>
+                <button class="btn btn-primary" id="btnSaveNote" onclick="saveNoteModal()" style="display:none;">暫存</button>
             </div>
         </div>
     </div>
@@ -2639,8 +2696,28 @@
             filtered.forEach(r => {
                 const st = r['狀態'] || '待確認'; const sizes = `${r['身高']} / ${r['肩寬']} / ${r['胸圍']} / ${r['腰圍']} / ${r['臀圍']}`;
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td style="font-family:monospace; color:var(--primary); font-weight:bold;">${r['裝袋序號']}</td><td>${r['單位名稱']}</td><td><strong>${r['姓名']}</strong></td><td>${r['性別']}</td><td><span class="tag-status st-${st}">${st}</span></td><td>${r['登記日期']}</td><td style="color:var(--text-muted); font-size:12px;">${sizes}</td>`;
-                tr.onclick = () => showModal(r); tbody.appendChild(tr);
+                tr.innerHTML = `
+                    <td style="text-align: center; width: 40px; cursor: pointer;" onclick="event.stopPropagation(); const cb = this.querySelector('input'); if(event.target !== cb) cb.checked = !cb.checked;">
+                        <input type="checkbox" class="admin-row-chk" value="${r['裝袋序號']}" style="pointer-events: none;">
+                    </td>
+                    <td onclick="event.stopPropagation();">
+                        <select class="quick-status-sel st-${st}" onchange="quickUpdateStatus(this, '${r['裝袋序號']}')" style="padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 90px; outline: none; -webkit-appearance: none; appearance: none; text-align: center;">
+                            <option value="待確認" ${st==='待確認'?'selected':''}>待確認</option>
+                            <option value="備料中" ${st==='備料中'?'selected':''}>備料中</option>
+                            <option value="已裝袋" ${st==='已裝袋'?'selected':''}>已裝袋</option>
+                            <option value="已領取" ${st==='已領取'?'selected':''}>已領取</option>
+                            <option value="需複量" ${st==='需複量'?'selected':''}>需複量</option>
+                        </select>
+                    </td>
+                    <td style="font-family:monospace; color:var(--primary); font-weight:bold;">${r['裝袋序號']}</td>
+                    <td>${r['單位名稱']}</td>
+                    <td><strong>${r['姓名']}</strong></td>
+                    <td>${r['性別']}</td>
+                    <td>${r['登記日期']}</td>
+                    <td style="color:var(--text-muted); font-size:12px;">${sizes}</td>
+                `;
+                tr.onclick = (e) => { if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') showModal(r); }; 
+                tbody.appendChild(tr);
             });
         }
 
@@ -2656,7 +2733,10 @@
             document.getElementById('mName').innerText = r['姓名']; document.getElementById('mUnit').innerText = r['單位名稱'];
             document.getElementById('mBodySize').innerText = `${r['身高']} / ${r['肩寬']} / ${r['胸圍']} / ${r['腰圍']} / ${r['臀圍']}`;
             document.getElementById('mDate').innerText = r['登記日期'];
-            if (document.getElementById('mSeries')) document.getElementById('mSeries').innerText = r['配發系列'] || '-';
+            if (document.getElementById('mSeries_txt')) {
+                document.getElementById('mSeries_txt').innerText = r['配發系列'] || '-';
+                document.getElementById('mSeries_inp').value = r['配發系列'] || '';
+            }
             if (document.getElementById('mSource')) document.getElementById('mSource').innerText = r['量測方式'] || '-';
 
             document.getElementById('mStatus_txt').innerText = r['狀態']; document.getElementById('mStatus_txt').className = `edit-txt tag-status st-${r['狀態']}`;
@@ -2665,10 +2745,24 @@
 
             const szObj = r.sizes || {}; let szHtml = '';
             const szFields = [{ k: 'TL', l: '長袖' }, { k: 'TS', l: '短袖' }, { k: 'TV', l: '背心' }, { k: 'EJ', l: '外套' }, { k: 'TP', l: '戰術褲' }, { k: 'BELT', l: '褲帶' }, { k: 'CAP', l: '戰術帽' }, { k: 'SHOE', l: '消防靴' }];
+            const clothesSizes = ['', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
+            const shoeSizes = ['', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43'];
+            const hatSizes = ['', 'F', 'S', 'M', 'L', 'XL'];
 
             szFields.forEach(f => {
                 const val = szObj[f.k] || '';
-                szHtml += `<div class="info-item"><span>${f.l}</span><strong class="edit-txt" style="color:var(--primary);">${val || '-'}</strong><input type="text" id="mSz_${f.k}" class="edit-inp" value="${val}" placeholder="輸入尺碼"></div>`;
+                let options = clothesSizes;
+                if (f.k === 'SHOE') options = shoeSizes;
+                else if (f.k === 'CAP') options = hatSizes;
+                
+                let selectHtml = `<select id="mSz_${f.k}" class="edit-inp">`;
+                options.forEach(opt => {
+                    const sel = (val === opt) ? 'selected' : '';
+                    selectHtml += `<option value="${opt}" ${sel}>${opt || '未選擇'}</option>`;
+                });
+                selectHtml += `</select>`;
+
+                szHtml += `<div class="info-item"><span>${f.l}</span><strong class="edit-txt" style="color:var(--primary);">${val || '-'}</strong>${selectHtml}</div>`;
             });
             document.getElementById('modalSizingArea').innerHTML = szHtml;
 
@@ -2676,7 +2770,25 @@
             imgEl.style.display = 'none'; loadText.style.display = 'block';
             if (r['照片連結'] && r['照片連結'].startsWith('http')) { loadText.innerText = "載入照片中..."; imgEl.src = getDriveThumbnailUrl(r['照片連結']); } else { loadText.innerText = "無照片紀錄"; }
         };
-        window.closeModal = function () { document.getElementById('detailModal').classList.remove('active'); };
+        window.closeModal = function () { document.getElementById('detailModal').classList.remove('active'); if(window.modalViewer) { window.modalViewer.destroy(); window.modalViewer = null; } document.getElementById('modalImg').src = ''; };
+
+        window.openNoteModal = function() {
+            document.getElementById('noteModal').classList.add('active');
+            const isEdit = document.getElementById('btnSaveEdit').style.display === 'inline-block';
+            const ta = document.getElementById('noteModalText');
+            ta.value = document.getElementById('mAdminNote_inp').value;
+            ta.readOnly = !isEdit;
+            document.getElementById('btnSaveNote').style.display = isEdit ? 'inline-block' : 'none';
+        };
+        window.closeNoteModal = function() {
+            document.getElementById('noteModal').classList.remove('active');
+        };
+        window.saveNoteModal = function() {
+            const val = document.getElementById('noteModalText').value;
+            document.getElementById('mAdminNote_inp').value = val;
+            document.getElementById('mAdminNote_txt').innerText = val || '無';
+            closeNoteModal();
+        };
 
         window.toggleEditMode = function (isEdit) {
             const txts = document.querySelectorAll('.edit-txt'), inps = document.querySelectorAll('.edit-inp');
@@ -2693,6 +2805,7 @@
             const btnSave = document.getElementById('btnSaveEdit'); btnSave.innerText = "儲存中..."; btnSave.disabled = true;
             const formData = new URLSearchParams();
             formData.append("action", "updateRecord"); formData.append("bagNo", document.getElementById('mBagNo').innerText);
+            if (document.getElementById('mSeries_inp')) formData.append("series", document.getElementById('mSeries_inp').value);
             formData.append("status", document.getElementById('mStatus_inp').value); formData.append("adminNote", document.getElementById('mAdminNote_inp').value);
             formData.append("sz_long", document.getElementById('mSz_TL').value); formData.append("sz_short", document.getElementById('mSz_TS').value); formData.append("sz_vest", document.getElementById('mSz_TV').value);
             formData.append("sz_jacket", document.getElementById('mSz_EJ').value); formData.append("sz_pant", document.getElementById('mSz_TP').value); formData.append("sz_belt", document.getElementById('mSz_BELT').value);
@@ -2702,6 +2815,95 @@
                 if (result.success) { alert("修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("修改失敗：" + (result.error || "未知錯誤"));
             } catch (e) { alert("儲存失敗，請檢查網路。"); }
             btnSave.innerText = "儲存"; btnSave.disabled = false;
+        };
+
+        window.toggleAllAdminRows = function(cb) {
+            document.querySelectorAll('.admin-row-chk').forEach(c => c.checked = cb.checked);
+        };
+
+        window.quickUpdateStatus = async function(selectEl, bagNo) {
+            const newStatus = selectEl.value;
+            selectEl.disabled = true;
+            const originalBg = selectEl.style.background;
+            selectEl.style.background = '#444';
+            try {
+                const formData = new URLSearchParams();
+                formData.append("action", "updateRecord");
+                formData.append("bagNo", bagNo);
+                formData.append("status", newStatus);
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    const record = allRecords.find(r => r['裝袋序號'] === bagNo);
+                    if (record) record['狀態'] = newStatus;
+                    selectEl.className = `quick-status-sel st-${newStatus}`;
+                } else {
+                    alert("變更狀態失敗：" + (result.error || "未知錯誤"));
+                    const record = allRecords.find(r => r['裝袋序號'] === bagNo);
+                    if (record) {
+                        selectEl.value = record['狀態'];
+                        selectEl.className = `quick-status-sel st-${record['狀態']}`;
+                    }
+                }
+            } catch (e) {
+                alert("儲存失敗，請檢查網路。");
+                const record = allRecords.find(r => r['裝袋序號'] === bagNo);
+                if (record) {
+                    selectEl.value = record['狀態'];
+                    selectEl.className = `quick-status-sel st-${record['狀態']}`;
+                }
+            }
+            selectEl.disabled = false;
+            selectEl.style.background = originalBg;
+        };
+
+        window.applyBulkStatus = async function() {
+            const bulkSelect = document.getElementById('bulkStatusSelect');
+            const newStatus = bulkSelect.value;
+            if(!newStatus) { alert("請選擇要變更的狀態"); return; }
+            
+            const chks = document.querySelectorAll('.admin-row-chk:checked');
+            if(chks.length === 0) { alert("請先勾選要變更的人員"); return; }
+            
+            if(!confirm(`確定要將選取的 ${chks.length} 筆資料狀態變更為「${newStatus}」？`)) return;
+            
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "處理中...";
+            btn.disabled = true;
+            
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (let i = 0; i < chks.length; i++) {
+                const chk = chks[i];
+                const bagNo = chk.value;
+                const formData = new URLSearchParams();
+                formData.append("action", "updateRecord");
+                formData.append("bagNo", bagNo);
+                formData.append("status", newStatus);
+                try {
+                    const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                    const result = await res.json();
+                    if (result.success) {
+                        const record = allRecords.find(r => r['裝袋序號'] === bagNo);
+                        if(record) record['狀態'] = newStatus;
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (e) {
+                    failCount++;
+                }
+            }
+            
+            alert(`批次變更完成。\n成功: ${successCount} 筆\n失敗: ${failCount} 筆`);
+            
+            document.getElementById('selectAllAdmin').checked = false;
+            bulkSelect.value = '';
+            filterTable();
+            btn.innerText = originalText;
+            btn.disabled = false;
         };
 
         // ==========================================
