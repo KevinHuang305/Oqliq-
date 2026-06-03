@@ -3536,10 +3536,8 @@
         const params = new URLSearchParams(window.location.search);
         const scanMode = params.get('scan');
         if (scanMode) {
-            document.querySelector('.nav-menu').style.display = 'none';
             document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
             document.getElementById('view-scan').classList.add('active');
-            document.getElementById('view-scan').style.display = 'block';
 
             if (!DEFAULT_ADMIN_PWD) {
                 document.getElementById('scanSubtitle').innerText = "未登入，請先輸入管理員密碼";
