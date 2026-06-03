@@ -505,7 +505,7 @@
             background-color: #000 !important;
         }
 
-        table input[type="checkbox"] {
+        input[type="checkbox"] {
             width: 18px;
             height: 18px;
             appearance: auto;
@@ -721,7 +721,7 @@
 
         .modal-content {
             background: var(--bg-base);
-            width: 900px;
+            width: 1200px;
             max-width: 95%;
             height: 85vh;
             border-radius: 8px;
@@ -741,7 +741,7 @@
             overflow: hidden;
         }
 
-        .modal-img-container views[currentView].img {
+        .modal-img-container img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
@@ -1388,7 +1388,7 @@
             <div class="modal-img-container">
                 <span id="loadingImg" style="color:var(--text-muted);">載入照片中...</span>
                 <img id="modalImg" src="" style="display:none;"
-                    onload="document.getElementById('loadingImg').style.display='none'; this.style.display='block'; if(window.modalViewer) window.modalViewer.destroy(); window.modalViewer = new Cropper(this, {viewMode: 1, dragMode: 'move', autoCrop: false, background: false, zoomable: true, scalable: true, guides: false, center: false, highlight: false, cropBoxMovable: false, cropBoxResizable: false, toggleDragModeOnDblclick: true});">
+                    onload="document.getElementById('loadingImg').style.display='none'; this.style.display='block'; setTimeout(() => { if(window.modalViewer) window.modalViewer.destroy(); window.modalViewer = new Cropper(this, {viewMode: 0, dragMode: 'move', autoCrop: false, background: false, zoomable: true, zoomOnTouch: true, zoomOnWheel: true, toggleDragModeOnDblclick: true}); }, 100);">
             </div>
             <div class="modal-info">
                 <div
@@ -1415,12 +1415,11 @@
                     <div class="info-item"><span>登記日期</span><strong id="mDate"></strong></div>
                     <div class="info-item"><span>配發系列</span>
                         <strong id="mSeries_txt" class="edit-txt" style="color:var(--primary);"></strong>
-                        <select id="mSeries_inp" class="edit-inp">
-                            <option value="">(無)</option>
-                            <option value="TAC">TAC</option>
-                            <option value="OPS">OPS</option>
-                            <option value="EMS">EMS</option>
-                        </select>
+                        <div id="mSeries_inp" class="edit-inp" style="display:none; padding-top:4px;">
+                            <label style="font-size:13px; margin-right:8px; cursor:pointer;"><input type="checkbox" value="TAC" class="mSeries-chk"> TAC</label>
+                            <label style="font-size:13px; margin-right:8px; cursor:pointer;"><input type="checkbox" value="OPS" class="mSeries-chk"> OPS</label>
+                            <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="EMS" class="mSeries-chk"> EMS</label>
+                        </div>
                     </div>
                     <div class="info-item"><span>量測方式</span><strong id="mSource"></strong></div>
                     <div class="info-item full"><span>身體量測 (高/肩/胸/腰/臀)</span><strong id="mBodySize"></strong></div>
@@ -2734,8 +2733,12 @@
             document.getElementById('mBodySize').innerText = `${r['身高']} / ${r['肩寬']} / ${r['胸圍']} / ${r['腰圍']} / ${r['臀圍']}`;
             document.getElementById('mDate').innerText = r['登記日期'];
             if (document.getElementById('mSeries_txt')) {
-                document.getElementById('mSeries_txt').innerText = r['配發系列'] || '-';
-                document.getElementById('mSeries_inp').value = r['配發系列'] || '';
+                const seriesVal = r['配發系列'] || '';
+                document.getElementById('mSeries_txt').innerText = seriesVal || '-';
+                const seriesArr = seriesVal.split(',').map(s => s.trim());
+                document.querySelectorAll('.mSeries-chk').forEach(chk => {
+                    chk.checked = seriesArr.includes(chk.value);
+                });
             }
             if (document.getElementById('mSource')) document.getElementById('mSource').innerText = r['量測方式'] || '-';
 
@@ -2805,7 +2808,8 @@
             const btnSave = document.getElementById('btnSaveEdit'); btnSave.innerText = "儲存中..."; btnSave.disabled = true;
             const formData = new URLSearchParams();
             formData.append("action", "updateRecord"); formData.append("bagNo", document.getElementById('mBagNo').innerText);
-            if (document.getElementById('mSeries_inp')) formData.append("series", document.getElementById('mSeries_inp').value);
+            const selectedSeries = Array.from(document.querySelectorAll('.mSeries-chk:checked')).map(c => c.value).join(', ');
+            if (document.getElementById('mSeries_inp')) formData.append("series", selectedSeries);
             formData.append("status", document.getElementById('mStatus_inp').value); formData.append("adminNote", document.getElementById('mAdminNote_inp').value);
             formData.append("sz_long", document.getElementById('mSz_TL').value); formData.append("sz_short", document.getElementById('mSz_TS').value); formData.append("sz_vest", document.getElementById('mSz_TV').value);
             formData.append("sz_jacket", document.getElementById('mSz_EJ').value); formData.append("sz_pant", document.getElementById('mSz_TP').value); formData.append("sz_belt", document.getElementById('mSz_BELT').value);
