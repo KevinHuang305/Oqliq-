@@ -2899,9 +2899,12 @@
                         <select class="quick-status-sel st-${st}" onchange="quickUpdateStatus(this, '${r['裝袋序號']}')" style="padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 90px; outline: none; -webkit-appearance: none; appearance: none; text-align: center;">
                             <option value="待確認" ${st==='待確認'?'selected':''}>待確認</option>
                             <option value="備料中" ${st==='備料中'?'selected':''}>備料中</option>
-                            <option value="已裝袋" ${st==='已裝袋'?'selected':''}>已裝袋</option>
-                            <option value="已領取" ${st==='已領取'?'selected':''}>已領取</option>
                             <option value="需複量" ${st==='需複量'?'selected':''}>需複量</option>
+                            <option value="未裝袋" ${st==='未裝袋'?'selected':''}>未裝袋</option>
+                            <option value="已裝袋" ${st==='已裝袋'?'selected':''}>已裝袋</option>
+                            <option value="未裝箱" ${st==='未裝箱'?'selected':''}>未裝箱</option>
+                            <option value="已裝箱" ${st==='已裝箱'?'selected':''}>已裝箱</option>
+                            <option value="已寄送" ${st==='已寄送'?'selected':''}>已寄送</option>
                         </select>
                     </td>
                     <td style="font-family:monospace; color:var(--primary); font-weight:bold;">${r['裝袋序號']}</td>
