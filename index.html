@@ -3788,6 +3788,7 @@
                                     onblur="setTimeout(() => hideCustomTrackDropdown('scan'), 200)"
                                     style="width:100%; padding:10px; font-size:16px; border:1px solid var(--border); border-radius:6px; outline:none;" />
                                 <button onclick="document.getElementById('trackInp_scan').value=''; document.getElementById('trackInp_scan').focus();" style="background: #f3f4f6; color: #6b7280; border: 1px solid var(--border); border-radius: 6px; padding: 0 15px; font-size: 14px; cursor: pointer; white-space: nowrap;">清除</button>
+                                <button onclick="updateOnlyTrackingNumber()" style="background: var(--primary); color: white; border: none; border-radius: 6px; padding: 0 15px; font-size: 14px; cursor: pointer; white-space: nowrap;">更新</button>
                             </div>
                             <ul id="trackList_scan" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 100; max-height: 200px; overflow-y: auto; list-style: none; padding: 0; margin: 4px 0 0 0; text-align: center;">
                             </ul>
@@ -3909,6 +3910,55 @@
                 alert("連線失敗！");
             }
             window.location.reload();
+        };
+
+        window.updateOnlyTrackingNumber = async function() {
+            if (currentScanRecords.length === 0 || !window.currentBoxId) return;
+            
+            const trackInp = document.getElementById('trackInp_scan');
+            if (!trackInp) return;
+            const scanTrackingNoVal = trackInp.value.trim();
+            
+            if (!confirm(`確定要將此分隊箱的貨運單號更新為「${scanTrackingNoVal || '空'}」？\n(此操作不會改變箱子或個人的狀態)`)) return;
+
+            const btns = document.querySelectorAll('#scanActionArea button');
+            btns.forEach(b => b.disabled = true);
+            const updateBtn = document.querySelector('button[onclick="updateOnlyTrackingNumber()"]');
+            if (updateBtn) updateBtn.disabled = true;
+            
+            const originalSubtitle = document.getElementById('scanSubtitle').innerText;
+            document.getElementById('scanSubtitle').innerText = `處理中...`;
+            
+            const formData = new URLSearchParams();
+            formData.append("action", "bulkUpdate");
+            formData.append("bagNos", ""); 
+            formData.append("boxId", window.currentBoxId);
+            formData.append("trackingNo", scanTrackingNoVal);
+            
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    alert("貨運單號更新成功！");
+                    if (scanTrackingNoVal) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        let history = {};
+                        try { history = JSON.parse(localStorage.getItem('tracking_history') || '{}'); } catch(e){}
+                        if (!history[todayStr]) history[todayStr] = {};
+                        const squadKey = currentScanRecords[0]['大隊/分類'] + '-' + currentScanRecords[0]['單位名稱'];
+                        history[todayStr][squadKey] = scanTrackingNoVal;
+                        localStorage.setItem('tracking_history', JSON.stringify(history));
+                    }
+                } else {
+                    alert("更新失敗：" + (result.error || "未知錯誤"));
+                }
+            } catch (e) {
+                alert("更新失敗，請檢查網路。");
+            }
+            
+            document.getElementById('scanSubtitle').innerText = originalSubtitle;
+            btns.forEach(b => b.disabled = false);
+            if (updateBtn) updateBtn.disabled = false;
         };
 
         const params = new URLSearchParams(window.location.search);
