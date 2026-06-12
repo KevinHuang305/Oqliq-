@@ -3739,10 +3739,18 @@
                             <span style="color:var(--text-muted); font-size:14px;">本箱包含人數：</span>
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
                         </div>
-                        <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border);">
+                        <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border); position: relative;">
                             <label style="display:block; color:var(--text-muted); font-size:14px; margin-bottom:5px;">貨運單號 (選填)：</label>
-                            <input type="text" id="scanTrackingNo" list="trackingHistoryList" placeholder="請輸入或選擇貨運單號" style="width:100%; padding:10px; font-size:16px; border:1px solid var(--border); border-radius:6px; outline:none;" />
-                            <datalist id="trackingHistoryList"></datalist>
+                            <div style="display: flex; gap: 6px;">
+                                <input type="text" id="trackInp_scan" autocomplete="off" placeholder="請輸入單號或選取歷史紀錄" 
+                                    onfocus="showCustomTrackDropdown('scan')" 
+                                    oninput="filterCustomTrackDropdown('scan')" 
+                                    onblur="setTimeout(() => hideCustomTrackDropdown('scan'), 200)"
+                                    style="width:100%; padding:10px; font-size:16px; border:1px solid var(--border); border-radius:6px; outline:none;" />
+                                <button onclick="document.getElementById('trackInp_scan').value=''; document.getElementById('trackInp_scan').focus();" style="background: #f3f4f6; color: #6b7280; border: 1px solid var(--border); border-radius: 6px; padding: 0 15px; font-size: 14px; cursor: pointer; white-space: nowrap;">清除</button>
+                            </div>
+                            <ul id="trackList_scan" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 100; max-height: 200px; overflow-y: auto; list-style: none; padding: 0; margin: 4px 0 0 0; text-align: center;">
+                            </ul>
                         </div>
                     `;
                     
@@ -3753,23 +3761,12 @@
                         const todayHistory = history[todayStr] || {};
                         const squadKey = records[0]['大隊/分類'] + '-' + records[0]['單位名稱'];
                         
-                        const inp = document.getElementById('scanTrackingNo');
-                        const dl = document.getElementById('trackingHistoryList');
+                        const inp = document.getElementById('trackInp_scan');
                         if (inp && todayHistory[squadKey]) {
                             inp.value = todayHistory[squadKey];
                         }
                         
-                        if (dl) {
-                            const allNos = new Set();
-                            Object.values(history).forEach(dayObj => {
-                                Object.values(dayObj).forEach(no => { if(no) allNos.add(no); });
-                            });
-                            allNos.forEach(no => {
-                                const opt = document.createElement('option');
-                                opt.value = no;
-                                dl.appendChild(opt);
-                            });
-                        }
+                        if (!window.boxUniqueTracks) window.buildUniqueTracks();
                     }, 0);
 
                     actionArea.innerHTML = `
