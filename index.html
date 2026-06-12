@@ -3648,10 +3648,14 @@
                 if (Array.isArray(data)) {
                     allRecords = data;
                     window.boxStatuses = {};
+                    window.boxTrackingNos = {};
+                    window.boxUpdateTimes = {};
                     window.renderScanResult(scanMode, params);
                 } else if (data.records) {
                     allRecords = data.records;
                     window.boxStatuses = data.boxStatuses || {};
+                    window.boxTrackingNos = data.boxTrackingNos || {};
+                    window.boxUpdateTimes = data.boxUpdateTimes || {};
                     window.renderScanResult(scanMode, params);
                 } else {
                     document.getElementById('scanSubtitle').innerText = "密碼錯誤或無法取得資料";
