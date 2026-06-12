@@ -1418,26 +1418,18 @@
      ============================================== -->
     <div id="view-box-admin" class="view-container scroll-view">
         <div style="max-width: 800px; margin: 0 auto; width: 100%;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <div style="display:flex; flex-wrap: wrap; justify-content:space-between; align-items:center; margin-bottom: 20px; gap: 10px;">
                 <div>
                     <h2 style="margin-top:0; color:var(--primary); font-weight: 800; margin-bottom:5px;">分隊箱狀態管理</h2>
                     <p style="color:var(--text-muted); font-size:13px; margin: 0;">顯示目前在表單中有狀態紀錄的所有分隊箱。</p>
                 </div>
-                <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="boxSearchInp" oninput="filterBoxCards()" placeholder="搜尋箱號、單號或單位..." style="padding: 8px 15px; border-radius: 20px; border: 1px solid var(--border); outline: none; min-width: 200px; font-size: 14px;" />
+                    <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
+                </div>
             </div>
             
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width: 30%;">分隊箱編號</th>
-                            <th style="width: 20%;">目前狀態</th>
-                            <th style="width: 25%;">貨運單號</th>
-                            <th style="width: 25%;">最後更新</th>
-                        </tr>
-                    </thead>
-                    <tbody id="boxTableBody"></tbody>
-                </table>
+            <div id="boxCardsContainer" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 20px;">
             </div>
         </div>
     </div>
@@ -2924,39 +2916,162 @@
         }
 
         window.renderBoxAdminBoard = function() {
-            const tbody = document.getElementById('boxTableBody');
-            if (!tbody) return;
-            tbody.innerHTML = '';
+            const container = document.getElementById('boxCardsContainer');
+            if (!container) return;
+            container.innerHTML = '';
             
             const boxIds = Object.keys(window.boxStatuses || {});
             if (boxIds.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--text-muted);">目前無任何分隊箱狀態紀錄。</td></tr>';
+                container.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); grid-column: 1 / -1;">目前無任何分隊箱狀態紀錄。</div>';
                 return;
             }
+            
+            let datalist = document.getElementById('globalTrackList');
+            if (!datalist) {
+                datalist = document.createElement('datalist');
+                datalist.id = 'globalTrackList';
+                document.body.appendChild(datalist);
+            }
+            datalist.innerHTML = '';
+            
+            window.buildUniqueTracks();
             
             boxIds.sort().forEach(boxId => {
                 const status = window.boxStatuses[boxId] || '尚未紀錄';
                 const trackNo = (window.boxTrackingNos && window.boxTrackingNos[boxId]) ? window.boxTrackingNos[boxId] : '';
                 const updateTime = (window.boxUpdateTimes && window.boxUpdateTimes[boxId]) ? window.boxUpdateTimes[boxId] : '';
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="font-family:monospace; font-weight:bold; color:var(--primary); font-size:16px; vertical-align: middle;">${boxId}</td>
-                    <td style="vertical-align: middle;">
-                        <select class="quick-status-sel st-${status}" onchange="quickUpdateBoxStatus(this, '${boxId}')" style="padding: 6px; border-radius: 4px; font-size: 14px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 130px; outline: none; -webkit-appearance: none; appearance: none; text-align: center; cursor: pointer;">
+                
+                const sysCode = boxId.split('-')[0];
+                let unitName = "未知分隊";
+                for (const [nameKey, code] of Object.entries(dbSystemCodes)) {
+                    if (code.toString() === sysCode) {
+                        const parts = nameKey.split('_');
+                        unitName = parts.length > 2 ? parts[0] + ' - ' + parts[1] + ' - ' + parts[2] : nameKey;
+                        break;
+                    }
+                }
+
+                const card = document.createElement('div');
+                card.className = 'box-admin-card';
+                card.style.cssText = 'background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; position: relative;';
+                card.innerHTML = `
+                    <div style="padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; display:flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                        <span style="font-weight:bold; color:var(--primary); font-size:18px; font-family:monospace;">${boxId}</span>
+                        <span style="font-size:13px; color:var(--text-muted); background:#f3f4f6; padding:4px 8px; border-radius:6px; font-weight:normal;">${unitName}</span>
+                    </div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">📦 狀態：</span>
+                        <select id="sel_${boxId}" class="quick-status-sel st-${status}" onchange="quickUpdateBoxStatus(this, '${boxId}')" style="padding: 8px; border-radius: 6px; font-size: 15px; font-weight: 700; border-width: 1px; border-style: solid; width: 100%; outline: none; -webkit-appearance: none; appearance: none; text-align: center; cursor: pointer;">
                             <option value="尚未紀錄" ${status === '尚未紀錄' ? 'selected' : ''}>尚未紀錄</option>
                             <option value="尚有缺件" ${status === '尚有缺件' ? 'selected' : ''}>尚有缺件</option>
                             <option value="已裝箱" ${status === '已裝箱' ? 'selected' : ''}>已裝箱</option>
                             <option value="已寄送" ${status === '已寄送' ? 'selected' : ''}>已寄送</option>
                         </select>
-                    </td>
-                    <td style="vertical-align: middle;">
-                        <input type="text" id="trackInp_${boxId}" value="${trackNo}" placeholder="輸入貨運單號" onchange="quickUpdateBoxStatus(this.parentElement.previousElementSibling.querySelector('select'), '${boxId}')" style="padding: 6px; border-radius: 4px; font-size: 14px; border: 1px solid var(--border); width: 100%; outline: none;" />
-                    </td>
-                    <td style="vertical-align: middle; color:var(--text-muted); font-size:13px;" id="timeInp_${boxId}">
-                        ${updateTime}
-                    </td>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-size: 13px; color: var(--text-muted);">🚚 貨運單號：</span>
+                        <div style="display: flex; gap: 6px; position: relative;">
+                            <input type="text" id="trackInp_${boxId}" autocomplete="off" value="${trackNo}" placeholder="輸入單號或選取" 
+                                onfocus="showCustomTrackDropdown('${boxId}')" 
+                                oninput="filterCustomTrackDropdown('${boxId}')" 
+                                onblur="setTimeout(() => hideCustomTrackDropdown('${boxId}'), 200)"
+                                style="padding: 8px; border-radius: 6px; font-size: 14px; border: 1px solid var(--border); width: 100%; outline: none;" />
+                            
+                            <ul id="trackList_${boxId}" style="display: none; position: absolute; top: 100%; left: 0; right: 40px; background: #fff; border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 16px rgba(0,0,0,0.15); z-index: 100; max-height: 200px; overflow-y: auto; list-style: none; padding: 0; margin: 4px 0 0 0; text-align: center;">
+                            </ul>
+
+                            <button onclick="document.getElementById('trackInp_${boxId}').value=''; document.getElementById('trackInp_${boxId}').focus();" style="background: #f3f4f6; color: #6b7280; border: 1px solid var(--border); border-radius: 6px; padding: 0 10px; font-size: 12px; cursor: pointer; white-space: nowrap;">清除</button>
+                            <button onclick="quickUpdateBoxStatus(document.getElementById('sel_${boxId}'), '${boxId}')" style="background: var(--primary); color: white; border: none; border-radius: 6px; padding: 0 12px; font-size: 13px; cursor: pointer; white-space: nowrap;">更新</button>
+                        </div>
+                    </div>
+
+                    <div style="font-size: 12px; color: #9ca3af; text-align: right; margin-top: auto; padding-top: 8px;">
+                        最後更新：<span id="timeInp_${boxId}">${updateTime || '無紀錄'}</span>
+                    </div>
                 `;
-                tbody.appendChild(tr);
+                container.appendChild(card);
+            });
+        };
+
+        window.buildUniqueTracks = function() {
+            const uniqueTracks = new Map();
+            const boxIds = Object.keys(window.boxStatuses || {});
+            boxIds.forEach(bId => {
+                const tNo = window.boxTrackingNos && window.boxTrackingNos[bId];
+                if (tNo && tNo.trim() !== '') {
+                    const updateTimeStr = window.boxUpdateTimes && window.boxUpdateTimes[bId];
+                    let timestamp = 0;
+                    if (updateTimeStr) {
+                        const parsed = new Date(updateTimeStr).getTime();
+                        if (!isNaN(parsed)) timestamp = parsed;
+                    }
+                    
+                    if (!uniqueTracks.has(tNo) || uniqueTracks.get(tNo).timestamp < timestamp) {
+                        const sysCode = bId.split('-')[0];
+                        let uName = "未知分隊";
+                        for (const [nameKey, code] of Object.entries(dbSystemCodes)) {
+                            if (code.toString() === sysCode) {
+                                const parts = nameKey.split('_');
+                                uName = parts.length > 2 ? parts[0] + ' - ' + parts[1] + ' - ' + parts[2] : nameKey;
+                                break;
+                            }
+                        }
+                        uniqueTracks.set(tNo, { unitName: uName, timestamp: timestamp });
+                    }
+                }
+            });
+            
+            const sorted = Array.from(uniqueTracks.entries()).sort((a, b) => b[1].timestamp - a[1].timestamp);
+            window.boxUniqueTracks = sorted.map(([tNo, info]) => [tNo, info.unitName]);
+        };
+
+        window.showCustomTrackDropdown = function(boxId) {
+            if (!window.boxUniqueTracks) window.buildUniqueTracks();
+            const ul = document.getElementById('trackList_' + boxId);
+            if (!ul) return;
+            ul.innerHTML = '';
+            if (!window.boxUniqueTracks || window.boxUniqueTracks.length === 0) {
+                ul.innerHTML = '<li style="padding: 10px; font-size: 13px; color: #999;">目前無任何歷史單號</li>';
+            } else {
+                window.boxUniqueTracks.forEach(([tNo, uName]) => {
+                    ul.innerHTML += `<li onclick="document.getElementById('trackInp_${boxId}').value='${tNo}'; document.getElementById('trackList_${boxId}').style.display='none';" style="padding: 10px 8px; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 14px; background: #fff;">
+                        <div style="font-weight: bold; color: var(--primary);">${tNo}</div>
+                        <div style="font-size: 11px; color: #888;">${uName}</div>
+                    </li>`;
+                });
+            }
+            ul.style.display = 'block';
+            filterCustomTrackDropdown(boxId); // Apply filter based on current input
+        };
+
+        window.filterCustomTrackDropdown = function(boxId) {
+            const inp = document.getElementById('trackInp_' + boxId);
+            const ul = document.getElementById('trackList_' + boxId);
+            if (!inp || !ul) return;
+            const val = inp.value.trim().toLowerCase();
+            const lis = ul.querySelectorAll('li');
+            lis.forEach(li => {
+                if (li.innerText.toLowerCase().includes(val)) {
+                    li.style.display = 'block';
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+        };
+
+        window.hideCustomTrackDropdown = function(boxId) {
+            const ul = document.getElementById('trackList_' + boxId);
+            if (ul) ul.style.display = 'none';
+        };
+
+        window.filterBoxCards = function() {
+            const val = document.getElementById('boxSearchInp').value.trim().toLowerCase();
+            const cards = document.querySelectorAll('.box-admin-card');
+            cards.forEach(card => {
+                const text = card.innerText.toLowerCase();
+                card.style.display = text.includes(val) ? 'flex' : 'none';
             });
         };
 
@@ -3524,6 +3639,7 @@
             }
         };
 
+
         window.initScanMode = async function (scanMode, params) {
             try {
                 const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `action=getRecords&password=${encodeURIComponent(DEFAULT_ADMIN_PWD)}`;
@@ -3703,7 +3819,7 @@
             
             let scanTrackingNoVal = "";
             if (scanMode === 'squad') {
-                const trackInp = document.getElementById('scanTrackingNo');
+                const trackInp = document.getElementById('trackInp_scan');
                 if (trackInp) {
                     scanTrackingNoVal = trackInp.value.trim();
                     if (scanTrackingNoVal) {
