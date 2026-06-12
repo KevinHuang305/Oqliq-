@@ -3466,7 +3466,7 @@
                 const squads = {};
                 targetRecords.forEach(r => { 
                     const key = `${r['機關名稱']}_${r['大隊/分類']}_${r['單位名稱']}`;
-                    const sysCode = window.dbSystemCodes[key] || key;
+                    const sysCode = dbSystemCodes[key] || key;
                     const boxIdBase = sysCode;
                     if (!squads[boxIdBase]) squads[boxIdBase] = []; 
                     squads[boxIdBase].push(r); 
@@ -3740,7 +3740,7 @@
                 
                 let records = allRecords.filter(r => {
                     const key = `${r['機關名稱']}_${r['大隊/分類']}_${r['單位名稱']}`;
-                    const rBox = window.dbSystemCodes[key] || key;
+                    const rBox = dbSystemCodes[key] || key;
                     return rBox === box;
                 });
                 
