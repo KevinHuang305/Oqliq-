@@ -3842,7 +3842,19 @@
 
         window.executeScanAction = async function (newStatus) {
             if (currentScanRecords.length === 0) return;
-            if (!confirm(`確定要將這 ${currentScanRecords.length} 筆資料的狀態變更為「${newStatus}」？`)) return;
+            
+            let confirmMsg = `確定要將這 ${currentScanRecords.length} 筆資料的狀態變更為「${newStatus}」？`;
+            if (scanMode === 'squad' && newStatus === '有缺袋') {
+                confirmMsg = `確定要將此分隊箱標記為「有缺袋」？\n(注意：此操作只會更新箱子狀態，不會改變箱內 ${currentScanRecords.length} 人的個人紀錄)`;
+            } else if (scanMode === 'squad' && newStatus !== '有缺袋') {
+                confirmMsg = `確定要將此分隊箱及箱內 ${currentScanRecords.length} 人的狀態都變更為「${newStatus}」？`;
+            } else if (scanMode === 'unit' && newStatus === '有缺袋') {
+                confirmMsg = `確定要將此單位主箱標記為「有缺袋」？\n(注意：此操作只會更新箱子狀態，不會改變箱內 ${currentScanRecords.length} 人的個人紀錄)`;
+            } else if (scanMode === 'unit' && newStatus !== '有缺袋') {
+                confirmMsg = `確定要將此單位主箱及箱內 ${currentScanRecords.length} 人的狀態都變更為「${newStatus}」？`;
+            }
+
+            if (!confirm(confirmMsg)) return;
 
             const btns = document.querySelectorAll('#scanActionArea button');
             btns.forEach(b => b.disabled = true);
