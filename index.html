@@ -2916,6 +2916,7 @@
                 const baggedCount = allRecords.filter(r => r['狀態'] === '已裝袋').length;
                 const boxedCount = allRecords.filter(r => r['狀態'] === '已裝箱').length;
                 const sentCount = allRecords.filter(r => r['狀態'] === '已寄送').length;
+                const missingCount = allRecords.filter(r => r['狀態'] === '有缺件' || r['狀態'] === '尚有缺件').length;
                 
                 document.getElementById('dashBagged').innerText = baggedCount;
                 document.getElementById('dashBoxed').innerText = boxedCount;
@@ -2978,7 +2979,7 @@
                         <span style="font-size: 13px; color: var(--text-muted);">📦 狀態：</span>
                         <select id="sel_${boxId}" class="quick-status-sel st-${status}" onchange="quickUpdateBoxStatus(this, '${boxId}')" style="padding: 8px; border-radius: 6px; font-size: 15px; font-weight: 700; border-width: 1px; border-style: solid; width: 100%; outline: none; -webkit-appearance: none; appearance: none; text-align: center; cursor: pointer;">
                             <option value="尚未紀錄" ${status === '尚未紀錄' ? 'selected' : ''}>尚未紀錄</option>
-                            <option value="尚有缺件" ${status === '尚有缺件' ? 'selected' : ''}>尚有缺件</option>
+                            <option value="有缺袋" ${status === '有缺袋' ? 'selected' : ''}>有缺袋</option>
                             <option value="已裝箱" ${status === '已裝箱' ? 'selected' : ''}>已裝箱</option>
                             <option value="已寄送" ${status === '已寄送' ? 'selected' : ''}>已寄送</option>
                         </select>
@@ -3806,7 +3807,7 @@
                     }, 0);
 
                     actionArea.innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺件')">設為有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺袋')">設為有缺袋</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已裝箱')">設為已裝箱</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已寄送')">設為已寄送</button>
                     `;
@@ -3828,7 +3829,7 @@
                         </div>
                     `;
                     actionArea.innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺件')">設為有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺袋')">設為有缺袋</button>
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已完成裝箱')">設為已完成裝箱</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已出貨')">設為已出貨</button>
                     `;
@@ -3848,7 +3849,11 @@
 
             document.getElementById('scanSubtitle').innerText = `處理中...`;
             
-            const bagNos = currentScanRecords.map(r => r['裝袋序號']).join(',');
+            let bagNos = currentScanRecords.map(r => r['裝袋序號']).join(',');
+            if (scanMode === 'squad' && newStatus === '有缺袋') {
+                bagNos = ""; // 只更新分隊箱狀態，不影響個人袋狀態
+            }
+
             const formData = new URLSearchParams();
             formData.append("action", "bulkUpdate");
             formData.append("bagNos", bagNos);
