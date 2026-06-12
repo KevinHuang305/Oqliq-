@@ -149,7 +149,8 @@
         #view-chart.active,
         #view-labels.active,
         #view-system-config.active,
-        #view-scan.active {
+        #view-scan.active,
+        #view-box-admin.active {
             display: block;
         }
 
@@ -1089,6 +1090,7 @@
             <div class="nav-tab active" onclick="switchTab('measure')">登記與量測</div>
             <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
             <div class="nav-tab" onclick="switchTab('admin')">建檔名單</div>
+            <div class="nav-tab" onclick="switchTab('box-admin')">分隊箱管理</div>
             <div class="nav-tab" onclick="switchTab('labels')">標籤列印</div>
             <div class="nav-tab" onclick="switchTab('system-config')">系統設定</div>
         </div>
@@ -1412,6 +1414,35 @@
     </div>
 
     <!-- ==============================================
+     視圖 3.5：分隊箱管理 
+     ============================================== -->
+    <div id="view-box-admin" class="view-container scroll-view">
+        <div style="max-width: 800px; margin: 0 auto; width: 100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin-top:0; color:var(--primary); font-weight: 800; margin-bottom:5px;">分隊箱狀態管理</h2>
+                    <p style="color:var(--text-muted); font-size:13px; margin: 0;">顯示目前在表單中有狀態紀錄的所有分隊箱。</p>
+                </div>
+                <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30%;">分隊箱編號</th>
+                            <th style="width: 20%;">目前狀態</th>
+                            <th style="width: 25%;">貨運單號</th>
+                            <th style="width: 25%;">最後更新</th>
+                        </tr>
+                    </thead>
+                    <tbody id="boxTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==============================================
      視圖 4：標籤列印模組
      ============================================== -->
     <div id="view-labels" class="view-container scroll-view">
@@ -1710,9 +1741,10 @@
 
             document.getElementById('loginOverlay').style.display = 'none';
 
-            if ((tab === 'admin' || tab === 'labels' || tab === 'system-config') && !adminLoggedIn) {
+            if ((tab === 'admin' || tab === 'labels' || tab === 'system-config' || tab === 'box-admin') && !adminLoggedIn) {
                 document.getElementById('loginOverlay').style.display = 'flex';
-            } else if ((tab === 'admin' || tab === 'labels') && adminLoggedIn) {
+            } else if ((tab === 'admin' || tab === 'labels' || tab === 'box-admin') && adminLoggedIn) {
+                if (tab === 'box-admin') window.renderBoxAdminBoard();
                 window.refreshAdminData(true).then(() => {
                     if (tab === 'labels') document.getElementById('btnLblInner').click();
                 });
@@ -2834,8 +2866,8 @@
                 else {
                     document.getElementById('loginOverlay').style.display = 'none';
                     adminLoggedIn = true; savedAdminPwd = pwd;
-                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; }
+                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     else { throw new Error("VERSION_MISMATCH"); }
                     
                     window.refreshAdminData(true).then(() => {
@@ -2858,9 +2890,10 @@
                 const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `action=getRecords&password=${encodeURIComponent(savedAdminPwd)}`;
                 const res = await fetch(url); const data = await res.json();
                 if (!data.error) {
-                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; }
+                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     renderAdminBoard();
+                    window.renderBoxAdminBoard();
                     populateLabelFilters();
                     if (document.getElementById('view-labels').classList.contains('active')) {
                         renderLabels(window.currentLabelType);
@@ -2889,6 +2922,91 @@
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
             }
         }
+
+        window.renderBoxAdminBoard = function() {
+            const tbody = document.getElementById('boxTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            
+            const boxIds = Object.keys(window.boxStatuses || {});
+            if (boxIds.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:30px; color:var(--text-muted);">目前無任何分隊箱狀態紀錄。</td></tr>';
+                return;
+            }
+            
+            boxIds.sort().forEach(boxId => {
+                const status = window.boxStatuses[boxId] || '尚未紀錄';
+                const trackNo = (window.boxTrackingNos && window.boxTrackingNos[boxId]) ? window.boxTrackingNos[boxId] : '';
+                const updateTime = (window.boxUpdateTimes && window.boxUpdateTimes[boxId]) ? window.boxUpdateTimes[boxId] : '';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-family:monospace; font-weight:bold; color:var(--primary); font-size:16px; vertical-align: middle;">${boxId}</td>
+                    <td style="vertical-align: middle;">
+                        <select class="quick-status-sel st-${status}" onchange="quickUpdateBoxStatus(this, '${boxId}')" style="padding: 6px; border-radius: 4px; font-size: 14px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 130px; outline: none; -webkit-appearance: none; appearance: none; text-align: center; cursor: pointer;">
+                            <option value="尚未紀錄" ${status === '尚未紀錄' ? 'selected' : ''}>尚未紀錄</option>
+                            <option value="尚有缺件" ${status === '尚有缺件' ? 'selected' : ''}>尚有缺件</option>
+                            <option value="已裝箱" ${status === '已裝箱' ? 'selected' : ''}>已裝箱</option>
+                            <option value="已寄送" ${status === '已寄送' ? 'selected' : ''}>已寄送</option>
+                        </select>
+                    </td>
+                    <td style="vertical-align: middle;">
+                        <input type="text" id="trackInp_${boxId}" value="${trackNo}" placeholder="輸入貨運單號" onchange="quickUpdateBoxStatus(this.parentElement.previousElementSibling.querySelector('select'), '${boxId}')" style="padding: 6px; border-radius: 4px; font-size: 14px; border: 1px solid var(--border); width: 100%; outline: none;" />
+                    </td>
+                    <td style="vertical-align: middle; color:var(--text-muted); font-size:13px;" id="timeInp_${boxId}">
+                        ${updateTime}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.quickUpdateBoxStatus = async function(sel, boxId) {
+            const newStatus = sel.value;
+            sel.disabled = true;
+            const trackInp = document.getElementById('trackInp_' + boxId);
+            const trackingNo = trackInp ? trackInp.value.trim() : "";
+            if (trackInp) trackInp.disabled = true;
+            
+            const formData = new URLSearchParams();
+            formData.append("action", "bulkUpdate");
+            formData.append("bagNos", ""); // Empty because we only update the box status
+            formData.append("status", "");
+            formData.append("boxId", boxId);
+            formData.append("boxStatus", newStatus);
+            formData.append("trackingNo", trackingNo);
+            
+            try {
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                // Even if bagNos is empty, if the script processes boxId successfully, it should return success.
+                // Alternatively it might return an error if it strictly checks bagNos, but based on typical GAS patterns,
+                // passing empty string is safer than throwing an error locally.
+                if(result.success !== false) {
+                    sel.className = `quick-status-sel st-${newStatus}`;
+                    window.boxStatuses[boxId] = newStatus;
+                    if (!window.boxUpdateTimes) window.boxUpdateTimes = {};
+                    
+                    const now = new Date();
+                    const timeStr = now.getFullYear() + '/' + (now.getMonth()+1).toString().padStart(2, '0') + '/' + now.getDate().toString().padStart(2, '0') + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+                    window.boxUpdateTimes[boxId] = timeStr;
+                    const timeCell = document.getElementById('timeInp_' + boxId);
+                    if(timeCell) timeCell.innerText = timeStr;
+
+                    sel.style.boxShadow = "0 0 0 2px #10b981";
+                    setTimeout(() => sel.style.boxShadow = "none", 1000);
+                } else {
+                    alert("狀態更新可能失敗或後端不支援僅變更箱號狀態，請確認設定。");
+                    sel.value = window.boxStatuses[boxId] || '尚未紀錄';
+                    sel.className = `quick-status-sel st-${sel.value}`;
+                }
+            } catch(e) {
+                alert("連線失敗！");
+                sel.value = window.boxStatuses[boxId] || '尚未紀錄';
+                sel.className = `quick-status-sel st-${sel.value}`;
+            }
+            sel.disabled = false;
+            if (trackInp) trackInp.disabled = false;
+        };
 
         window.queryAdminTable = function() {
             const vA = document.getElementById('filterAgency').value, vB = document.getElementById('filterBrigade').value, vU = document.getElementById('filterUnit').value, vS = document.getElementById('filterSearch').value.trim().toLowerCase();
@@ -3501,7 +3619,39 @@
                             <span style="color:var(--text-muted); font-size:14px;">本箱包含人數：</span>
                             <span style="font-weight:bold; font-size:18px;">${records.length} 人</span>
                         </div>
+                        <div style="margin-top:15px; padding-top:10px; border-top:1px dashed var(--border);">
+                            <label style="display:block; color:var(--text-muted); font-size:14px; margin-bottom:5px;">貨運單號 (選填)：</label>
+                            <input type="text" id="scanTrackingNo" list="trackingHistoryList" placeholder="請輸入或選擇貨運單號" style="width:100%; padding:10px; font-size:16px; border:1px solid var(--border); border-radius:6px; outline:none;" />
+                            <datalist id="trackingHistoryList"></datalist>
+                        </div>
                     `;
+                    
+                    setTimeout(() => {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        let history = {};
+                        try { history = JSON.parse(localStorage.getItem('tracking_history') || '{}'); } catch(e){}
+                        const todayHistory = history[todayStr] || {};
+                        const squadKey = records[0]['大隊/分類'] + '-' + records[0]['單位名稱'];
+                        
+                        const inp = document.getElementById('scanTrackingNo');
+                        const dl = document.getElementById('trackingHistoryList');
+                        if (inp && todayHistory[squadKey]) {
+                            inp.value = todayHistory[squadKey];
+                        }
+                        
+                        if (dl) {
+                            const allNos = new Set();
+                            Object.values(history).forEach(dayObj => {
+                                Object.values(dayObj).forEach(no => { if(no) allNos.add(no); });
+                            });
+                            allNos.forEach(no => {
+                                const opt = document.createElement('option');
+                                opt.value = no;
+                                dl.appendChild(opt);
+                            });
+                        }
+                    }, 0);
+
                     actionArea.innerHTML = `
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已裝箱')">設為已裝箱</button>
@@ -3550,9 +3700,28 @@
             formData.append("action", "bulkUpdate");
             formData.append("bagNos", bagNos);
             formData.append("status", newStatus);
+            
+            let scanTrackingNoVal = "";
+            if (scanMode === 'squad') {
+                const trackInp = document.getElementById('scanTrackingNo');
+                if (trackInp) {
+                    scanTrackingNoVal = trackInp.value.trim();
+                    if (scanTrackingNoVal) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        let history = {};
+                        try { history = JSON.parse(localStorage.getItem('tracking_history') || '{}'); } catch(e){}
+                        if (!history[todayStr]) history[todayStr] = {};
+                        const squadKey = currentScanRecords[0]['大隊/分類'] + '-' + currentScanRecords[0]['單位名稱'];
+                        history[todayStr][squadKey] = scanTrackingNoVal;
+                        localStorage.setItem('tracking_history', JSON.stringify(history));
+                    }
+                }
+            }
+
             if (scanMode === 'squad' && window.currentBoxId) {
                 formData.append("boxId", window.currentBoxId);
                 formData.append("boxStatus", newStatus);
+                formData.append("trackingNo", scanTrackingNoVal);
             }
 
             try {
