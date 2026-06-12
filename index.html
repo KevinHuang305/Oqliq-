@@ -2956,7 +2956,7 @@
                 const trackNo = (window.boxTrackingNos && window.boxTrackingNos[boxId]) ? window.boxTrackingNos[boxId] : '';
                 const updateTime = (window.boxUpdateTimes && window.boxUpdateTimes[boxId]) ? window.boxUpdateTimes[boxId] : '';
                 
-                const sysCode = boxId.split('-')[0];
+                const sysCode = boxId.split('_箱')[0];
                 let unitName = "未知分隊";
                 for (const [nameKey, code] of Object.entries(dbSystemCodes)) {
                     if (code.toString() === sysCode) {
@@ -3024,7 +3024,7 @@
                     }
                     
                     if (!uniqueTracks.has(tNo) || uniqueTracks.get(tNo).timestamp < timestamp) {
-                        const sysCode = bId.split('-')[0];
+                        const sysCode = bId.split('_箱')[0];
                         let uName = "未知分隊";
                         for (const [nameKey, code] of Object.entries(dbSystemCodes)) {
                             if (code.toString() === sysCode) {
@@ -3465,7 +3465,9 @@
             else if (type === 'squad') {
                 const squads = {};
                 targetRecords.forEach(r => { 
-                    const boxIdBase = `${r['人員識別碼'].split('-')[0]}-${r['人員識別碼'].split('-')[1]}-01`;
+                    const key = `${r['機關名稱']}_${r['大隊/分類']}_${r['單位名稱']}`;
+                    const sysCode = window.dbSystemCodes[key] || key;
+                    const boxIdBase = sysCode;
                     if (!squads[boxIdBase]) squads[boxIdBase] = []; 
                     squads[boxIdBase].push(r); 
                 });
@@ -3737,7 +3739,8 @@
                 const capParam = params.get('cap');
                 
                 let records = allRecords.filter(r => {
-                    const rBox = `${r['人員識別碼'].split('-')[0]}-${r['人員識別碼'].split('-')[1]}-01`;
+                    const key = `${r['機關名稱']}_${r['大隊/分類']}_${r['單位名稱']}`;
+                    const rBox = window.dbSystemCodes[key] || key;
                     return rBox === box;
                 });
                 
