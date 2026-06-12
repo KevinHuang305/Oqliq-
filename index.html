@@ -3444,10 +3444,14 @@
             }
             else if (type === 'squad') {
                 const squads = {};
-                targetRecords.forEach(r => { const key = `${r['機關名稱']}_${r['大隊/分類']}_${r['單位名稱']}`; if (!squads[key]) squads[key] = []; squads[key].push(r); });
-                Object.keys(squads).forEach((k, idx) => {
-                    const group = squads[k]; const first = group[0];
-                    const boxNo = `${first['人員識別碼'].split('-')[0]}-${first['人員識別碼'].split('-')[1]}-01`;
+                targetRecords.forEach(r => { 
+                    const boxIdBase = `${r['人員識別碼'].split('-')[0]}-${r['人員識別碼'].split('-')[1]}-01`;
+                    if (!squads[boxIdBase]) squads[boxIdBase] = []; 
+                    squads[boxIdBase].push(r); 
+                });
+                Object.keys(squads).forEach((boxIdBase, idx) => {
+                    const group = squads[boxIdBase]; const first = group[0];
+                    const boxNo = boxIdBase;
                     
                     const chunks = [];
                     for (let i = 0; i < group.length; i += capacity) {
@@ -3463,11 +3467,18 @@
                         personList += '</div>';
 
                         const qrId = `qr_squad_${idx}_${chunkIdx}`;
+                        let boxNoDisp = boxNo;
+                        let qrUrl = `${SYSTEM_BASE_URL}?scan=squad&box=${encodeURIComponent(boxNo)}`;
+                        if (totalBoxes > 1) {
+                            boxNoDisp = `${boxNo}_箱${chunkIdx+1}`;
+                            qrUrl += `&idx=${chunkIdx}&cap=${capacity}`;
+                        }
+                        
                         html += `<div class="label-card" style="height:auto; min-height:10cm;">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
-                        <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNo}</div><div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
+                        <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNoDisp}</div><div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div>
                         <div class="label-qr-wrap" style="position:relative; margin-top:20px; align-self:flex-end;"><div style="font-size:11px; color:#555;">掃描確認分隊箱 (${chunkIdx+1}/${totalBoxes})</div><div id="${qrId}" class="qr-box"></div></div></div>`;
-                        labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=squad&box=${encodeURIComponent(boxNo)}&idx=${chunkIdx}&cap=${capacity}` });
+                        labelQRCodes.push({ id: qrId, text: qrUrl });
                     });
                 });
             }
@@ -3718,10 +3729,13 @@
                     chunkIdx = parseInt(idxParam, 10);
                     const cap = parseInt(capParam, 10);
                     totalChunks = Math.ceil(records.length / cap);
-                    boxInfoStr = ` (第 ${chunkIdx + 1} 箱 / 共 ${totalChunks} 箱)`;
-                    records = records.slice(chunkIdx * cap, (chunkIdx + 1) * cap);
-                    isChunked = true;
-                    window.currentBoxId = `${box}_箱${chunkIdx + 1}`;
+                    
+                    if (totalChunks > 1) {
+                        boxInfoStr = ` (第 ${chunkIdx + 1} 箱 / 共 ${totalChunks} 箱)`;
+                        records = records.slice(chunkIdx * cap, (chunkIdx + 1) * cap);
+                        isChunked = true;
+                        window.currentBoxId = `${box}_箱${chunkIdx + 1}`;
+                    }
                 }
 
                 if (records.length > 0) {
