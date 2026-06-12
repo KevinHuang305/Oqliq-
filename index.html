@@ -551,6 +551,12 @@
             background: rgba(239, 68, 68, 0.05);
         }
 
+        .st-有缺件 {
+            color: #f43f5e;
+            border-color: rgba(244, 63, 94, 0.3);
+            background: rgba(244, 63, 94, 0.05);
+        }
+
         .dashboard-cards {
             display: flex;
             gap: 15px;
@@ -1342,6 +1348,9 @@
             <div class="stat-box" style="background:#ef4444;" onclick="setAdminQuickFilter('需複量')">
                 <h3>需複量</h3><div class="value" id="dashRemesure">0</div>
             </div>
+            <div class="stat-box" style="background:#f43f5e;" onclick="setAdminQuickFilter('有缺件')">
+                <h3>有缺件</h3><div class="value" id="dashMissing">0</div>
+            </div>
             <div class="stat-box" style="background:#64748b;" onclick="setAdminQuickFilter('未裝袋')">
                 <h3>未裝袋</h3><div class="value" id="dashNotBagged">0</div>
             </div>
@@ -1377,11 +1386,10 @@
                 <select id="bulkStatusSelect" style="padding: 10px; border-radius: 6px; font-size: 13px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);">
                     <option value="">批次狀態變更</option>
                     <option value="待確認">待確認</option>
+                    <option value="有缺件">有缺件</option>
                     <option value="備料中">備料中</option>
                     <option value="需複量">需複量</option>
-                    <option value="未裝袋">未裝袋</option>
                     <option value="已裝袋">已裝袋</option>
-                    <option value="未裝箱">未裝箱</option>
                     <option value="已裝箱">已裝箱</option>
                     <option value="已寄送">已寄送</option>
                 </select>
@@ -1598,11 +1606,10 @@
                         <strong id="mStatus_txt" class="edit-txt tag-status"></strong>
                         <select id="mStatus_inp" class="edit-inp">
                             <option>待確認</option>
+                            <option>有缺件</option>
                             <option>備料中</option>
                             <option>已裝袋</option>
                             <option>需複量</option>
-                            <option>未裝袋</option>
-                            <option>未裝箱</option>
                             <option>已裝箱</option>
                             <option>已寄送</option>
                         </select>
@@ -2901,14 +2908,21 @@
                 document.getElementById('dashMale').innerText = allRecords.filter(r => r['性別'] === '男').length;
                 document.getElementById('dashFemale').innerText = allRecords.filter(r => r['性別'] === '女').length;
                 
-                document.getElementById('dashPending').innerText = allRecords.filter(r => !r['狀態'] || r['狀態'] === '待確認').length;
+                document.getElementById('dashPending').innerText = allRecords.filter(r => !r['狀態'] || r['狀態'] === '待確認' || r['狀態'] === '待處理').length;
                 document.getElementById('dashPrep').innerText = allRecords.filter(r => r['狀態'] === '備料中').length;
                 document.getElementById('dashRemesure').innerText = allRecords.filter(r => r['狀態'] === '需複量').length;
-                document.getElementById('dashNotBagged').innerText = allRecords.filter(r => r['狀態'] === '未裝袋').length;
-                document.getElementById('dashBagged').innerText = allRecords.filter(r => r['狀態'] === '已裝袋').length;
-                document.getElementById('dashNotBoxed').innerText = allRecords.filter(r => r['狀態'] === '未裝箱').length;
-                document.getElementById('dashBoxed').innerText = allRecords.filter(r => r['狀態'] === '已裝箱').length;
-                document.getElementById('dashCollected').innerText = allRecords.filter(r => r['狀態'] === '已寄送').length;
+                document.getElementById('dashMissing').innerText = allRecords.filter(r => r['狀態'] === '有缺件' || r['狀態'] === '尚有缺件').length;
+                
+                const baggedCount = allRecords.filter(r => r['狀態'] === '已裝袋').length;
+                const boxedCount = allRecords.filter(r => r['狀態'] === '已裝箱').length;
+                const sentCount = allRecords.filter(r => r['狀態'] === '已寄送').length;
+                
+                document.getElementById('dashBagged').innerText = baggedCount;
+                document.getElementById('dashBoxed').innerText = boxedCount;
+                document.getElementById('dashCollected').innerText = sentCount;
+                
+                document.getElementById('dashNotBagged').innerText = allRecords.length - (baggedCount + boxedCount + sentCount);
+                document.getElementById('dashNotBoxed').innerText = allRecords.length - (boxedCount + sentCount);
 
                 const tbody = document.getElementById('tableBody'); 
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
@@ -3138,7 +3152,13 @@
                     if (window.adminQuickFilter === 'FEMALE' && r['性別'] !== '女') return false;
                     if (window.adminQuickFilter !== 'MALE' && window.adminQuickFilter !== 'FEMALE') {
                         const st = r['狀態'] || '待確認';
-                        if (st !== window.adminQuickFilter) return false;
+                        if (window.adminQuickFilter === '未裝袋') {
+                            if (st === '已裝袋' || st === '已裝箱' || st === '已寄送') return false;
+                        } else if (window.adminQuickFilter === '未裝箱') {
+                            if (st === '已裝箱' || st === '已寄送') return false;
+                        } else {
+                            if (st !== window.adminQuickFilter) return false;
+                        }
                     }
                 }
                 if (vA && r['機關名稱'] !== vA) return false; 
@@ -3158,11 +3178,10 @@
                     <td onclick="event.stopPropagation();">
                         <select class="quick-status-sel st-${st}" onchange="quickUpdateStatus(this, '${r['裝袋序號']}')" style="padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 90px; outline: none; -webkit-appearance: none; appearance: none; text-align: center;">
                             <option value="待確認" ${st==='待確認'?'selected':''}>待確認</option>
+                            <option value="有缺件" ${st==='有缺件'?'selected':''}>有缺件</option>
                             <option value="備料中" ${st==='備料中'?'selected':''}>備料中</option>
                             <option value="需複量" ${st==='需複量'?'selected':''}>需複量</option>
-                            <option value="未裝袋" ${st==='未裝袋'?'selected':''}>未裝袋</option>
                             <option value="已裝袋" ${st==='已裝袋'?'selected':''}>已裝袋</option>
-                            <option value="未裝箱" ${st==='未裝箱'?'selected':''}>未裝箱</option>
                             <option value="已裝箱" ${st==='已裝箱'?'selected':''}>已裝箱</option>
                             <option value="已寄送" ${st==='已寄送'?'selected':''}>已寄送</option>
                         </select>
@@ -3701,10 +3720,11 @@
                         </div>
                     `;
                     actionArea.innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#eab308; color:#eab308;" onclick="executeScanAction('待處理')">設為待處理</button>
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已裝袋')">設為已裝袋</button>
-                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已寄送')">設為已寄送</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ca8a04; color:#ca8a04;" onclick="executeScanAction('待確認')">設為待確認</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ea580c; color:#ea580c;" onclick="executeScanAction('備料中')">設為備料中</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#dc2626; color:#dc2626;" onclick="executeScanAction('需複量')">設為需複量</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#e11d48; color:#e11d48;" onclick="executeScanAction('有缺件')">設為有缺件</button>
+                        <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已裝袋')">設為已裝袋</button>
                     `;
                 } else {
                     area.innerHTML = "找不到此裝袋資料";
@@ -3786,7 +3806,7 @@
                     }, 0);
 
                     actionArea.innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺件')">設為有缺件</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#3b82f6;" onclick="executeScanAction('已裝箱')">設為已裝箱</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已寄送')">設為已寄送</button>
                     `;
@@ -3808,7 +3828,7 @@
                         </div>
                     `;
                     actionArea.innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('尚有缺件')">設為尚有缺件</button>
+                        <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#ef4444; color:#ef4444;" onclick="executeScanAction('有缺件')">設為有缺件</button>
                         <button class="btn btn-outline" style="width:100%; padding:15px; font-size:16px; border-color:#3b82f6; color:#3b82f6;" onclick="executeScanAction('已完成裝箱')">設為已完成裝箱</button>
                         <button class="btn btn-primary" style="width:100%; padding:15px; font-size:16px; background:#10b981;" onclick="executeScanAction('已出貨')">設為已出貨</button>
                     `;
