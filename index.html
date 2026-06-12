@@ -3050,6 +3050,8 @@
             const inp = document.getElementById('trackInp_' + boxId);
             const ul = document.getElementById('trackList_' + boxId);
             if (!inp || !ul) return;
+            if (!window.boxUniqueTracks || window.boxUniqueTracks.length === 0) return;
+            
             const val = inp.value.trim().toLowerCase();
             const lis = ul.querySelectorAll('li');
             lis.forEach(li => {
@@ -3710,7 +3712,7 @@
                 let isChunked = false;
                 let chunkIdx = 0, totalChunks = 1;
                 let boxInfoStr = "";
-                window.currentBoxId = null;
+                window.currentBoxId = box;
                 
                 if (idxParam !== null && capParam !== null) {
                     chunkIdx = parseInt(idxParam, 10);
