@@ -2018,36 +2018,15 @@
         }
         initAI();
 
-        function compressImage(file, callback) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    let w = img.width;
-                    let h = img.height;
-                    const maxDim = 1920;
-                    if (w > maxDim || h > maxDim) {
-                        if (w > h) { h = Math.round((h * maxDim) / w); w = maxDim; } 
-                        else { w = Math.round((w * maxDim) / h); h = maxDim; }
-                    }
-                    const cvs = document.createElement('canvas');
-                    cvs.width = w; cvs.height = h;
-                    cvs.getContext('2d').drawImage(img, 0, 0, w, h);
-                    callback(cvs.toDataURL('image/jpeg', 0.8));
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
         document.getElementById('imageUpload').addEventListener('change', function (e) {
             if (!e.target.files[0]) return;
             uploadedFileName = e.target.files[0].name;
             document.getElementById('fileNameDisplay').innerText = uploadedFileName + (views.side.img.src ? " (已上傳雙面)" : "");
             document.getElementById('fileNameDisplay').style.borderColor = "var(--primary)";
             document.getElementById('fileNameDisplay').style.color = "var(--primary)";
-            cStatus.innerText = "圖片載入與壓縮中...";
-            compressImage(e.target.files[0], function(dataUrl) {
+            cStatus.innerText = "圖片載入中...";
+            const reader = new FileReader();
+            reader.onload = e => { 
                 views.front.img.onload = function() {
                     if (currentView === 'front') {
                         canvas.width = views.front.img.width;
@@ -2057,8 +2036,9 @@
                         document.getElementById('btnCenterUpload').style.display = 'none';
                     }
                 };
-                views.front.img.src = dataUrl;
-            });
+                views.front.img.src = e.target.result; 
+            };
+            reader.readAsDataURL(e.target.files[0]);
         });
         
         document.getElementById('imageUploadSide').addEventListener('change', function (e) {
@@ -2067,8 +2047,9 @@
             document.getElementById('fileNameDisplay').innerText = (views.front.img.src ? uploadedFileName + " (已上傳雙面)" : uploadedFileNameSide + " (僅側面)");
             document.getElementById('fileNameDisplay').style.borderColor = "var(--primary)";
             document.getElementById('fileNameDisplay').style.color = "var(--primary)";
-            cStatus.innerText = "圖片載入與壓縮中...";
-            compressImage(e.target.files[0], function(dataUrl) {
+            cStatus.innerText = "圖片載入中...";
+            const reader = new FileReader();
+            reader.onload = e => { 
                 views.side.img.onload = function() {
                     if (currentView === 'side') {
                         canvas.width = views.side.img.width;
@@ -2078,8 +2059,9 @@
                         document.getElementById('btnCenterUpload').style.display = 'none';
                     }
                 };
-                views.side.img.src = dataUrl;
-            });
+                views.side.img.src = e.target.result; 
+            };
+            reader.readAsDataURL(e.target.files[0]);
         });
 
         views.front.img.onload = function () {
@@ -2684,12 +2666,11 @@
                     };
 
                     const selTAC = document.getElementById('chk-TAC').checked, selOPS = document.getElementById('chk-OPS').checked, selEMS = document.getElementById('chk-EMS').checked;
-                    const getSizes = (name, fallback) => window.RESERVE_ITEMS && window.RESERVE_ITEMS[name] ? window.RESERVE_ITEMS[name] : fallback;
                     const allSz = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-                    if (selTAC) { addField('長袖戰術服 (TL)', 'TL', getSizes('長袖戰術服', allSz), calcSize(ITEMS_DEF[0], sh, ch)); addField('短袖戰術服 (TS)', 'TS', getSizes('短袖戰術服', allSz), calcSize(ITEMS_DEF[1], sh, ch)); addField('戰術背心 (TV)', 'TV', getSizes('戰術背心', allSz), calcSize(ITEMS_DEF[2], sh, ch)); }
-                    if (selOPS) { addField('長袖操作服 (OPL)', 'OPL', getSizes('長袖操作服', allSz), calcSize(ITEMS_DEF[3], sh, ch)); addField('短袖操作服 (OPS)', 'OPS', getSizes('短袖操作服', allSz), calcSize(ITEMS_DEF[4], sh, ch)); }
-                    if (selEMS) { addField('救護外套 (EJ)', 'EJ', getSizes('救護外套', allSz), calcSize(ITEMS_DEF[5], sh, ch)); addField('救護背心 (EV)', 'EV', getSizes('救護背心', ['S', 'M', 'L', 'XL']), calcSize(ITEMS_DEF[6], sh, ch)); }
+                    if (selTAC) { addField('長袖戰術服 (TL)', 'TL', allSz, calcSize(ITEMS_DEF[0], sh, ch)); addField('短袖戰術服 (TS)', 'TS', allSz, calcSize(ITEMS_DEF[1], sh, ch)); addField('戰術背心 (TV)', 'TV', allSz, calcSize(ITEMS_DEF[2], sh, ch)); }
+                    if (selOPS) { addField('長袖操作服 (OPL)', 'OPL', allSz, calcSize(ITEMS_DEF[3], sh, ch)); addField('短袖操作服 (OPS)', 'OPS', allSz, calcSize(ITEMS_DEF[4], sh, ch)); }
+                    if (selEMS) { addField('救護外套 (EJ)', 'EJ', allSz, calcSize(ITEMS_DEF[5], sh, ch)); addField('救護背心 (EV)', 'EV', ['S', 'M', 'L', 'XL'], calcSize(ITEMS_DEF[6], sh, ch)); }
                     addField('戰術褲 (TP)', 'TP', [], calcPant(w, ins, hip));
                     addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
                     addField('戰術帽', 'CAP', ['S', 'M', 'L'], h < 165 ? 'S' : h < 178 ? 'M' : 'L');
@@ -3012,7 +2993,7 @@
                 const res = await fetch(url); const data = await res.json();
                 if (!data.error) {
                     if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; if (data.clothingSizes) window.RESERVE_ITEMS = data.clothingSizes; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     renderAdminBoard();
                     window.renderBoxAdminBoard();
                     populateLabelFilters();
@@ -3703,13 +3684,11 @@
             }
             
             setTimeout(() => {
-                const cleanup = () => {
+                window.print();
+                setTimeout(() => {
                     clones.forEach(c => c.remove());
                     allCards.forEach(c => c.style.display = '');
-                    window.removeEventListener('afterprint', cleanup);
-                };
-                window.addEventListener('afterprint', cleanup);
-                window.print();
+                }, 500);
             }, 50);
         };
 
