@@ -447,6 +447,23 @@
             gap: 15px;
         }
 
+        .sticky-action-bar {
+            position: sticky;
+            top: -5px;
+            z-index: 50;
+            background: var(--bg-surface);
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
         .filters {
             display: flex;
             gap: 10px;
@@ -497,6 +514,39 @@
 
         td {
             color: var(--text-main);
+        }
+
+        @media (max-width: 768px) {
+            .table-container table thead { display: none; }
+            .table-container table, .table-container table tbody { display: block; width: 100%; }
+            .table-container table tr {
+                display: flex;
+                flex-wrap: wrap;
+                margin-bottom: 20px;
+                padding: 15px 12px;
+                border: 2px solid #52525b;
+                border-radius: 12px;
+                background: var(--bg-surface);
+                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+            }
+            .table-container table td {
+                display: flex;
+                align-items: center;
+                border: none;
+                padding: 6px 4px;
+                white-space: normal;
+                word-break: break-word;
+                box-sizing: border-box;
+            }
+            .table-container table td:nth-child(1) { order: 1; width: 15%; justify-content: flex-start; }
+            .table-container table td:nth-child(3) { order: 2; width: 85%; justify-content: flex-end; font-size: 16px; }
+            .table-container table td:nth-child(4) { order: 3; width: 40%; font-size: 13px; color: var(--text-muted); padding-top: 8px; border-top: 1px dashed var(--border); margin-top: 4px; }
+            .table-container table td:nth-child(5) { order: 4; width: 40%; font-size: 16px; justify-content: center; padding-top: 8px; border-top: 1px dashed var(--border); margin-top: 4px; }
+            .table-container table td:nth-child(6) { order: 5; width: 20%; justify-content: flex-end; color: var(--text-muted); padding-top: 8px; border-top: 1px dashed var(--border); margin-top: 4px; }
+            .table-container table td:nth-child(7) { order: 6; width: 30%; font-size: 11px; color: var(--text-muted); padding-top: 8px; border-top: 1px dashed var(--border); margin-top: 4px; }
+            .table-container table td:nth-child(8) { order: 7; width: 70%; font-size: 11px; color: var(--text-main); padding-top: 8px; border-top: 1px dashed var(--border); margin-top: 4px; justify-content: flex-end; text-align: right; }
+            .table-container table td:nth-child(2) { order: 8; width: 100%; justify-content: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+            .table-container table td:nth-child(2) select { width: 80%; padding: 10px; font-size: 15px; }
         }
 
         .tag-status {
@@ -1368,7 +1418,7 @@
             </div>
         </div>
 
-        <div class="toolbar">
+        <div class="toolbar" style="margin-bottom: 10px;">
             <div class="filters">
                 <select id="filterAgency">
                     <option value="">所有機關</option>
@@ -1382,8 +1432,10 @@
                 <input type="text" id="filterSearch" placeholder="搜尋姓名或序號..." style="min-width:180px;">
                 <button class="btn btn-primary" onclick="queryAdminTable()">查詢</button>
             </div>
-            <div style="display:flex; gap:10px; align-items: center; flex-wrap: wrap;">
-                <select id="bulkStatusSelect" style="padding: 10px; border-radius: 6px; font-size: 13px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border);">
+        </div>
+        <div class="sticky-action-bar" style="flex-direction: column; align-items: stretch; gap: 12px; padding: 15px;">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="bulkStatusSelect" style="padding: 10px; border-radius: 6px; font-size: 14px; background: var(--bg-surface); color: var(--text-main); border: 1px solid var(--border); flex: 1;">
                     <option value="">批次狀態變更</option>
                     <option value="待確認">待確認</option>
                     <option value="有缺件">有缺件</option>
@@ -1393,10 +1445,12 @@
                     <option value="已裝箱">已裝箱</option>
                     <option value="已寄送">已寄送</option>
                 </select>
-                <button class="btn btn-outline" style="padding: 10px 14px; font-size: 13px;" onclick="applyBulkStatus()">套用</button>
-                <button class="btn btn-ghost" onclick="refreshAdminData()">重新整理</button>
-                <button class="btn btn-primary" style="background:#10b981; color:white;" onclick="exportCSV()">匯出
-                    CSV</button>
+                <button class="btn btn-primary" style="padding: 10px 20px; font-size: 14px; min-width: 80px;" onclick="applyBulkStatus()">套用</button>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content;" onclick="refreshAdminData()">重新整理</button>
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="printSelectedAdminLabels()">列印勾選標籤</button>
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="exportCSV()">匯出 CSV</button>
             </div>
         </div>
 
@@ -1743,9 +1797,26 @@
             if ((tab === 'admin' || tab === 'labels' || tab === 'system-config' || tab === 'box-admin') && !adminLoggedIn) {
                 document.getElementById('loginOverlay').style.display = 'flex';
             } else if ((tab === 'admin' || tab === 'labels' || tab === 'box-admin') && adminLoggedIn) {
-                if (tab === 'box-admin') window.renderBoxAdminBoard();
+                if (tab === 'admin') {
+                    document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">讀取資料中，請稍候...</td></tr>';
+                }
+                if (tab === 'box-admin') {
+                    document.getElementById('boxCardsContainer').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); grid-column: 1 / -1;">讀取資料中，請稍候...</div>';
+                }
+                if (tab === 'labels') {
+                    document.getElementById('labelRenderArea').innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center; font-size:16px;">讀取資料中，請稍候...</div>';
+                    document.getElementById('labelFilterArea').style.display = 'none';
+                    document.getElementById('reserveInputArea').style.display = 'none';
+                }
                 window.refreshAdminData(true).then(() => {
-                    if (tab === 'labels') document.getElementById('btnLblInner').click();
+                    if (tab === 'labels') {
+                        if (window._pendingSpecificBagNos) {
+                            window.renderLabels('inner', window._pendingSpecificBagNos);
+                            window._pendingSpecificBagNos = null;
+                        } else {
+                            document.getElementById('btnLblInner').click();
+                        }
+                    }
                 });
             }
         };
@@ -2869,9 +2940,26 @@
                     else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     else { throw new Error("VERSION_MISMATCH"); }
                     
+                    if (document.getElementById('view-admin').classList.contains('active')) {
+                        document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">讀取資料中，請稍候...</td></tr>';
+                    }
+                    if (document.getElementById('view-box-admin').classList.contains('active')) {
+                        document.getElementById('boxCardsContainer').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); grid-column: 1 / -1;">讀取資料中，請稍候...</div>';
+                    }
+                    if (document.getElementById('view-labels').classList.contains('active')) {
+                        document.getElementById('labelRenderArea').innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center; font-size:16px;">讀取資料中，請稍候...</div>';
+                        document.getElementById('labelFilterArea').style.display = 'none';
+                        document.getElementById('reserveInputArea').style.display = 'none';
+                    }
+
                     window.refreshAdminData(true).then(() => {
                         if (document.getElementById('view-labels').classList.contains('active')) {
-                            document.getElementById('btnLblInner').click();
+                            if (window._pendingSpecificBagNos) {
+                                window.renderLabels('inner', window._pendingSpecificBagNos);
+                                window._pendingSpecificBagNos = null;
+                            } else {
+                                document.getElementById('btnLblInner').click();
+                            }
                         }
                     });
                 }
@@ -2926,7 +3014,7 @@
                 document.getElementById('dashNotBoxed').innerText = allRecords.length - (boxedCount + sentCount);
 
                 const tbody = document.getElementById('tableBody'); 
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
             }
         }
 
@@ -3170,7 +3258,7 @@
             });
             const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
             filtered.forEach(r => {
-                const st = r['狀態'] || '待確認'; const sizes = `${r['身高']} / ${r['肩寬']} / ${r['胸圍']} / ${r['腰圍']} / ${r['臀圍']}`;
+                const st = r['狀態'] || '待確認'; const sizes = `高:${r['身高']} 肩:${r['肩寬']} 胸:${r['胸圍']} 腰:${r['腰圍']} 臀:${r['臀圍']}`;
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="text-align: center; width: 40px; cursor: pointer;" onclick="event.stopPropagation(); const cb = this.querySelector('input'); if(event.target !== cb) cb.checked = !cb.checked;">
@@ -3187,7 +3275,10 @@
                             <option value="已寄送" ${st==='已寄送'?'selected':''}>已寄送</option>
                         </select>
                     </td>
-                    <td style="font-family:monospace; color:var(--primary); font-weight:bold;">${r['裝袋序號']}</td>
+                    <td style="font-family:monospace; color:var(--primary); font-weight:bold;">
+                        ${r['裝袋序號']}
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-left:10px;" onclick="event.stopPropagation(); printSpecificLabels(['${r['裝袋序號']}'])">列印標籤</button>
+                    </td>
                     <td>${r['單位名稱']}</td>
                     <td><strong>${r['姓名']}</strong></td>
                     <td>${r['性別']}</td>
@@ -3197,6 +3288,9 @@
                 tr.onclick = (e) => { if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') showModal(r); }; 
                 tbody.appendChild(tr);
             });
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">查無符合條件的資料。</td></tr>';
+            }
         }
 
         function getDriveThumbnailUrl(url) {
@@ -3413,21 +3507,39 @@
             renderLabels(window.currentLabelType);
         };
 
-        window.renderLabels = function (type) {
+        window.printSpecificLabels = function(bagNos) {
+            if (!bagNos || bagNos.length === 0) {
+                alert("請先勾選要列印的項目！");
+                return;
+            }
+            window._pendingSpecificBagNos = bagNos;
+            window.switchTab('labels');
+        };
+
+        window.printSelectedAdminLabels = function() {
+            const chks = document.querySelectorAll('.admin-row-chk:checked');
+            const bagNos = Array.from(chks).map(c => c.value);
+            window.printSpecificLabels(bagNos);
+        };
+
+        window.renderLabels = function (type, specificBagNos = null) {
             window.currentLabelType = type;
             document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('active'));
-            if (event && event.target && event.target.classList.contains('btn-outline')) event.target.classList.add('active');
+            if (!specificBagNos && event && event.target && event.target.classList.contains('btn-outline')) event.target.classList.add('active');
 
             const renderArea = document.getElementById('labelRenderArea');
             document.getElementById('reserveInputArea').style.display = (type === 'reserve') ? 'block' : 'none';
-            document.getElementById('labelFilterArea').style.display = (type === 'inner' || type === 'squad') ? 'block' : 'none';
+            document.getElementById('labelFilterArea').style.display = ((type === 'inner' || type === 'squad') && !specificBagNos) ? 'block' : 'none';
             document.getElementById('globalCopiesWrap').style.display = (type === 'squad' || type === 'unit') ? 'flex' : 'none';
 
             renderArea.innerHTML = '';
             if (!allRecords || allRecords.length === 0) { renderArea.innerHTML = '<div style="color:var(--danger); padding:20px;">無資料可產生標籤，請先登入後台確認數據。</div>'; return; }
 
             let targetRecords = allRecords;
-            if (type === 'inner' || type === 'squad') {
+            if (specificBagNos && specificBagNos.length > 0) {
+                targetRecords = allRecords.filter(r => specificBagNos.includes(r['裝袋序號']));
+                document.getElementById('btnLblInner').classList.add('active');
+            } else if (type === 'inner' || type === 'squad') {
                 const vA = document.getElementById('lblFiltAgency').value, vB = document.getElementById('lblFiltBrigade').value, vU = document.getElementById('lblFiltUnit').value;
                 if (!vA && !vB && !vU) {
                     renderArea.innerHTML = '<div style="color:var(--text-muted); padding:20px; text-align:center;">請選擇上方的過濾條件並點選「查詢」才會產生標籤。</div>';
@@ -3453,10 +3565,11 @@
                 const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
                 targetRecords.forEach((r, idx) => {
                     let kit = '';
-                    if (r.sizes) { ['TL', 'TS', 'TV', 'OPL', 'OPS', 'EJ', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { if (r.sizes[k]) kit += `<div>　${sizeNames[k]}(${k}) : ${r.sizes[k]}</div>`; }); }
+                    if (r.sizes) { ['TL', 'TS', 'TV', 'OPL', 'OPS', 'EJ', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { if (r.sizes[k]) kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${r.sizes[k]}</div>`; }); }
                     const qrId = `qr_inner_${idx}`;
                     html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG</div>
-                    <div>UNIT: ${r['機關名稱']}</div><div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div><div>NAME: ${r['姓名']}</div><div>PERSON ID: ${r['人員識別碼']}</div><div>SERIES: ${r['配發系列'] || '-'}</div>
+                    <div style="font-size:48px; font-weight:900; line-height:1.1; margin-bottom:10px; letter-spacing:2px;">${r['姓名']}</div>
+                    <div>UNIT: ${r['機關名稱']}</div><div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div><div>SERIES: ${r['配發系列'] || '-'}</div>
                     <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div></div>
                     <div class="label-qr-wrap"><div style="font-size:14px; font-weight:bold; color:#000;">BAG NO:<br>${r['裝袋序號']}</div><div id="${qrId}" class="qr-box"></div></div></div>`;
                     labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=person&id=${encodeURIComponent(r['裝袋序號'])}` });
