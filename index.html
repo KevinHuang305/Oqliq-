@@ -1100,17 +1100,23 @@
             }
 
             #view-labels,
-            #view-labels * {
+            #view-labels *,
+            .print-active-container,
+            .print-active-container * {
                 visibility: visible;
             }
 
-            #view-labels {
-                position: relative !important;
+            #view-labels, .print-active-container {
+                position: absolute !important;
                 left: 0;
                 top: 0;
                 width: 100%;
                 padding: 0;
                 background: white;
+            }
+            
+            body.print-single-mode #view-labels {
+                display: none !important;
             }
 
             .label-grid {
@@ -1303,6 +1309,10 @@
                 <div class="section-title">尺碼確認與覆核</div>
                 <div class="status-box highlight" style="margin-bottom:15px;">已自動推算出最適尺碼。<br>若需調整，請直接修改下方選單。</div>
                 <div id="sizing-fields" style="display:flex; flex-direction:column; gap:10px;"></div>
+                <div class="form-group" style="margin-top:15px;">
+                    <label>褲長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※如需修改褲長，請在此輸入(如：加長2吋)。此修改將自動附註於現場備註。</span></label>
+                    <input type="text" id="val-pant-mod" placeholder="例如：加長2吋、減短1吋">
+                </div>
                 <div class="form-group" style="margin-top:15px;">
                     <label>現場備註 (選填)</label>
                     <textarea id="val-note" rows="2" placeholder="填寫特殊體型或需求..."></textarea>
@@ -2627,12 +2637,14 @@
             { code: 'OPL', name: '長袖操作服', type: 'top', table: [['XS', 45, 99], ['S', 46, 104], ['M', 47, 109], ['L', 48, 114], ['XL', 50, 119], ['2XL', 51, 125], ['3XL', 52, 130]] },
             { code: 'OPS', name: '短袖操作服', type: 'top', table: [['XS', 45, 99], ['S', 46, 104], ['M', 47, 109], ['L', 48, 114], ['XL', 50, 119], ['2XL', 51, 125], ['3XL', 52, 130]] },
             { code: 'EJ', name: '救護外套', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] },
-            { code: 'EV', name: '救護背心', type: 'vest', table: [['S', 38, 91, 98], ['M', 39, 101, 108], ['L', 40, 112, 118], ['XL', 42, 122, 128]] }
+            { code: 'EV', name: '救護背心', type: 'vest', table: [['S', 38, 91, 98], ['M', 39, 101, 108], ['L', 40, 112, 118], ['XL', 42, 122, 128]] },
+            { code: 'EJI', name: '救護外套內件', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] },
+            { code: 'TJ', name: '戰術外套', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] }
         ];
 
         function calcSize(item, sh, ch) {
             if (!sh && !ch) return 'M';
-            const ease = item.code === 'EJ' ? 12 : 8;
+            const ease = (item.code === 'EJ' || item.code === 'EJI' || item.code === 'TJ') ? 12 : 8;
             for (let r of item.table) {
                 let shOk = !sh || sh <= r[1] + 1;
                 let chOk = item.type === 'vest' ? (!ch || (ch >= r[2] - 6 && ch <= r[3] + 4)) : (!ch || (ch + ease) <= r[2]);
@@ -2687,9 +2699,9 @@
                     const getSizes = (name, fallback) => window.RESERVE_ITEMS && window.RESERVE_ITEMS[name] ? window.RESERVE_ITEMS[name] : fallback;
                     const allSz = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-                    if (selTAC) { addField('長袖戰術服 (TL)', 'TL', getSizes('長袖戰術服', allSz), calcSize(ITEMS_DEF[0], sh, ch)); addField('短袖戰術服 (TS)', 'TS', getSizes('短袖戰術服', allSz), calcSize(ITEMS_DEF[1], sh, ch)); addField('戰術背心 (TV)', 'TV', getSizes('戰術背心', allSz), calcSize(ITEMS_DEF[2], sh, ch)); }
+                    if (selTAC) { addField('長袖戰術服 (TL)', 'TL', getSizes('長袖戰術服', allSz), calcSize(ITEMS_DEF[0], sh, ch)); addField('短袖戰術服 (TS)', 'TS', getSizes('短袖戰術服', allSz), calcSize(ITEMS_DEF[1], sh, ch)); addField('戰術背心 (TV)', 'TV', getSizes('戰術背心', allSz), calcSize(ITEMS_DEF[2], sh, ch)); addField('戰術外套 (TJ)', 'TJ', getSizes('戰術外套', allSz), calcSize(ITEMS_DEF[8], sh, ch)); }
                     if (selOPS) { addField('長袖操作服 (OPL)', 'OPL', getSizes('長袖操作服', allSz), calcSize(ITEMS_DEF[3], sh, ch)); addField('短袖操作服 (OPS)', 'OPS', getSizes('短袖操作服', allSz), calcSize(ITEMS_DEF[4], sh, ch)); }
-                    if (selEMS) { addField('救護外套 (EJ)', 'EJ', getSizes('救護外套', allSz), calcSize(ITEMS_DEF[5], sh, ch)); addField('救護背心 (EV)', 'EV', getSizes('救護背心', ['S', 'M', 'L', 'XL']), calcSize(ITEMS_DEF[6], sh, ch)); }
+                    if (selEMS) { addField('救護外套 (EJ)', 'EJ', getSizes('救護外套', allSz), calcSize(ITEMS_DEF[5], sh, ch)); addField('救護外套內件 (EJI)', 'EJI', getSizes('救護外套內件', allSz), calcSize(ITEMS_DEF[7], sh, ch)); addField('救護背心 (EV)', 'EV', getSizes('救護背心', ['S', 'M', 'L', 'XL']), calcSize(ITEMS_DEF[6], sh, ch)); }
                     addField('戰術褲 (TP)', 'TP', [], calcPant(w, ins, hip));
                     addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
                     addField('戰術帽', 'CAP', ['S', 'M', 'L'], h < 165 ? 'S' : h < 178 ? 'M' : 'L');
@@ -2709,12 +2721,11 @@
                     const agency = document.getElementById('agencySelect').options[document.getElementById('agencySelect').selectedIndex]?.text || '';
                     const brigade = document.getElementById('brigadeSelect').options[document.getElementById('brigadeSelect').selectedIndex]?.text || '';
                     const seriesCode = document.getElementById('chk-TAC').checked ? 'TAC' : (document.getElementById('chk-OPS').checked ? 'OPS' : 'EMS');
-                    const dStr = (document.getElementById('registerDate').value || "").replace(/-/g, '').slice(2);
-                    const bagNo = `${seriesCode}-${pId}-${dStr}`;
+                    const bagNo = `${pId}`;
 
-                    const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
+                    const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
                     let kitHtml = "";
-                    ['TL', 'TS', 'TV', 'OPL', 'OPS', 'EJ', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => {
+                    ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => {
                         const el = document.getElementById(`sz_${k}`);
                         if (el) { let finalVal = el.value || currentRecordSizes[k]; if (finalVal) kitHtml += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${finalVal}</div>`; }
                     });
@@ -2810,8 +2821,14 @@
             formData.append("sz_vest", getFinalSz('TV') || getFinalSz('EV')); formData.append("sz_jacket", getFinalSz('EJ'));
             formData.append("sz_pant", getFinalSz('TP')); formData.append("sz_belt", getFinalSz('BELT'));
             formData.append("sz_cap", getFinalSz('CAP')); formData.append("sz_shoe", getFinalSz('SHOE'));
+            formData.append("sz_tac_jacket", getFinalSz('TJ')); formData.append("sz_ems_inner", getFinalSz('EJI'));
 
-            formData.append("note", document.getElementById('val-note').value);
+            let finalNote = document.getElementById('val-note').value.trim();
+            const pantMod = document.getElementById('val-pant-mod').value.trim();
+            if (pantMod) {
+                finalNote = (finalNote ? finalNote + " / " : "") + `褲長修改:${pantMod}`;
+            }
+            formData.append("note", finalNote);
 
             let finalDataURL = "";
             if (views.front.img.src || views.side.img.src) {
@@ -2889,7 +2906,7 @@
             document.getElementById('val-height').value = ''; document.getElementById('val-shoulder').value = '';
             document.getElementById('val-chest').value = ''; document.getElementById('val-waist').value = '';
             document.getElementById('val-hip').value = ''; document.getElementById('val-inseam').value = '';
-            document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = '';
+            document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = ''; document.getElementById('val-pant-mod').value = '';
 
             document.getElementById('submitStatus').style.display = 'none';
             document.getElementById('submitBtns').style.display = 'flex';
@@ -3354,7 +3371,7 @@
             document.getElementById('mAdminNote_txt').innerText = r['後台備註'] || '無'; document.getElementById('mAdminNote_inp').value = r['後台備註'] || '';
 
             const szObj = r.sizes || {}; let szHtml = '';
-            const szFields = [{ k: 'TL', l: '長袖' }, { k: 'TS', l: '短袖' }, { k: 'TV', l: '背心' }, { k: 'EJ', l: '外套' }, { k: 'TP', l: '戰術褲' }, { k: 'BELT', l: '褲帶' }, { k: 'CAP', l: '戰術帽' }, { k: 'SHOE', l: '消防靴' }];
+            const szFields = [{ k: 'TL', l: '長袖' }, { k: 'TS', l: '短袖' }, { k: 'TV', l: '背心' }, { k: 'TJ', l: '戰術外套' }, { k: 'EJ', l: '外套' }, { k: 'EJI', l: '外套內件' }, { k: 'TP', l: '戰術褲' }, { k: 'BELT', l: '褲帶' }, { k: 'CAP', l: '戰術帽' }, { k: 'SHOE', l: '消防靴' }];
             const clothesSizes = ['', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
             const shoeSizes = ['', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43'];
             const hatSizes = ['', 'F', 'S', 'M', 'L', 'XL'];
@@ -3421,6 +3438,7 @@
             formData.append("sz_long", document.getElementById('mSz_TL').value); formData.append("sz_short", document.getElementById('mSz_TS').value); formData.append("sz_vest", document.getElementById('mSz_TV').value);
             formData.append("sz_jacket", document.getElementById('mSz_EJ').value); formData.append("sz_pant", document.getElementById('mSz_TP').value); formData.append("sz_belt", document.getElementById('mSz_BELT').value);
             formData.append("sz_cap", document.getElementById('mSz_CAP').value); formData.append("sz_shoe", document.getElementById('mSz_SHOE').value);
+            formData.append("sz_tac_jacket", document.getElementById('mSz_TJ').value); formData.append("sz_ems_inner", document.getElementById('mSz_EJI').value);
             try {
                 const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
                 if (result.success) { alert("修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("修改失敗：" + (result.error || "未知錯誤"));
@@ -3701,11 +3719,16 @@
                 cardEl.parentElement.insertBefore(clone, cardEl.nextSibling);
                 clones.push(clone);
             }
+            const parentContainer = cardEl.parentElement;
+            parentContainer.classList.add('print-active-container');
+            document.body.classList.add('print-single-mode');
             
             setTimeout(() => {
                 const cleanup = () => {
                     clones.forEach(c => c.remove());
                     allCards.forEach(c => c.style.display = '');
+                    parentContainer.classList.remove('print-active-container');
+                    document.body.classList.remove('print-single-mode');
                     window.removeEventListener('afterprint', cleanup);
                 };
                 window.addEventListener('afterprint', cleanup);
