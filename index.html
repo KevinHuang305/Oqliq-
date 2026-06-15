@@ -145,6 +145,7 @@
             flex-direction: row;
         }
 
+        #view-home.active,
         #view-admin.active,
         #view-chart.active,
         #view-labels.active,
@@ -1149,7 +1150,8 @@
         <div class="nav-brand">FIRESCUE <span>v4</span></div>
         <div class="hamburger" onclick="toggleMenu()">☰</div>
         <div class="nav-menu" id="navMenu">
-            <div class="nav-tab active" onclick="switchTab('measure')">登記與量測</div>
+            <div class="nav-tab active" onclick="switchTab('home')">人員量測</div>
+            <div class="nav-tab" id="navMeasureTab" style="display:none;" onclick="switchTab('measure')">當前測量</div>
             <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
             <div class="nav-tab" onclick="switchTab('admin')">建檔名單</div>
             <div class="nav-tab" onclick="switchTab('box-admin')">分隊箱管理</div>
@@ -1159,9 +1161,45 @@
     </div>
 
     <!-- ==============================================
+     視圖 0：首頁 
+     ============================================== -->
+    <div id="view-home" class="view-container active scroll-view" style="padding:15px; padding-bottom:100px;">
+        <div class="section-title" style="margin-bottom:15px; font-size:20px;">1. 設定今日測量單位</div>
+        <div class="status-box" style="background:var(--surface); border:1px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+            <div class="form-group">
+                <label>機關名稱</label>
+                <select id="homeAgencySelect"><option value="">載入中...</option></select>
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>大隊/分類</label>
+                <select id="homeBrigadeSelect"><option value="">請先選擇機關</option></select>
+            </div>
+            <div class="form-group" style="margin-top:10px;">
+                <label>單位名稱</label>
+                <select id="homeUnitSelect"><option value="">請先選擇大隊</option></select>
+            </div>
+            <button class="btn btn-primary" style="width:100%; margin-top:15px; padding:12px; font-size:16px;" onclick="lockGlobalUnit()">鎖定此單位</button>
+        </div>
+
+        <div id="homeActionArea" style="display:none; margin-top:30px;">
+            <div class="section-title" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; font-size:20px;">
+                2. 選擇測量對象
+                <button class="btn btn-outline" style="font-size:12px; padding:6px 12px;" onclick="unlockGlobalUnit()">重新設定單位</button>
+            </div>
+            
+            <button class="btn btn-ghost" style="width:100%; padding:15px; border:2px dashed var(--primary); color:var(--primary); font-weight:bold; font-size:16px; margin-bottom:20px; border-radius:8px; cursor:pointer;" onclick="startMeasurement(null)">+ 手動新增臨時人員</button>
+            
+            <div style="font-size:16px; font-weight:bold; margin-bottom:15px; color:var(--text-main); border-bottom:2px solid var(--border); padding-bottom:5px;">分隊名單快選：</div>
+            <div id="rosterGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(100px, 1fr)); gap:10px;">
+                <!-- Roster items will be appended here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ==============================================
      視圖 1：測量與登記 
      ============================================== -->
-    <div id="view-measure" class="view-container active">
+    <div id="view-measure" class="view-container">
         <!-- 左側畫布區 -->
         <div class="main-content">
             <div class="view-tabs">
@@ -1217,17 +1255,19 @@
                 <div class="file-btn" id="fileNameDisplay" style="display:none;" onclick="document.getElementById('imageUpload').click()">
                     點擊選擇照片</div>
 
-                <div class="section-title" style="margin-top:10px;">單位與識別碼</div>
-                <div class="form-group"><select id="agencySelect">
-                        <option value="">載入機關中...</option>
-                    </select></div>
-                <div class="form-row">
-                    <select id="brigadeSelect" disabled>
-                        <option value="">大隊/分類</option>
-                    </select>
-                    <select id="unitSelect" disabled>
-                        <option value="">單位名稱</option>
-                    </select>
+                <div id="wizardUnitContainer" style="display:none;">
+                    <div class="section-title" style="margin-top:10px;">單位與識別碼</div>
+                    <div class="form-group"><select id="agencySelect">
+                            <option value="">載入機關中...</option>
+                        </select></div>
+                    <div class="form-row">
+                        <select id="brigadeSelect" disabled>
+                            <option value="">大隊/分類</option>
+                        </select>
+                        <select id="unitSelect" disabled>
+                            <option value="">單位名稱</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group"><input type="text" id="personId" class="id-input" placeholder="人員識別碼 (自動產生)"
                         readonly></div>
@@ -1243,20 +1283,42 @@
                 </div>
                 <div class="form-row">
                     <select id="personJob">
-                        <option value="">職稱</option>
+                        <option value="">選擇職稱...</option>
+                        <option value="隊員">隊員</option>
+                        <option value="小隊長">小隊長</option>
+                        <option value="分隊長">分隊長</option>
+                        <option value="科員">科員</option>
+                        <option value="組員">組員</option>
+                        <option value="股長">股長</option>
+                        <option value="組長">組長</option>
+                        <option value="中隊長">中隊長</option>
+                        <option value="副大隊長">副大隊長</option>
+                        <option value="技士">技士</option>
+                        <option value="副中隊長">副中隊長</option>
+                        <option value="科長">科長</option>
+                        <option value="技佐">技佐</option>
+                        <option value="大隊長">大隊長</option>
+                        <option value="專員">專員</option>
+                        <option value="辦事員">辦事員</option>
+                        <option value="專門委員">專門委員</option>
+                        <option value="技正">技正</option>
+                        <option value="管理師">管理師</option>
+                        <option value="主任">主任</option>
+                        <option value="副局長">副局長</option>
+                        <option value="局長">局長</option>
+                        <option value="秘書">秘書</option>
+                        <option value="主任秘書">主任秘書</option>
+                        <option value="督察">督察</option>
                         <option value="消防士">消防士</option>
                         <option value="副小隊長">副小隊長</option>
-                        <option value="小隊長">小隊長</option>
                         <option value="副分隊長">副分隊長</option>
-                        <option value="分隊長">分隊長</option>
-                        <option value="副大隊長">副大隊長</option>
-                        <option value="大隊長">大隊長</option>
                     </select>
                     <input type="number" id="personAge" placeholder="年齡">
                 </div>
                 <div class="form-group"><label>登記日期</label><input type="date" id="registerDate"></div>
 
-                <div class="nav-btns" style="justify-content: flex-end;">
+                <div class="nav-btns" style="justify-content: space-between;">
+                    <button class="btn btn-outline" onclick="window.switchTab('home')">重選人員</button>
                     <button class="btn btn-primary" onclick="goToStep(2)">下一步</button>
                 </div>
             </div>
@@ -1310,8 +1372,21 @@
                 <div class="status-box highlight" style="margin-bottom:15px;">已自動推算出最適尺碼。<br>若需調整，請直接修改下方選單。</div>
                 <div id="sizing-fields" style="display:flex; flex-direction:column; gap:10px;"></div>
                 <div class="form-group" style="margin-top:15px;">
-                    <label>褲長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※如需修改褲長，請在此輸入(如：加長2吋)。此修改將自動附註於現場備註。</span></label>
-                    <input type="text" id="val-pant-mod" placeholder="例如：加長2吋、減短1吋">
+                    <label>褲長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※修改將自動附註於現場備註</span></label>
+                    <style>#val-pant-mod-num::-webkit-outer-spin-button, #val-pant-mod-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } #val-pant-mod-num { -moz-appearance: textfield; }</style>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="val-pant-mod-type" style="padding:10px; border-radius:6px; border:1px solid var(--border); width:120px;" onchange="const show = this.value !== ''; document.getElementById('val-pant-mod-num-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-pant-mod-unit').style.display = show ? 'inline' : 'none';">
+                            <option value="">無修改</option>
+                            <option value="加長">加長</option>
+                            <option value="減短">減短</option>
+                        </select>
+                        <div id="val-pant-mod-num-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                            <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-pant-mod-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                            <input type="number" id="val-pant-mod-num" value="1" min="1" style="width:50px; border:none; text-align:center; padding:10px 0; outline:none; font-size:16px;">
+                            <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-pant-mod-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                        </div>
+                        <span id="val-pant-mod-unit" style="display:none; color:var(--text-muted); font-weight:bold;">吋</span>
+                    </div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
                     <label>現場備註 (選填)</label>
@@ -1323,7 +1398,7 @@
                 </div>
             </div>
 
-            <!-- Step 4 (💡 完整補回的預覽與 QR Code 區塊) -->
+            <!-- Step 4 -->
             <div class="step-content" id="step4">
                 <div class="section-title">最終確認與標籤預覽</div>
 
@@ -1762,10 +1837,91 @@
         let SYSTEM_BASE_URL = window.location.origin + window.location.pathname;
         let DEFAULT_ADMIN_PWD = localStorage.getItem('admin_pwd') || "";
 
-        let dbHierarchy = {}, dbSystemCodes = {};
+        let dbHierarchy = {}, dbSystemCodes = {}, dbRoster = [];
         let allRecords = [], adminLoggedIn = false, savedAdminPwd = DEFAULT_ADMIN_PWD;
         let currentRecordSizes = {};
         let labelQRCodes = [];
+        let globalLockedUnit = null;
+
+        function lockGlobalUnit() {
+            const a = document.getElementById('homeAgencySelect').value;
+            const b = document.getElementById('homeBrigadeSelect').value;
+            const u = document.getElementById('homeUnitSelect').value;
+            if (!a || !b || !u) { alert('請完整選擇單位！'); return; }
+            globalLockedUnit = { agency: a, brigade: b, unit: u };
+            document.getElementById('homeAgencySelect').disabled = true;
+            document.getElementById('homeBrigadeSelect').disabled = true;
+            document.getElementById('homeUnitSelect').disabled = true;
+            document.getElementById('homeActionArea').style.display = 'block';
+            event.target.style.display = 'none';
+            renderRosterGrid();
+        }
+
+        function unlockGlobalUnit() {
+            globalLockedUnit = null;
+            document.getElementById('homeAgencySelect').disabled = false;
+            document.getElementById('homeBrigadeSelect').disabled = false;
+            document.getElementById('homeUnitSelect').disabled = false;
+            document.getElementById('homeActionArea').style.display = 'none';
+            document.querySelector('#view-home .btn-primary').style.display = 'block';
+        }
+
+        function renderRosterGrid() {
+            const grid = document.getElementById('rosterGrid');
+            grid.innerHTML = '';
+            if (!globalLockedUnit) return;
+            const roster = dbRoster.filter(r => 
+                r['機關名稱'] === globalLockedUnit.agency && 
+                r['大隊'] === globalLockedUnit.brigade && 
+                r['分隊'] === globalLockedUnit.unit
+            );
+            if (roster.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">此單位沒有預載名單</div>';
+                return;
+            }
+            roster.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline';
+                btn.style.cssText = 'padding:12px 5px; font-size:14px; text-align:center; border-radius:8px;';
+                
+                const pKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                if (window.dbMeasured && window.dbMeasured.includes(pKey)) {
+                    btn.style.backgroundColor = '#333';
+                    btn.style.borderColor = '#444';
+                    btn.style.color = '#888';
+                    btn.innerHTML = p['姓名'] + '<br><small style="font-size:10px;">(已量測)</small>';
+                } else {
+                    btn.innerText = p['姓名'];
+                }
+                
+                btn.onclick = () => startMeasurement(p);
+                grid.appendChild(btn);
+            });
+        }
+
+        function startMeasurement(personData) {
+            switchTab('measure');
+            document.getElementById('wizardUnitContainer').style.display = 'none';
+            
+            document.getElementById('agencySelect').value = globalLockedUnit.agency;
+            document.getElementById('agencySelect').dispatchEvent(new Event('change'));
+            document.getElementById('brigadeSelect').value = globalLockedUnit.brigade;
+            document.getElementById('brigadeSelect').dispatchEvent(new Event('change'));
+            document.getElementById('unitSelect').value = globalLockedUnit.unit;
+            document.getElementById('unitSelect').dispatchEvent(new Event('change'));
+            
+            document.getElementById('personName').value = personData ? (personData['姓名'] || '') : '';
+            document.getElementById('personGender').value = personData ? (personData['性別'] || '') : '';
+            document.getElementById('personJob').value = personData ? (personData['職稱'] || '') : '';
+            document.getElementById('personAge').value = personData ? (personData['年齡'] || '') : '';
+            
+            goToStep(1);
+        }
+
+        window.lockGlobalUnit = lockGlobalUnit;
+        window.unlockGlobalUnit = unlockGlobalUnit;
+        window.startMeasurement = startMeasurement;
+
         window.currentLabelType = 'inner';
         let currentScanRecords = [];
         window.adminQuickFilter = '';
@@ -1796,6 +1952,13 @@
             }
 
             document.getElementById('navMenu').classList.remove('show');
+
+            if (tab === 'home') {
+                document.getElementById('navMeasureTab').style.display = 'none';
+            }
+            if (tab === 'measure') {
+                document.getElementById('navMeasureTab').style.display = 'block';
+            }
 
             document.getElementById('loginOverlay').style.display = 'none';
 
@@ -1841,13 +2004,18 @@
                 if (data.error) throw new Error(data.error);
 
                 dbHierarchy = data.hierarchy; dbSystemCodes = data.systemCodes;
+                dbRoster = data.roster || [];
+                window.dbMeasured = data.measured || [];
 
                 const agencySel = document.getElementById('agencySelect'), filterAgency = document.getElementById('filterAgency'), lblAgency = document.getElementById('lblFiltAgency');
+                const homeAgencySel = document.getElementById('homeAgencySelect');
                 agencySel.innerHTML = '<option value="">請選擇機關...</option>'; 
+                homeAgencySel.innerHTML = '<option value="">請選擇機關...</option>'; 
                 filterAgency.innerHTML = '<option value="">所有機關</option>';
                 lblAgency.innerHTML = '<option value="">所有機關</option>';
                 for (let agency in dbHierarchy) { 
                     agencySel.innerHTML += `<option value="${agency}">${agency}</option>`; 
+                    homeAgencySel.innerHTML += `<option value="${agency}">${agency}</option>`; 
                     filterAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
                     lblAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
                 }
@@ -1872,6 +2040,7 @@
                 }
                 setupCascadingDropdowns('filterAgency', 'filterBrigade', 'filterUnit');
                 setupCascadingDropdowns('lblFiltAgency', 'lblFiltBrigade', 'lblFiltUnit');
+                setupCascadingDropdowns('homeAgencySelect', 'homeBrigadeSelect', 'homeUnitSelect');
 
             } catch (e) { document.getElementById('agencySelect').innerHTML = `<option value="">⚠️ ${e.message}</option>`; }
         }
@@ -2735,6 +2904,14 @@
                     if (document.getElementById('chk-OPS').checked) dispSeries.push("OPS");
                     if (document.getElementById('chk-EMS').checked) dispSeries.push("EMS");
 
+                    let step4Note = document.getElementById('val-note').value.trim();
+                    const modType4 = document.getElementById('val-pant-mod-type').value;
+                    if (modType4) {
+                        const pantMod4 = modType4 + (document.getElementById('val-pant-mod-num').value || 1) + "吋";
+                        step4Note = (step4Note ? step4Note + " / " : "") + `褲長修改:${pantMod4}`;
+                    }
+                    const noteHtml = step4Note ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${step4Note}</div>` : "";
+
                     document.getElementById('step4LabelContainer').innerHTML = `
                         <div class="label-card" id="step4LabelCard" style="height:auto; min-height:10cm;">
                             <div class="label-text">
@@ -2746,6 +2923,7 @@
                                 <div>SQUAD: ${brigade} - ${unit}</div>
                                 <div>SERIES: ${dispSeries.join(", ") || '-'}</div>
                                 <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kitHtml}</div>
+                                ${noteHtml}
                             </div>
                             <div class="label-qr-wrap">
                                 <div style="font-size:14px; font-weight:bold; color:#000;">BAG NO:<br>${bagNo}</div>
@@ -2824,8 +3002,9 @@
             formData.append("sz_tac_jacket", getFinalSz('TJ')); formData.append("sz_ems_inner", getFinalSz('EJI'));
 
             let finalNote = document.getElementById('val-note').value.trim();
-            const pantMod = document.getElementById('val-pant-mod').value.trim();
-            if (pantMod) {
+            const modType = document.getElementById('val-pant-mod-type').value;
+            if (modType) {
+                const pantMod = modType + (document.getElementById('val-pant-mod-num').value || 1) + "吋";
                 finalNote = (finalNote ? finalNote + " / " : "") + `褲長修改:${pantMod}`;
             }
             formData.append("note", finalNote);
@@ -2893,6 +3072,16 @@
                     btn.innerText = "上傳雲端存檔"; btn.disabled = false;
                     document.getElementById('submitBtns').style.display = 'none';
                     document.getElementById('nextPersonZone').style.display = 'block';
+
+                    const a = document.getElementById('agencySelect').value;
+                    const b = document.getElementById('brigadeSelect').value;
+                    const u = document.getElementById('unitSelect').value;
+                    const n = document.getElementById('personName').value;
+                    const pKey = `${a}_${b}_${u}_${n}`;
+                    if (window.dbMeasured && !window.dbMeasured.includes(pKey)) {
+                        window.dbMeasured.push(pKey);
+                        renderRosterGrid();
+                    }
                 }).catch(err => {
                     alert("⚠️ 網路請求已送出。若 GAS 設定正確資料應已寫入！");
                     btn.innerText = "上傳雲端存檔"; btn.disabled = false;
@@ -2906,7 +3095,9 @@
             document.getElementById('val-height').value = ''; document.getElementById('val-shoulder').value = '';
             document.getElementById('val-chest').value = ''; document.getElementById('val-waist').value = '';
             document.getElementById('val-hip').value = ''; document.getElementById('val-inseam').value = '';
-            document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = ''; document.getElementById('val-pant-mod').value = '';
+            document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = ''; 
+            document.getElementById('val-pant-mod-type').value = ''; document.getElementById('val-pant-mod-num').value = '1';
+            document.getElementById('val-pant-mod-num-wrap').style.display = 'none'; document.getElementById('val-pant-mod-unit').style.display = 'none';
 
             document.getElementById('submitStatus').style.display = 'none';
             document.getElementById('submitBtns').style.display = 'flex';
@@ -2935,6 +3126,9 @@
             
             window.switchCanvasView('front');
             goToStep(1);
+            if (globalLockedUnit) {
+                switchTab('home');
+            }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
@@ -3350,6 +3544,7 @@
         }
 
         window.showModal = function (r) {
+            window._currentAdminRecord = r;
             document.getElementById('detailModal').classList.add('active'); window.toggleEditMode(false);
 
             document.getElementById('mBagNo').innerText = r['裝袋序號']; document.getElementById('mPersonId').innerText = r['人員識別碼'];
@@ -3432,13 +3627,32 @@
             const btnSave = document.getElementById('btnSaveEdit'); btnSave.innerText = "儲存中..."; btnSave.disabled = true;
             const formData = new URLSearchParams();
             formData.append("action", "updateRecord"); formData.append("bagNo", document.getElementById('mBagNo').innerText);
+            
+            const orig = window._currentAdminRecord || { sizes: {} };
+
             const selectedSeries = Array.from(document.querySelectorAll('.mSeries-chk:checked')).map(c => c.value).join(', ');
-            if (document.getElementById('mSeries_inp')) formData.append("series", selectedSeries);
-            formData.append("status", document.getElementById('mStatus_inp').value); formData.append("adminNote", document.getElementById('mAdminNote_inp').value);
-            formData.append("sz_long", document.getElementById('mSz_TL').value); formData.append("sz_short", document.getElementById('mSz_TS').value); formData.append("sz_vest", document.getElementById('mSz_TV').value);
-            formData.append("sz_jacket", document.getElementById('mSz_EJ').value); formData.append("sz_pant", document.getElementById('mSz_TP').value); formData.append("sz_belt", document.getElementById('mSz_BELT').value);
-            formData.append("sz_cap", document.getElementById('mSz_CAP').value); formData.append("sz_shoe", document.getElementById('mSz_SHOE').value);
-            formData.append("sz_tac_jacket", document.getElementById('mSz_TJ').value); formData.append("sz_ems_inner", document.getElementById('mSz_EJI').value);
+            if (document.getElementById('mSeries_inp') && selectedSeries !== (orig['配發系列'] || '')) {
+                formData.append("series", selectedSeries);
+            }
+            
+            const newStatus = document.getElementById('mStatus_inp').value;
+            if (newStatus !== orig['狀態']) formData.append("status", newStatus);
+            
+            const newAdminNote = document.getElementById('mAdminNote_inp').value;
+            if (newAdminNote !== (orig['後台備註'] || '')) formData.append("adminNote", newAdminNote);
+            
+            const szMap = {
+                "sz_long": { el: 'mSz_TL', k: 'TL' }, "sz_short": { el: 'mSz_TS', k: 'TS' }, "sz_vest": { el: 'mSz_TV', k: 'TV' },
+                "sz_jacket": { el: 'mSz_EJ', k: 'EJ' }, "sz_tac_jacket": { el: 'mSz_TJ', k: 'TJ' }, "sz_ems_inner": { el: 'mSz_EJI', k: 'EJI' },
+                "sz_pant": { el: 'mSz_TP', k: 'TP' }, "sz_belt": { el: 'mSz_BELT', k: 'BELT' },
+                "sz_cap": { el: 'mSz_CAP', k: 'CAP' }, "sz_shoe": { el: 'mSz_SHOE', k: 'SHOE' }
+            };
+
+            for (let param in szMap) {
+                const newSz = document.getElementById(szMap[param].el).value;
+                const oldSz = (orig.sizes && orig.sizes[szMap[param].k]) ? orig.sizes[szMap[param].k] : '';
+                if (newSz !== oldSz) formData.append(param, newSz);
+            }
             try {
                 const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
                 if (result.success) { alert("修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("修改失敗：" + (result.error || "未知錯誤"));
@@ -3617,12 +3831,13 @@
                 const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
                 targetRecords.forEach((r, idx) => {
                     let kit = '';
-                    if (r.sizes) { ['TL', 'TS', 'TV', 'OPL', 'OPS', 'EJ', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { if (r.sizes[k]) kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${r.sizes[k]}</div>`; }); }
+                    if (r.sizes) { ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { if (r.sizes[k]) kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${r.sizes[k]}</div>`; }); }
                     const qrId = `qr_inner_${idx}`;
+                    const innerNoteHtml = r['現場備註'] ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${r['現場備註']}</div>` : "";
                     html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG</div>
                     <div style="font-size:48px; font-weight:900; line-height:1.1; margin-bottom:10px; letter-spacing:2px;">${r['姓名']}</div>
                     <div>UNIT: ${r['機關名稱']}</div><div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div><div>SERIES: ${r['配發系列'] || '-'}</div>
-                    <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div></div>
+                    <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div>${innerNoteHtml}</div>
                     <div class="label-qr-wrap"><div style="font-size:14px; font-weight:bold; color:#000;">BAG NO:<br>${r['裝袋序號']}</div><div id="${qrId}" class="qr-box"></div></div></div>`;
                     labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=person&id=${encodeURIComponent(r['裝袋序號'])}` });
                 });
