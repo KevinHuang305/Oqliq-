@@ -1135,6 +1135,7 @@
                 box-shadow: none;
                 margin-bottom: 10px;
                 background: white !important;
+                overflow: hidden;
             }
         }
     </style>
@@ -1659,6 +1660,53 @@
                 <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">將更新雲端密碼，同時儲存於本機免重複登入 (若不變更請留空)</div>
                 <input type="password" id="settingAdminPwd" placeholder="輸入密碼" style="width:100%; box-sizing:border-box; padding:12px; border-radius:6px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-size:16px;">
             </div>
+            
+            <h3 style="color:var(--text-main); font-weight: 800; border-top: 1px solid var(--border); margin-top: 40px; padding-top: 20px;">🖨️ 列印標籤排版設定</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">標籤寬度 (mm)</label>
+                    <input type="number" id="lblSetW" value="50" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">標籤高度 (mm)</label>
+                    <input type="number" id="lblSetH" value="30" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">左右間距 (mm)</label>
+                    <input type="number" id="lblSetGapX" value="2" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">上下間距 (mm)</label>
+                    <input type="number" id="lblSetGapY" value="2" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">頁面上邊界 (mm)</label>
+                    <input type="number" id="lblSetMt" value="10" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">頁面左邊界 (mm)</label>
+                    <input type="number" id="lblSetMl" value="10" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">內容顯示比例 (例如 0.8 為縮小)</label>
+                    <input type="number" id="lblSetScale" value="1.0" step="0.1" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg); color:var(--text-main);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">列印紙張模式</label>
+                    <select id="lblSetPageMode" onchange="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:#000; color:#fff;">
+                        <option value="custom">自訂標籤尺寸 (標籤機用)</option>
+                        <option value="A4">A4 貼紙排版 (連續列印用)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="padding:20px 10px; border-radius:8px; margin-bottom:30px;">
+                <div style="font-size:12px; font-weight:bold; color:#666; margin-bottom:10px; text-align:center;">即時預覽 (A4 比例呈現)</div>
+                <div id="lblPreviewArea" style="background:white; margin:0 auto; position:relative; overflow:hidden; border:1px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); box-sizing:border-box;">
+                    <!-- 預覽方塊會動態生成 -->
+                </div>
+            </div>
+
             
             <button class="btn" style="width:100%; padding:15px; font-size:18px; font-weight:bold; border-radius:8px; background:#121212; color:#f97316; border:2px solid #f97316; cursor:pointer; text-transform:uppercase; transition:all 0.3s;" onmouseover="this.style.background='#f97316'; this.style.color='#000'" onmouseout="this.style.background='#121212'; this.style.color='#f97316'" onclick="saveSettings()">💾 儲存設定</button>
         </div>
@@ -2914,20 +2962,26 @@
 
                     document.getElementById('step4LabelContainer').innerHTML = `
                         <div class="label-card" id="step4LabelCard" style="height:auto; min-height:10cm;">
-                            <div class="label-text">
-                                <div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG
+                            <div class="label-card-inner">
+                                <div class="label-text">
+                                    <div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                                        <div style="flex:1;">
+                                            <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${pName}</div>
+                                            <div>UNIT: ${agency}</div>
+                                            <div>SQUAD: ${brigade} - ${unit}</div>
+                                            <div>SERIES: ${dispSeries.join(", ") || '-'}</div>
+                                        </div>
+                                        <div class="label-qr-wrap" style="text-align:right; margin-left:10px; flex-shrink:0;">
+                                            <div id="step4QrCode" class="qr-box"></div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kitHtml}</div>
+                                    ${noteHtml}
+                                    <div style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${bagNo}</div>
                                 </div>
-                                <div style="font-size:48px; font-weight:900; line-height:1.1; margin-bottom:10px; letter-spacing:2px;">${pName}</div>
-                                <div>UNIT: ${agency}</div>
-                                <div>SQUAD: ${brigade} - ${unit}</div>
-                                <div>SERIES: ${dispSeries.join(", ") || '-'}</div>
-                                <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kitHtml}</div>
-                                ${noteHtml}
-                            </div>
-                            <div class="label-qr-wrap">
-                                <div style="font-size:14px; font-weight:bold; color:#000;">BAG NO:<br>${bagNo}</div>
-                                <div id="step4QrCode" class="qr-box"></div>
                             </div>
                         </div>
                     `;
@@ -3835,10 +3889,19 @@
                     const qrId = `qr_inner_${idx}`;
                     const innerNoteHtml = r['現場備註'] ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${r['現場備註']}</div>` : "";
                     html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG</div>
-                    <div style="font-size:48px; font-weight:900; line-height:1.1; margin-bottom:10px; letter-spacing:2px;">${r['姓名']}</div>
-                    <div>UNIT: ${r['機關名稱']}</div><div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div><div>SERIES: ${r['配發系列'] || '-'}</div>
-                    <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div>${innerNoteHtml}</div>
-                    <div class="label-qr-wrap"><div style="font-size:14px; font-weight:bold; color:#000;">BAG NO:<br>${r['裝袋序號']}</div><div id="${qrId}" class="qr-box"></div></div></div>`;
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                        <div style="flex:1;">
+                            <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${r['姓名']}</div>
+                            <div>UNIT: ${r['機關名稱']}</div>
+                            <div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div>
+                            <div>SERIES: ${r['配發系列'] || '-'}</div>
+                        </div>
+                        <div class="label-qr-wrap" style="text-align:right; margin-left:10px; flex-shrink:0;">
+                            <div id="${qrId}" class="qr-box"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div>${innerNoteHtml}
+                    <div style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${r['裝袋序號']}</div></div></div>`;
                     labelQRCodes.push({ id: qrId, text: `${SYSTEM_BASE_URL}?scan=person&id=${encodeURIComponent(r['裝袋序號'])}` });
                 });
             }
@@ -3876,10 +3939,21 @@
                             qrUrl += `&idx=${chunkIdx}&cap=${capacity}`;
                         }
                         
-                        html += `<div class="label-card" style="height:auto; min-height:10cm;">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
-                        <div>UNIT: ${first['機關名稱']}</div><div>SQUAD: ${first['單位名稱']}</div><div>BOX NO: ${boxNoDisp}</div><div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
-                        <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div>
-                        <div class="label-qr-wrap" style="position:relative; margin-top:20px; align-self:flex-end;"><div style="font-size:11px; color:#555;">掃描確認分隊箱 (${chunkIdx+1}/${totalBoxes})</div><div id="${qrId}" class="qr-box"></div></div></div>`;
+                        html += `<div class="label-card" style="height:auto; min-height:10cm;">${getPrintTool()}<div class="label-text">
+                        <div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
+                            <div style="flex:1;">
+                                <div>UNIT: ${first['機關名稱']}</div>
+                                <div style="font-size:32px; font-weight:900; line-height:1.1; margin:6px 0; word-break:break-all;">${first['單位名稱']}</div>
+                                <div>BOX NO: ${boxNoDisp}</div>
+                                <div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
+                            </div>
+                            <div class="label-qr-wrap" style="display:flex; flex-direction:column; align-items:center; margin-left:10px; flex-shrink:0;">
+                                <div id="${qrId}" class="qr-box" style="margin-bottom:4px;"></div>
+                                <div style="font-size:11px; font-weight:bold; color:#000; text-align:center;">SCAN BOX<br>(${chunkIdx+1}/${totalBoxes})</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div></div>`;
                         labelQRCodes.push({ id: qrId, text: qrUrl });
                     });
                 });
@@ -3904,6 +3978,19 @@
             
             setTimeout(() => {
                 renderArea.innerHTML = html;
+                
+                // 動態打包 label-card 內部元素，確保 transform: scale 運作正常
+                Array.from(renderArea.querySelectorAll('.label-card')).forEach(card => {
+                    const inner = document.createElement('div');
+                    inner.className = 'label-card-inner';
+                    Array.from(card.childNodes).forEach(child => {
+                        if (!child.classList || !child.classList.contains('no-print')) {
+                            inner.appendChild(child);
+                        }
+                    });
+                    card.appendChild(inner);
+                });
+
                 let qrIndex = 0;
                 function processQRBatch() {
                     const end = Math.min(qrIndex + 50, labelQRCodes.length);
@@ -3962,6 +4049,17 @@
             <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;">USAGE:<br>${usage}</div></div>
             <div class="label-qr-wrap"><div id="${qrId}" class="qr-box"></div></div></div>`;
             document.getElementById('labelRenderArea').insertAdjacentHTML('afterbegin', html);
+            
+            const newCard = document.getElementById('labelRenderArea').firstElementChild;
+            const inner = document.createElement('div');
+            inner.className = 'label-card-inner';
+            Array.from(newCard.childNodes).forEach(child => {
+                if (!child.classList || !child.classList.contains('no-print')) {
+                    inner.appendChild(child);
+                }
+            });
+            newCard.appendChild(inner);
+
             setTimeout(() => { try { new QRCode(document.getElementById(qrId), { text: `RES-${item}-${size}`, width: 96, height: 96 }); } catch (e) { } }, 100);
         };
 
@@ -4018,11 +4116,183 @@
                 const result = await res.json();
                 if (result.status === 'success' && result.data) {
                     if (result.data.base_url) SYSTEM_BASE_URL = result.data.base_url;
+                    if (result.data.label_config) {
+                        try {
+                            const lConf = JSON.parse(result.data.label_config);
+                            if(lConf.w !== undefined) document.getElementById('lblSetW').value = lConf.w;
+                            if(lConf.h !== undefined) document.getElementById('lblSetH').value = lConf.h;
+                            if(lConf.gx !== undefined) document.getElementById('lblSetGapX').value = lConf.gx;
+                            if(lConf.gy !== undefined) document.getElementById('lblSetGapY').value = lConf.gy;
+                            if(lConf.mt !== undefined) document.getElementById('lblSetMt').value = lConf.mt;
+                            if(lConf.ml !== undefined) document.getElementById('lblSetMl').value = lConf.ml;
+                            if(lConf.scale !== undefined) document.getElementById('lblSetScale').value = lConf.scale;
+                            if(lConf.pageMode !== undefined) document.getElementById('lblSetPageMode').value = lConf.pageMode;
+                        } catch(err) {}
+                    }
                 }
             } catch (e) {
                 console.warn("無法從雲端取得設定，使用預設值", e);
             }
             document.getElementById('settingBaseUrl').value = SYSTEM_BASE_URL;
+            window.updatePrintPreview(); // Ensure styles are applied initially
+        };
+
+        window.updatePrintPreview = function() {
+            const w = parseFloat(document.getElementById('lblSetW').value) || 50;
+            const h = parseFloat(document.getElementById('lblSetH').value) || 30;
+            const gx = parseFloat(document.getElementById('lblSetGapX').value) || 2;
+            const gy = parseFloat(document.getElementById('lblSetGapY').value) || 2;
+            const mt = parseFloat(document.getElementById('lblSetMt').value) || 10;
+            const ml = parseFloat(document.getElementById('lblSetMl').value) || 10;
+            const manualScale = parseFloat(document.getElementById('lblSetScale').value) || 1.0;
+            const pageMode = document.getElementById('lblSetPageMode').value || 'custom';
+
+            const area = document.getElementById('lblPreviewArea');
+            const scale = 1.4; // 預覽畫面的縮放比例
+            if (pageMode === 'A4') {
+                area.style.width = (210 * scale) + "px";
+                area.style.height = (297 * scale) + "px";
+                area.style.paddingTop = (mt * scale) + "px";
+                area.style.paddingLeft = (ml * scale) + "px";
+            } else {
+                area.style.width = (w * scale) + "px";
+                area.style.height = (h * scale) + "px";
+                area.style.paddingTop = "0px";
+                area.style.paddingLeft = "0px";
+            }
+            area.innerHTML = '';
+            
+            let boxCount = 1;
+            if (pageMode === 'A4') {
+                const availW = 210 - ml;
+                const availH = 297 - mt;
+                const cols = Math.floor((availW + gx) / (w + gx));
+                const rows = Math.floor((availH + gy) / (h + gy));
+                boxCount = (cols > 0 && rows > 0) ? cols * rows : 0;
+                if (boxCount > 100) boxCount = 100; // Limit for preview
+            }
+            
+            for(let i=0; i<boxCount; i++) {
+                let box = document.createElement('div');
+                box.style.width = (w * scale) + "px";
+                box.style.height = (h * scale) + "px";
+                box.style.marginRight = (gx * scale) + "px";
+                box.style.marginBottom = (gy * scale) + "px";
+                box.style.background = "#e0f2fe";
+                box.style.border = "1px dashed #3b82f6";
+                box.style.borderRadius = "2px";
+                box.style.display = "inline-block";
+                box.style.boxSizing = "border-box";
+                box.style.float = "left";
+                box.innerHTML = `<div style="font-size:10px; color:#0369a1; text-align:center; padding-top:4px;">${w}x${h}</div>`;
+                area.appendChild(box);
+            }
+
+            let styleTag = document.getElementById('dynamicPrintStyle');
+            if(!styleTag) {
+                styleTag = document.createElement('style');
+                styleTag.id = 'dynamicPrintStyle';
+                document.head.appendChild(styleTag);
+            }
+            
+            const scalePrint = (w / 85) * manualScale;
+            const scaleScreen = scalePrint * 0.75;
+            const innerW = 85 / manualScale;
+            const innerH = h / scalePrint;
+
+            let pageCSS = `size: ${w}mm ${h}mm !important; margin: ${mt}mm auto auto ${ml}mm !important;`;
+            if (pageMode === 'A4') {
+                pageCSS = `size: A4 !important; margin: ${mt}mm auto auto ${ml}mm !important;`;
+            }
+
+            if (!window.updateScreenScale) {
+                window.updateScreenScale = function() {
+                    const currentW = parseFloat(document.getElementById('lblSetW').value) || 50;
+                    const currentGx = parseFloat(document.getElementById('lblSetGapX').value) || 2;
+                    const w_px = (currentW + currentGx) * 3.78;
+                    const availableWidth = document.documentElement.clientWidth - 50;
+                    let scale = availableWidth / w_px;
+                    const maxScale = 400 / w_px;
+                    if (scale > maxScale) scale = maxScale;
+                    document.documentElement.style.setProperty('--screen-scale', scale);
+                };
+                window.addEventListener('resize', window.updateScreenScale);
+            }
+            window.updateScreenScale();
+
+            styleTag.innerHTML = `
+                /* 網頁畫面 (#view-labels) 的預覽：手機上自動填滿畫面，電腦上最大400px，且比例與列印完全一致 */
+                @media screen {
+                    #view-labels .label-grid {
+                        display: flex !important;
+                        flex-wrap: wrap !important;
+                        gap: 0 !important;
+                        padding: 5px !important;
+                        justify-content: center !important;
+                    }
+                    #view-labels .label-card {
+                        width: calc(${w}mm * var(--screen-scale, 1.0)) !important;
+                        height: calc(${h}mm * var(--screen-scale, 1.0)) !important;
+                        margin-right: calc(${gx}mm * var(--screen-scale, 1.0)) !important;
+                        margin-bottom: calc(${gy}mm * var(--screen-scale, 1.0)) !important;
+                        box-sizing: border-box !important;
+                        overflow: hidden !important;
+                        position: relative !important;
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+                    #view-labels .label-card-inner {
+                        width: ${innerW}mm !important;
+                        height: ${innerH}mm !important;
+                        padding: 15px !important;
+                        box-sizing: border-box !important;
+                        transform-origin: top left !important;
+                        transform: scale(calc(${scalePrint} * var(--screen-scale, 1.0))) !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justify-content: space-between !important;
+                    }
+                }
+
+                /* 實體列印：完全遵照設定尺寸 */
+                @media print {
+                    @page { 
+                        ${pageCSS}
+                    }
+                    .label-grid {
+                        display: block !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                    .label-card {
+                        float: left !important;
+                        width: ${w}mm !important;
+                        height: ${h}mm !important;
+                        margin: 0 !important;
+                        margin-right: ${gx}mm !important;
+                        margin-bottom: ${gy}mm !important;
+                        box-sizing: border-box !important;
+                        overflow: hidden !important;
+                        position: relative !important;
+                        padding: 0 !important;
+                        background: white !important;
+                    }
+                    .label-card-inner {
+                        width: ${innerW}mm !important;
+                        height: ${innerH}mm !important;
+                        padding: 15px !important;
+                        box-sizing: border-box !important;
+                        transform-origin: top left !important;
+                        transform: scale(${scalePrint}) !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justify-content: space-between !important;
+                    }
+                    .label-card .no-print {
+                        display: none !important;
+                    }
+                }
+            `;
         };
 
         window.saveSettings = async function () {
@@ -4038,6 +4308,18 @@
             formData.append("action", "saveSettings");
             formData.append("base_url", baseUrl);
             if (pwd) formData.append("admin_pwd", pwd);
+
+            const lConf = {
+                w: parseFloat(document.getElementById('lblSetW').value) || 50,
+                h: parseFloat(document.getElementById('lblSetH').value) || 30,
+                gx: parseFloat(document.getElementById('lblSetGapX').value) || 2,
+                gy: parseFloat(document.getElementById('lblSetGapY').value) || 2,
+                mt: parseFloat(document.getElementById('lblSetMt').value) || 10,
+                ml: parseFloat(document.getElementById('lblSetMl').value) || 10,
+                scale: parseFloat(document.getElementById('lblSetScale').value) || 1.0,
+                pageMode: document.getElementById('lblSetPageMode').value || 'custom'
+            };
+            formData.append("label_config", JSON.stringify(lConf));
 
             try {
                 const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
