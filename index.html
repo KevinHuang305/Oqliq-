@@ -145,7 +145,14 @@
             flex-direction: row;
         }
 
-        #view-home.active,
+        #view-home.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #view-wizard.active,
         #view-admin.active,
         #view-chart.active,
         #view-labels.active,
@@ -1151,7 +1158,8 @@
         <div class="nav-brand">FIRESCUE <span>v4</span></div>
         <div class="hamburger" onclick="toggleMenu()">☰</div>
         <div class="nav-menu" id="navMenu">
-            <div class="nav-tab active" onclick="switchTab('home')">人員量測</div>
+            <div class="nav-tab active" onclick="switchTab('home')">首頁</div>
+            <div class="nav-tab" onclick="switchTab('wizard')">人員量測</div>
             <div class="nav-tab" id="navMeasureTab" style="display:none;" onclick="switchTab('measure')">當前測量</div>
             <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
             <div class="nav-tab" onclick="switchTab('admin')">建檔名單</div>
@@ -1162,9 +1170,20 @@
     </div>
 
     <!-- ==============================================
-     視圖 0：首頁 
+     視圖 0：首頁 (Portal)
      ============================================== -->
-    <div id="view-home" class="view-container active scroll-view" style="padding:15px; padding-bottom:100px;">
+    <div id="view-home" class="view-container active scroll-view" style="padding:15px; background:var(--bg);">
+        <h1 style="font-size: 56px; font-weight: 900; margin-bottom: 50px; color: var(--primary); letter-spacing: 2px; text-shadow: 0 4px 12px rgba(0,0,0,0.1);">Firescue</h1>
+        <div style="display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 320px;">
+            <button class="btn btn-primary" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.2s; cursor: pointer;" onclick="switchTab('wizard')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">量測精靈</button>
+            <button class="btn btn-outline" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; border-width: 2px; transition: transform 0.2s; cursor: pointer;" onclick="switchTab('admin')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">建檔名單</button>
+        </div>
+    </div>
+
+    <!-- ==============================================
+     視圖 1：人員量測 (Wizard)
+     ============================================== -->
+    <div id="view-wizard" class="view-container scroll-view" style="padding:15px; padding-bottom:100px;">
         <div class="section-title" style="margin-bottom:15px; font-size:20px;">1. 設定今日測量單位</div>
         <div class="status-box" style="background:var(--surface); border:1px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,0.3);">
             <div class="form-group">
@@ -1198,7 +1217,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 1：測量與登記 
+     視圖 2：測量與登記 
      ============================================== -->
     <div id="view-measure" class="view-container">
         <!-- 左側畫布區 -->
@@ -1319,7 +1338,7 @@
                 <div class="form-group"><label>登記日期</label><input type="date" id="registerDate"></div>
 
                 <div class="nav-btns" style="justify-content: space-between;">
-                    <button class="btn btn-outline" onclick="window.switchTab('home')">重選人員</button>
+                    <button class="btn btn-outline" onclick="window.switchTab('wizard')">重選人員</button>
                     <button class="btn btn-primary" onclick="goToStep(2)">下一步</button>
                 </div>
             </div>
@@ -1436,7 +1455,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 2：尺碼對照表 
+     視圖 3：尺碼對照表 
      ============================================== -->
     <div id="view-chart" class="view-container scroll-view">
         <div style="max-width: 800px; margin: 0 auto; width: 100%;">
@@ -1446,7 +1465,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 3：建檔名單 
+     視圖 4：建檔名單 
      ============================================== -->
     <div class="login-overlay" id="loginOverlay" style="display:none;">
         <div class="login-box">
@@ -1530,7 +1549,7 @@
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content;" onclick="refreshAdminData()">重新整理</button>
-                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="printSelectedAdminLabels()">列印勾選標籤</button>
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="openPrintChoice(() => printSelectedAdminLabels())">列印勾選標籤</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="exportCSV()">匯出 CSV</button>
             </div>
         </div>
@@ -1557,7 +1576,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 3.5：分隊箱管理 
+     視圖 5：分隊箱管理 
      ============================================== -->
     <div id="view-box-admin" class="view-container scroll-view">
         <div style="max-width: 800px; margin: 0 auto; width: 100%;">
@@ -1578,7 +1597,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 4：標籤列印模組
+     視圖 6：標籤列印模組
      ============================================== -->
     <div id="view-labels" class="view-container scroll-view">
         <div class="toolbar">
@@ -1593,7 +1612,7 @@
                     <button class="btn" style="padding:4px 8px; font-size:12px; border:1px solid #d4d4d8; background:white;" onclick="renderLabels(window.currentLabelType)">更新標籤</button>
                 </div>
                 <button class="btn btn-primary" style="background:#10b981; color:white;"
-                    onclick="window.print()">列印標籤</button>
+                    onclick="openPrintChoice(() => window.print())">列印標籤</button>
             </div>
         </div>
 
@@ -1637,7 +1656,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 5：系統設定 (重構)
+     視圖 7：系統設定 (重構)
      ============================================== -->
     <div id="view-system-config" class="view-container scroll-view">
         <div style="max-width: 600px; margin: 40px auto; width: 100%; background:var(--bg-surface); padding:30px; border-radius:12px; border:1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
@@ -1692,7 +1711,7 @@
                     <input type="number" id="lblSetScale" value="1.0" step="0.1" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg); color:var(--text-main);">
                 </div>
                 <div>
-                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">列印紙張模式</label>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">預設列印紙張模式</label>
                     <select id="lblSetPageMode" onchange="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:#000; color:#fff;">
                         <option value="custom">自訂標籤尺寸 (標籤機用)</option>
                         <option value="A4">A4 貼紙排版 (連續列印用)</option>
@@ -1713,7 +1732,7 @@
     </div>
 
     <!-- ==============================================
-     視圖 6：掃碼工作站 
+     視圖 8：掃碼工作站 
      ============================================== -->
     <div id="view-scan" class="view-container scroll-view" style="padding:15px; padding-bottom:100px;">
         <div style="max-width: 600px; margin: 0 auto; width: 100%;">
@@ -2001,7 +2020,7 @@
 
             document.getElementById('navMenu').classList.remove('show');
 
-            if (tab === 'home') {
+            if (tab === 'home' || tab === 'wizard') {
                 document.getElementById('navMeasureTab').style.display = 'none';
             }
             if (tab === 'measure') {
@@ -2987,7 +3006,7 @@
                     `;
                     
                     document.getElementById('step4PrintBtnContainer').innerHTML = `
-                        <button class="btn btn-outline" style="width:100%; padding:14px; font-size:15px; margin-bottom:10px;" onclick="printSingleLabel(document.getElementById('step4LabelCard'), 1)">列印此標籤</button>
+                        <button class="btn btn-outline" style="width:100%; padding:14px; font-size:15px; margin-bottom:10px;" onclick="openPrintChoice(() => printSingleLabel(document.getElementById('step4LabelCard'), 1))">列印此標籤</button>
                     `;
 
                     const sumName = document.getElementById('summaryName');
@@ -3576,7 +3595,7 @@
                     </td>
                     <td style="font-family:monospace; color:var(--primary); font-weight:bold;">
                         ${r['裝袋序號']}
-                        <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-left:10px;" onclick="event.stopPropagation(); printSpecificLabels(['${r['裝袋序號']}'])">列印標籤</button>
+                        <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-left:10px;" onclick="event.stopPropagation(); openPrintChoice(() => printSpecificLabels(['${r['裝袋序號']}']))">列印標籤</button>
                     </td>
                     <td>${r['單位名稱']}</td>
                     <td><strong>${r['姓名']}</strong></td>
@@ -3879,7 +3898,7 @@
 
             let html = ''; labelQRCodes = [];
             const capacity = (type === 'squad' || type === 'unit') ? (parseInt(document.getElementById('boxCapacityInp').value) || 20) : 1;
-            const getPrintTool = () => `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="printSingleLabel(this.closest('.label-card'), this.previousElementSibling.value)">列印</button></div>`;
+            const getPrintTool = () => `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="const card = this.closest('.label-card'); const val = this.previousElementSibling.value; openPrintChoice(() => printSingleLabel(card, val))">列印</button></div>`;
 
             if (type === 'inner') {
                 const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
@@ -4023,7 +4042,9 @@
             }
             const parentContainer = cardEl.parentElement;
             parentContainer.classList.add('print-active-container');
-            document.body.classList.add('print-single-mode');
+            if (!cardEl.closest('#view-labels')) {
+                document.body.classList.add('print-single-mode');
+            }
             
             setTimeout(() => {
                 const cleanup = () => {
@@ -4043,7 +4064,7 @@
             const box = document.getElementById('resBox').value, usage = document.getElementById('resUsage').value;
             if (!item || !size || !qty) return alert("請填寫品項、尺寸與數量！");
             const qrId = `qr_res_${Date.now()}`;
-            const printTool = `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="printSingleLabel(this.closest('.label-card'), this.previousElementSibling.value)">列印</button></div>`;
+            const printTool = `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="const card = this.closest('.label-card'); const val = this.previousElementSibling.value; openPrintChoice(() => printSingleLabel(card, val))">列印</button></div>`;
             const html = `<div class="label-card">${printTool}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>RESERVE BOX</div>
             <div>ITEM: ${item}</div><div>SIZE: ${size}</div><div>QTY: ${qty}</div><div>BOX NO: ${box}</div>
             <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;">USAGE:<br>${usage}</div></div>
@@ -4149,14 +4170,17 @@
 
             const area = document.getElementById('lblPreviewArea');
             const scale = 1.4; // 預覽畫面的縮放比例
+            const customW = pageMode === 'custom' ? w + ml * 2 : w;
+            const customH = pageMode === 'custom' ? h + mt * 2 : h;
+
             if (pageMode === 'A4') {
                 area.style.width = (210 * scale) + "px";
                 area.style.height = (297 * scale) + "px";
                 area.style.paddingTop = (mt * scale) + "px";
                 area.style.paddingLeft = (ml * scale) + "px";
             } else {
-                area.style.width = (w * scale) + "px";
-                area.style.height = (h * scale) + "px";
+                area.style.width = (customW * scale) + "px";
+                area.style.height = (customH * scale) + "px";
                 area.style.paddingTop = "0px";
                 area.style.paddingLeft = "0px";
             }
@@ -4178,6 +4202,10 @@
                 box.style.height = (h * scale) + "px";
                 box.style.marginRight = (gx * scale) + "px";
                 box.style.marginBottom = (gy * scale) + "px";
+                if (pageMode === 'custom') {
+                    box.style.marginTop = (mt * scale) + "px";
+                    box.style.marginLeft = (ml * scale) + "px";
+                }
                 box.style.background = "#e0f2fe";
                 box.style.border = "1px dashed #3b82f6";
                 box.style.borderRadius = "2px";
@@ -4200,7 +4228,7 @@
             const innerW = 85 / manualScale;
             const innerH = h / scalePrint;
 
-            let pageCSS = `size: ${w}mm ${h}mm !important; margin: ${mt}mm auto auto ${ml}mm !important;`;
+            let pageCSS = `size: ${customW}mm ${customH}mm !important; margin: 0 !important;`;
             if (pageMode === 'A4') {
                 pageCSS = `size: A4 !important; margin: ${mt}mm auto auto ${ml}mm !important;`;
             }
@@ -4233,8 +4261,10 @@
                     #view-labels .label-card {
                         width: calc(${w}mm * var(--screen-scale, 1.0)) !important;
                         height: calc(${h}mm * var(--screen-scale, 1.0)) !important;
-                        margin-right: calc(${gx}mm * var(--screen-scale, 1.0)) !important;
-                        margin-bottom: calc(${gy}mm * var(--screen-scale, 1.0)) !important;
+                        margin-top: ${pageMode === 'custom' ? `calc(${mt}mm * var(--screen-scale, 1.0))` : '0px'} !important;
+                        margin-left: ${pageMode === 'custom' ? `calc(${ml}mm * var(--screen-scale, 1.0))` : '0px'} !important;
+                        margin-right: ${pageMode === 'custom' ? '0px' : `calc(${gx}mm * var(--screen-scale, 1.0))`} !important;
+                        margin-bottom: ${pageMode === 'custom' ? '0px' : `calc(${gy}mm * var(--screen-scale, 1.0))`} !important;
                         box-sizing: border-box !important;
                         overflow: hidden !important;
                         position: relative !important;
@@ -4268,9 +4298,12 @@
                         float: left !important;
                         width: ${w}mm !important;
                         height: ${h}mm !important;
+                        min-height: 0 !important;
                         margin: 0 !important;
-                        margin-right: ${gx}mm !important;
-                        margin-bottom: ${gy}mm !important;
+                        margin-top: ${pageMode === 'custom' ? mt : 0}mm !important;
+                        margin-left: ${pageMode === 'custom' ? ml : 0}mm !important;
+                        margin-right: ${pageMode === 'custom' ? 0 : gx}mm !important;
+                        margin-bottom: ${pageMode === 'custom' ? 0 : gy}mm !important;
                         box-sizing: border-box !important;
                         overflow: hidden !important;
                         position: relative !important;
@@ -4656,7 +4689,36 @@
             }
             window.initSystemSettings();
         }
+
+        let pendingPrintAction = null;
+        window.openPrintChoice = function(action) {
+            pendingPrintAction = action;
+            document.getElementById('printChoiceModal').style.display = 'flex';
+        };
+        window.confirmPrintMode = function(mode) {
+            document.getElementById('lblSetPageMode').value = mode;
+            if(window.updatePrintPreview) window.updatePrintPreview();
+            document.getElementById('printChoiceModal').style.display = 'none';
+            if(pendingPrintAction) {
+                // Short timeout to allow UI rendering to update print preview before triggering print dialog
+                setTimeout(() => {
+                    pendingPrintAction();
+                    pendingPrintAction = null;
+                }, 100);
+            }
+        };
     </script>
+
+    <!-- 列印紙張選擇 Modal -->
+    <div class="modal" id="printChoiceModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:3000; align-items:center; justify-content:center;">
+        <div style="background:var(--bg-surface); padding:30px; border-radius:8px; width:300px; text-align:center; position:relative; border:1px solid var(--border);">
+            <div style="position:absolute; top:10px; right:15px; font-size:24px; cursor:pointer; color:var(--text-muted);" onclick="document.getElementById('printChoiceModal').style.display='none'">&times;</div>
+            <h3 style="margin-top:0; color:var(--primary); font-size: 18px; margin-bottom: 20px;">選擇列印紙張模式</h3>
+            <button class="btn btn-outline" style="width:100%; margin-bottom:15px; padding:12px; font-size:16px;" onclick="confirmPrintMode('A4')">A4 貼紙排版 (連續列印)</button>
+            <button class="btn btn-outline" style="width:100%; padding:12px; font-size:16px;" onclick="confirmPrintMode('custom')">自訂標籤尺寸 (標籤機)</button>
+            <button class="btn btn-ghost" style="width:100%; margin-top:15px; padding:10px;" onclick="document.getElementById('printChoiceModal').style.display='none'">取消</button>
+        </div>
+    </div>
 </body>
 
 </html>
