@@ -5,6 +5,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FIRESCUE 裝備配發與 AI 測量系統</title>
+    <script>
+        // Default SIZE_CONFIG as fallback if API fails
+        window.SIZE_CONFIG = {
+            top: {
+                intervals: [
+                    { size: "XS", max: 87, value: 0 }, { size: "S", max: 93, value: 1 }, { size: "M", max: 99, value: 2 },
+                    { size: "L", max: 105, value: 3 }, { size: "XL", max: 111, value: 4 }, { size: "2XL", max: 117, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                ],
+                dualZones: [
+                    { min: 92, max: 93, output: "S/M" }, { min: 98, max: 99, output: "M/L" }, { min: 104, max: 105, output: "L/XL" },
+                    { min: 110, max: 111, output: "XL/2XL" }, { min: 116, max: 117, output: "2XL/3XL" }
+                ]
+            },
+            jacket: {
+                intervals: [
+                    { size: "XS", max: 91, value: 0 }, { size: "S", max: 97, value: 1 }, { size: "M", max: 103, value: 2 },
+                    { size: "L", max: 109, value: 3 }, { size: "XL", max: 115, value: 4 }, { size: "2XL", max: 121, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                ],
+                dualZones: [
+                    { min: 96, max: 97, output: "S/M" }, { min: 102, max: 103, output: "M/L" }, { min: 108, max: 109, output: "L/XL" },
+                    { min: 114, max: 115, output: "XL/2XL" }, { min: 120, max: 121, output: "2XL/3XL" }
+                ]
+            },
+            vest: {
+                emsMapping: {
+                    "XS": "S", "S": "S", "S/M": "S", "M": "M", "M/L": "L", "L": "L", "L/XL": "L",
+                    "XL": "XL", "XL/2XL": "XL", "2XL": "XL", "2XL/3XL": "XL", "3XL": "XL"
+                }
+            },
+            pants: {
+                hipIntervals: [
+                    { size: "XS", max: 86, value: 0 }, { size: "S", max: 91, value: 1 }, { size: "M", max: 96, value: 2 },
+                    { size: "L", max: 101, value: 3 }, { size: "XL", max: 106, value: 4 }, { size: "2XL", max: 111, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                ],
+                waistIntervals: [
+                    { size: "XS", max: 71, value: 0 }, { size: "S", max: 77, value: 1 }, { size: "M", max: 83, value: 2 },
+                    { size: "L", max: 89, value: 3 }, { size: "XL", max: 95, value: 4 }, { size: "2XL", max: 101, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                ],
+                sizesArray: ["XS", "S", "M", "L", "XL", "2XL", "3XL"]
+            },
+            customRules: { sleeveMaxMod: 5, pantMaxMod: 8, waistOverChestSizeDiff: 2, hipOverWaistSizeDiff: 2 }
+        };
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
@@ -1392,20 +1435,37 @@
                 <div class="status-box highlight" style="margin-bottom:15px;">已自動推算出最適尺碼。<br>若需調整，請直接修改下方選單。</div>
                 <div id="sizing-fields" style="display:flex; flex-direction:column; gap:10px;"></div>
                 <div class="form-group" style="margin-top:15px;">
+                    <label>袖長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※長袖上衣/外套適用</span></label>
+                    <style>#val-sleeve-mod-num::-webkit-outer-spin-button, #val-sleeve-mod-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } #val-sleeve-mod-num { -moz-appearance: textfield; }</style>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="val-sleeve-mod-type" style="padding:10px; border-radius:6px; border:1px solid var(--border); width:120px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-num-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-unit').style.display = show ? 'inline' : 'none';">
+                            <option value="">無修改</option>
+                            <option value="加長">加長</option>
+                            <option value="縮短">縮短</option>
+                        </select>
+                        <div id="val-sleeve-mod-num-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                            <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                            <input type="number" id="val-sleeve-mod-num" value="1" min="1" max="10" style="width:50px; border:none; text-align:center; padding:10px 0; outline:none; font-size:16px;">
+                            <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                        </div>
+                        <span id="val-sleeve-mod-unit" style="display:none; color:var(--text-muted); font-weight:bold;">cm</span>
+                    </div>
+                </div>
+                <div class="form-group" style="margin-top:15px;">
                     <label>褲長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※修改將自動附註於現場備註</span></label>
                     <style>#val-pant-mod-num::-webkit-outer-spin-button, #val-pant-mod-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } #val-pant-mod-num { -moz-appearance: textfield; }</style>
                     <div style="display:flex; gap:10px; align-items:center;">
                         <select id="val-pant-mod-type" style="padding:10px; border-radius:6px; border:1px solid var(--border); width:120px;" onchange="const show = this.value !== ''; document.getElementById('val-pant-mod-num-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-pant-mod-unit').style.display = show ? 'inline' : 'none';">
                             <option value="">無修改</option>
                             <option value="加長">加長</option>
-                            <option value="減短">減短</option>
+                            <option value="縮短">縮短</option>
                         </select>
                         <div id="val-pant-mod-num-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
                             <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-pant-mod-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
-                            <input type="number" id="val-pant-mod-num" value="1" min="1" style="width:50px; border:none; text-align:center; padding:10px 0; outline:none; font-size:16px;">
+                            <input type="number" id="val-pant-mod-num" value="1" min="1" max="15" style="width:50px; border:none; text-align:center; padding:10px 0; outline:none; font-size:16px;">
                             <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-pant-mod-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
                         </div>
-                        <span id="val-pant-mod-unit" style="display:none; color:var(--text-muted); font-weight:bold;">吋</span>
+                        <span id="val-pant-mod-unit" style="display:none; color:var(--text-muted); font-weight:bold;">cm</span>
                     </div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
@@ -2866,33 +2926,44 @@
         // ==========================================
         //  3. 四步驟精靈與尺碼演算法
         // ==========================================
-        const ITEMS_DEF = [
-            { code: 'TL', name: '長袖戰術服', type: 'top', table: [['XS', 45, 97], ['S', 46, 102], ['M', 47, 107], ['L', 48, 112], ['XL', 50, 117], ['2XL', 51, 122], ['3XL', 52, 127]] },
-            { code: 'TS', name: '短袖戰術服', type: 'top', table: [['XS', 45, 97], ['S', 46, 102], ['M', 47, 107], ['L', 48, 112], ['XL', 50, 117], ['2XL', 51, 122], ['3XL', 52, 127]] },
-            { code: 'TV', name: '戰術背心', type: 'top', table: [['XS', 38, 98], ['S', 39, 103], ['M', 41, 108], ['L', 42, 113], ['XL', 43, 118], ['2XL', 44, 123], ['3XL', 46, 128]] },
-            { code: 'OPL', name: '長袖操作服', type: 'top', table: [['XS', 45, 99], ['S', 46, 104], ['M', 47, 109], ['L', 48, 114], ['XL', 50, 119], ['2XL', 51, 125], ['3XL', 52, 130]] },
-            { code: 'OPS', name: '短袖操作服', type: 'top', table: [['XS', 45, 99], ['S', 46, 104], ['M', 47, 109], ['L', 48, 114], ['XL', 50, 119], ['2XL', 51, 125], ['3XL', 52, 130]] },
-            { code: 'EJ', name: '救護外套', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] },
-            { code: 'EV', name: '救護背心', type: 'vest', table: [['S', 38, 91, 98], ['M', 39, 101, 108], ['L', 40, 112, 118], ['XL', 42, 122, 128]] },
-            { code: 'EJI', name: '救護外套內件', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] },
-            { code: 'TJ', name: '戰術外套', type: 'top', table: [['XS', 46, 114], ['S', 48, 119], ['M', 49, 124], ['L', 50, 130], ['XL', 51, 135], ['2XL', 53, 140], ['3XL', 54, 145]] }
-        ];
-
-        function calcSize(item, sh, ch) {
-            if (!sh && !ch) return 'M';
-            const ease = (item.code === 'EJ' || item.code === 'EJI' || item.code === 'TJ') ? 12 : 8;
-            for (let r of item.table) {
-                let shOk = !sh || sh <= r[1] + 1;
-                let chOk = item.type === 'vest' ? (!ch || (ch >= r[2] - 6 && ch <= r[3] + 4)) : (!ch || (ch + ease) <= r[2]);
-                if (shOk && chOk) return r[0];
+        // V1.2 動態尺寸演算法
+        function calcSizeV1_2(type, chest, waist) {
+            const conf = window.SIZE_CONFIG ? window.SIZE_CONFIG[type] : null;
+            if (!conf) return { size: 'M', val: 2 };
+            let chestVal = 0, waistVal = 0;
+            for (let r of conf.intervals) { if (chest <= r.max) { chestVal = r.value; break; } }
+            for (let r of conf.intervals) { if (waist <= r.max) { waistVal = r.value; break; } }
+            const finalVal = Math.max(chestVal, waistVal);
+            let finalSize = conf.intervals.find(r => r.value === finalVal)?.size || 'M';
+            
+            const maxCm = Math.max(chest, waist);
+            if (conf.dualZones) {
+                for (let dz of conf.dualZones) {
+                    if (maxCm >= dz.min && maxCm <= dz.max) {
+                        finalSize = dz.output; break;
+                    }
+                }
             }
-            return item.table[item.table.length - 1][0];
+            return { size: finalSize, val: finalVal, isCustomByRule: waistVal - chestVal >= window.SIZE_CONFIG.customRules.waistOverChestSizeDiff };
         }
-        function calcPant(w, ins, hip) {
-            let waistInch = Math.ceil((w / 2.54 + 1) / 2) * 2;
-            if (hip > w + 14) waistInch += 2;
-            let l = ins < 74 ? 30 : ins < 79 ? 32 : ins < 84 ? 34 : 36;
-            return `W${waistInch}-L${l}`;
+
+        function calcPantV1_2(hip, waist) {
+            const conf = window.SIZE_CONFIG ? window.SIZE_CONFIG.pants : null;
+            if (!conf) return { size: 'M', val: 2 };
+            let hipVal = 0, waistVal = 0;
+            for (let r of conf.hipIntervals) { if (hip <= r.max) { hipVal = r.value; break; } }
+            for (let r of conf.waistIntervals) { if (waist <= r.max) { waistVal = r.value; break; } }
+            const finalVal = Math.max(hipVal, waistVal);
+            let pSize = conf.sizesArray[finalVal] || 'M';
+            let waistInch = Math.ceil((waist / 2.54 + 1) / 2) * 2;
+            if (hip > waist + 14) waistInch += 2;
+            // 由於 V1.2 以字母尺寸為主，附帶腰圍
+            return { size: `${pSize}(${waistInch}腰)`, val: finalVal, isCustomByRule: hipVal - waistVal >= window.SIZE_CONFIG.customRules.hipOverWaistSizeDiff };
+        }
+        
+        function getEmsVestSize(topSizeStr) {
+            const mapping = (window.SIZE_CONFIG && window.SIZE_CONFIG.vest && window.SIZE_CONFIG.vest.emsMapping) ? window.SIZE_CONFIG.vest.emsMapping : {};
+            return mapping[topSizeStr] || 'L';
         }
         function calcShoe(f) {
             if (!f) return '';
@@ -2935,10 +3006,33 @@
                     const getSizes = (name, fallback) => window.RESERVE_ITEMS && window.RESERVE_ITEMS[name] ? window.RESERVE_ITEMS[name] : fallback;
                     const allSz = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
 
-                    if (selTAC) { addField('長袖戰術服 (TL)', 'TL', getSizes('長袖戰術服', allSz), calcSize(ITEMS_DEF[0], sh, ch)); addField('短袖戰術服 (TS)', 'TS', getSizes('短袖戰術服', allSz), calcSize(ITEMS_DEF[1], sh, ch)); addField('戰術背心 (TV)', 'TV', getSizes('戰術背心', allSz), calcSize(ITEMS_DEF[2], sh, ch)); addField('戰術外套 (TJ)', 'TJ', getSizes('戰術外套', allSz), calcSize(ITEMS_DEF[8], sh, ch)); }
-                    if (selOPS) { addField('長袖操作服 (OPL)', 'OPL', getSizes('長袖操作服', allSz), calcSize(ITEMS_DEF[3], sh, ch)); addField('短袖操作服 (OPS)', 'OPS', getSizes('短袖操作服', allSz), calcSize(ITEMS_DEF[4], sh, ch)); }
-                    if (selEMS) { addField('救護外套 (EJ)', 'EJ', getSizes('救護外套', allSz), calcSize(ITEMS_DEF[5], sh, ch)); addField('救護外套內件 (EJI)', 'EJI', getSizes('救護外套內件', allSz), calcSize(ITEMS_DEF[7], sh, ch)); addField('救護背心 (EV)', 'EV', getSizes('救護背心', ['S', 'M', 'L', 'XL']), calcSize(ITEMS_DEF[6], sh, ch)); }
-                    addField('戰術褲 (TP)', 'TP', [], calcPant(w, ins, hip));
+                    if (selTAC) { 
+                        let szTop = calcSizeV1_2('top', ch, w); 
+                        let szJacket = calcSizeV1_2('jacket', ch, w);
+                        addField('長袖戰術服 (TL)', 'TL', getSizes('長袖戰術服', allSz), szTop.size); 
+                        addField('短袖戰術服 (TS)', 'TS', getSizes('短袖戰術服', allSz), szTop.size); 
+                        addField('戰術背心 (TV)', 'TV', getSizes('戰術背心', allSz), szTop.size); 
+                        addField('戰術外套 (TJ)', 'TJ', getSizes('戰術外套', allSz), szJacket.size); 
+                    }
+                    if (selOPS) { 
+                        let szTop = calcSizeV1_2('top', ch, w); 
+                        addField('長袖操作服 (OPL)', 'OPL', getSizes('長袖操作服', allSz), szTop.size); 
+                        addField('短袖操作服 (OPS)', 'OPS', getSizes('短袖操作服', allSz), szTop.size); 
+                    }
+                    if (selEMS) { 
+                        let szTop = calcSizeV1_2('top', ch, w);
+                        let szJacket = calcSizeV1_2('jacket', ch, w);
+                        addField('救護外套 (EJ)', 'EJ', getSizes('救護外套', allSz), szJacket.size); 
+                        addField('救護外套內件 (EJI)', 'EJI', getSizes('救護外套內件', allSz), szJacket.size); 
+                        addField('救護背心 (EV)', 'EV', getSizes('救護背心', ['S', 'M', 'L', 'XL']), getEmsVestSize(szTop.size)); 
+                    }
+                    let szPant = calcPantV1_2(hip, w);
+                    window.CURRENT_CUSTOM_FLAGS = {
+                        top: calcSizeV1_2('top', ch, w).isCustomByRule,
+                        jacket: calcSizeV1_2('jacket', ch, w).isCustomByRule,
+                        pant: szPant.isCustomByRule
+                    };
+                    addField('戰術褲 (TP)', 'TP', [], szPant.size);
                     addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
                     addField('戰術帽', 'CAP', ['S', 'M', 'L'], h < 165 ? 'S' : h < 178 ? 'M' : 'L');
                     const foot = document.getElementById('val-foot').value;
@@ -2972,12 +3066,29 @@
                     if (document.getElementById('chk-EMS').checked) dispSeries.push("EMS");
 
                     let step4Note = document.getElementById('val-note').value.trim();
-                    const modType4 = document.getElementById('val-pant-mod-type').value;
-                    if (modType4) {
-                        const pantMod4 = modType4 + (document.getElementById('val-pant-mod-num').value || 1) + "吋";
+                    const pantModType = document.getElementById('val-pant-mod-type').value;
+                    const sleeveModType = document.getElementById('val-sleeve-mod-type')?.value;
+                    let isCustomMade = window.CURRENT_CUSTOM_FLAGS?.top || window.CURRENT_CUSTOM_FLAGS?.jacket || window.CURRENT_CUSTOM_FLAGS?.pant || false;
+                    let hasMod = false;
+
+                    if (pantModType) {
+                        const pantModVal = parseInt(document.getElementById('val-pant-mod-num').value || 1);
+                        const pantMod4 = pantModType + pantModVal + "cm";
                         step4Note = (step4Note ? step4Note + " / " : "") + `褲長修改:${pantMod4}`;
+                        hasMod = true;
+                        if (pantModVal > (window.SIZE_CONFIG?.customRules?.pantMaxMod || 8)) isCustomMade = true;
                     }
-                    const noteHtml = step4Note ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${step4Note}</div>` : "";
+                    if (sleeveModType) {
+                        const sleeveModVal = parseInt(document.getElementById('val-sleeve-mod-num').value || 1);
+                        const sleeveMod = sleeveModType + sleeveModVal + "cm";
+                        step4Note = (step4Note ? step4Note + " / " : "") + `袖長修改:${sleeveMod}`;
+                        hasMod = true;
+                        if (sleeveModVal > (window.SIZE_CONFIG?.customRules?.sleeveMaxMod || 5)) isCustomMade = true;
+                    }
+
+                    let statusText = isCustomMade ? "特殊訂製" : (hasMod ? "標準尺寸+局部修改" : "標準尺寸");
+                    const statusHtml = `<div style="margin-top:10px; color:${isCustomMade?'#e11d48':'#16a34a'}; font-weight:bold; font-size:14px;">狀態：${statusText}</div>`;
+                    const noteHtml = step4Note ? `<div style="margin-top:5px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${step4Note}</div>` : "";
 
                     document.getElementById('step4LabelContainer').innerHTML = `
                         <div class="label-card" id="step4LabelCard" style="height:auto; min-height:10cm;">
@@ -3206,35 +3317,62 @@
         };
 
         // ==========================================
-        //  4. 靜態尺碼對照表
+        //  4. 靜態尺碼對照表 (V1.2版)
         // ==========================================
-        const renderStaticChart = () => {
+        window.renderStaticChart = () => {
             let html = '';
-            ITEMS_DEF.forEach(item => {
-                html += `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">${item.name} (${item.code})</h3>
-            <div style="overflow-x: auto; margin-bottom: 30px;">
-                <table class="sct"><thead><tr><th>尺碼</th>${item.type === 'vest' ? '<th>肩寬(cm)</th><th>胸圍最小(cm)</th><th>胸圍最大(cm)</th>' : '<th>肩寬(cm)</th><th>胸圍(cm)</th>'}</tr></thead>
-                <tbody>${item.table.map(r => `<tr><td><span class="sz-badge">${r[0]}</span></td>${r.slice(1).map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-            });
+            const conf = window.SIZE_CONFIG;
+            if (!conf) return;
+
+            const buildTable = (title, configObj, type) => {
+                if (!configObj || !configObj.intervals) return '';
+                let t = `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">${title}</h3>
+                <div style="overflow-x: auto; margin-bottom: 30px;">
+                    <table class="sct"><thead><tr><th>尺碼</th><th>${type === 'pant' ? '臀圍/腰圍' : '胸圍/腰圍'}上限 (cm)</th></tr></thead><tbody>`;
+                configObj.intervals.forEach(r => {
+                    t += `<tr><td><span class="sz-badge">${r.size}</span></td><td>${r.max === Infinity ? '無上限' : r.max}</td></tr>`;
+                });
+                if (configObj.dualZones && configObj.dualZones.length > 0) {
+                    t += `<tr><td colspan="2" style="background: rgba(249, 115, 22, 0.1); color: var(--primary); font-weight:bold; text-align:center; padding: 10px;">雙尺寸交界區</td></tr>`;
+                    configObj.dualZones.forEach(dz => {
+                        t += `<tr><td><span class="sz-badge" style="color: #fff; background: var(--primary); padding: 3px 8px; border-radius: 4px;">${dz.output}</span></td><td style="color: var(--primary);">${dz.min} ~ ${dz.max}</td></tr>`;
+                    });
+                }
+                t += `</tbody></table></div>`;
+                return t;
+            };
+
+            html += buildTable('上衣類 (戰術上衣、操作服、戰術背心)', conf.top, 'top');
+            html += buildTable('外套類 (戰術外套、救護外套)', conf.jacket, 'jacket');
+
+            if (conf.pants) {
+                html += `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">長褲類 (戰術褲)</h3>
+                <div style="overflow-x: auto; margin-bottom: 30px;">
+                    <table class="sct"><thead><tr><th>臀圍上限(cm)</th><th>腰圍上限(cm)</th><th>對應字母尺碼</th></tr></thead><tbody>`;
+                const pLen = Math.max(conf.pants.hipIntervals.length, conf.pants.waistIntervals.length);
+                for(let i=0; i<pLen; i++) {
+                    let hRule = conf.pants.hipIntervals[i];
+                    let wRule = conf.pants.waistIntervals[i];
+                    let sz = conf.pants.sizesArray[i] || '';
+                    html += `<tr><td>${hRule ? (hRule.max===Infinity?'無上限':hRule.max) : '-'}</td><td>${wRule ? (wRule.max===Infinity?'無上限':wRule.max) : '-'}</td><td><span class="sz-badge">${sz}</span></td></tr>`;
+                }
+                html += `</tbody></table></div>`;
+            }
+
             html += `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">消防靴 (SHOE)</h3>
-        <div style="overflow-x: auto; margin-bottom: 30px;">
-            <table class="sct"><thead><tr><th>腳長(cm)</th><th>日本號</th></tr></thead>
-            <tbody>
-                <tr><td><span class="sz-badge">22.0</span></td><td>34</td></tr>
-                <tr><td><span class="sz-badge">23.0</span></td><td>35</td></tr>
-                <tr><td><span class="sz-badge">24.0</span></td><td>36</td></tr>
-                <tr><td><span class="sz-badge">24.5</span></td><td>37</td></tr>
-                <tr><td><span class="sz-badge">25.0</span></td><td>38</td></tr>
-                <tr><td><span class="sz-badge">25.5</span></td><td>39</td></tr>
-                <tr><td><span class="sz-badge">26.0</span></td><td>40</td></tr>
-                <tr><td><span class="sz-badge">27.0</span></td><td>41</td></tr>
-                <tr><td><span class="sz-badge">28.0</span></td><td>42</td></tr>
-                <tr><td><span class="sz-badge">29.0</span></td><td>43</td></tr>
-            </tbody></table>
-        </div>`;
+            <div style="overflow-x: auto; margin-bottom: 30px;">
+                <table class="sct"><thead><tr><th>腳長(cm)</th><th>日本號</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="sz-badge">22.0</span></td><td>34</td></tr><tr><td><span class="sz-badge">23.0</span></td><td>35</td></tr>
+                    <tr><td><span class="sz-badge">24.0</span></td><td>36</td></tr><tr><td><span class="sz-badge">24.5</span></td><td>37</td></tr>
+                    <tr><td><span class="sz-badge">25.0</span></td><td>38</td></tr><tr><td><span class="sz-badge">25.5</span></td><td>39</td></tr>
+                    <tr><td><span class="sz-badge">26.0</span></td><td>40</td></tr><tr><td><span class="sz-badge">27.0</span></td><td>41</td></tr>
+                    <tr><td><span class="sz-badge">28.0</span></td><td>42</td></tr><tr><td><span class="sz-badge">29.0</span></td><td>43</td></tr>
+                </tbody></table>
+            </div>`;
             document.getElementById('static-chart-container').innerHTML = html;
         };
-        renderStaticChart();
+        window.renderStaticChart();
 
         // ==========================================
         //  5. 後台管理與列印共用過濾資料
@@ -3296,7 +3434,7 @@
                 const res = await fetch(url); const data = await res.json();
                 if (!data.error) {
                     if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; if (data.clothingSizes) window.RESERVE_ITEMS = data.clothingSizes; }
+                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; if (data.clothingSizes && Object.keys(data.clothingSizes).length > 0) window.RESERVE_ITEMS = data.clothingSizes; }
                     renderAdminBoard();
                     window.renderBoxAdminBoard();
                     populateLabelFilters();
@@ -4154,8 +4292,22 @@
             } catch (e) {
                 console.warn("無法從雲端取得設定，使用預設值", e);
             }
+
+            try {
+                const sizeUrl = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + 'action=getSizesConfig';
+                const sizeRes = await fetch(sizeUrl);
+                const sizeResult = await sizeRes.json();
+                if (sizeResult.status === 'success' && sizeResult.data && !sizeResult.data.error) {
+                    window.SIZE_CONFIG = sizeResult.data;
+                    console.log("成功從雲端載入尺寸配置");
+                }
+            } catch (e) {
+                console.warn("無法從雲端取得尺寸配置，使用內建預設值", e);
+            }
+
             document.getElementById('settingBaseUrl').value = SYSTEM_BASE_URL;
             window.updatePrintPreview(); // Ensure styles are applied initially
+            if (window.renderStaticChart) window.renderStaticChart(); // Update static chart with new dynamic config
         };
 
         window.updatePrintPreview = function() {
