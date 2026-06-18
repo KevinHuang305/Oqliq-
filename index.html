@@ -1959,7 +1959,7 @@
         // ==========================================
         // 🌟 系統設定與全域變數
         // ==========================================
-        const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbws9PMRaMg4-rQ0fwVKTXAGO6ePX0TjAoJdVaTpfgmdAxDvZMfK9zDPio9N824b6KqC/exec";
+        const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbweXBbTFXG6zn5pvaAWb5BNuILZ02gjCQ8nVEA8__HgxLtV6jzDBfIrVnp1OElBxf5y/exec";
         let APPS_SCRIPT_URL = DEFAULT_API_URL;
         let SYSTEM_BASE_URL = window.location.origin + window.location.pathname;
         let DEFAULT_ADMIN_PWD = localStorage.getItem('admin_pwd') || "";
@@ -1990,7 +1990,7 @@
             document.getElementById('homeBrigadeSelect').disabled = false;
             document.getElementById('homeUnitSelect').disabled = false;
             document.getElementById('homeActionArea').style.display = 'none';
-            document.querySelector('#view-home .btn-primary').style.display = 'block';
+            document.querySelector('button[onclick="lockGlobalUnit()"]').style.display = 'block';
         }
 
         function renderRosterGrid() {
@@ -3310,9 +3310,7 @@
             
             window.switchCanvasView('front');
             goToStep(1);
-            if (globalLockedUnit) {
-                switchTab('home');
-            }
+            switchTab('wizard');
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
 
