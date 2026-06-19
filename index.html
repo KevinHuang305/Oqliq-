@@ -2499,7 +2499,16 @@
             if (draggingPoint) {
                 if (m.type === 'touchmove') m.preventDefault();
                 canvas.style.cursor = 'grabbing';
-                draggingPoint.line[draggingPoint.pt] = p;
+                
+                const isHorizontalMeasure = draggingPoint.line.baseLabel && ['肩寬', '胸圍', '腰圍', '臀圍'].includes(draggingPoint.line.baseLabel);
+                
+                if (isHorizontalMeasure) {
+                    draggingPoint.line[draggingPoint.pt].x = p.x;
+                    draggingPoint.line.p1.y = p.y;
+                    draggingPoint.line.p2.y = p.y;
+                } else {
+                    draggingPoint.line[draggingPoint.pt] = p;
+                }
                 if (draggingPoint.line === views[currentView].refLine) {
                     const otherPt = draggingPoint.pt === 'p1' ? 'p2' : 'p1';
                     draggingPoint.line[otherPt].x = p.x;
