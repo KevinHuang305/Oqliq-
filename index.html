@@ -201,6 +201,7 @@
         #view-labels.active,
         #view-system-config.active,
         #view-scan.active,
+        #view-roster-status.active,
         #view-box-admin.active {
             display: block;
         }
@@ -1202,13 +1203,14 @@
         <div class="hamburger" onclick="toggleMenu()">☰</div>
         <div class="nav-menu" id="navMenu">
             <div class="nav-tab active" onclick="switchTab('home')">首頁</div>
-            <div class="nav-tab" onclick="switchTab('wizard')">人員量測</div>
-            <div class="nav-tab" id="navMeasureTab" style="display:none;" onclick="switchTab('measure')">當前測量</div>
-            <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
+            <div class="nav-tab" onclick="switchTab('wizard')">AI測量精靈</div>
+            <div class="nav-tab" id="navMeasureTab" style="display:none;" onclick="switchTab('measure')">量測視圖</div>
+            <div class="nav-tab" onclick="switchTab('roster-status')">名冊進度</div>
             <div class="nav-tab" onclick="switchTab('admin')">建檔名單</div>
             <div class="nav-tab" onclick="switchTab('box-admin')">分隊箱管理</div>
             <div class="nav-tab" onclick="switchTab('labels')">標籤列印</div>
             <div class="nav-tab" onclick="switchTab('system-config')">系統設定</div>
+            <div class="nav-tab" onclick="switchTab('chart')">尺碼對照表</div>
         </div>
     </div>
 
@@ -1218,7 +1220,8 @@
     <div id="view-home" class="view-container active scroll-view" style="padding:15px; background:var(--bg);">
         <h1 style="font-size: 56px; font-weight: 900; margin-bottom: 50px; color: var(--primary); letter-spacing: 2px; text-shadow: 0 4px 12px rgba(0,0,0,0.1);">Firescue</h1>
         <div style="display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 320px;">
-            <button class="btn btn-primary" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.2s; cursor: pointer;" onclick="switchTab('wizard')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">量測精靈</button>
+            <button class="btn btn-primary" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.2s; cursor: pointer;" onclick="switchTab('wizard')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">測量精靈</button>
+            <button class="btn btn-outline" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; border-width: 2px; transition: transform 0.2s; cursor: pointer;" onclick="switchTab('roster-status')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">名冊進度</button>
             <button class="btn btn-outline" style="padding: 20px; font-size: 22px; font-weight: bold; border-radius: 12px; border-width: 2px; transition: transform 0.2s; cursor: pointer;" onclick="switchTab('admin')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">建檔名單</button>
         </div>
     </div>
@@ -1515,6 +1518,68 @@
     </div>
 
     <!-- ==============================================
+     新增：名冊進度狀態
+     ============================================== -->
+    <div id="view-roster-status" class="view-container scroll-view">
+        <div style="max-width: 800px; margin: 0 auto; width: 100%;">
+            <h2 style="margin-top:0; color:var(--primary); font-weight: 800; border-bottom: 2px solid var(--border); padding-bottom:10px;">人員名冊建檔進度</h2>
+            
+            <!-- Filter Section -->
+            <div style="background: var(--bg-surface); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border);">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                    <div class="form-group">
+                        <label>機關名稱</label>
+                        <select id="rsAgencySelect"><option value="">載入中...</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>大隊/分類</label>
+                        <select id="rsBrigadeSelect"><option value="">所有大隊</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>單位名稱/分隊</label>
+                        <select id="rsUnitSelect" onchange="window.renderRosterStatus()"><option value="">所有單位</option></select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div id="rosterStatsContainer" style="display:none; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
+                <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border);">
+                    <div style="font-size: 13px; color: var(--text-muted);">總人數</div>
+                    <div id="rsTotalCount" style="font-size: 24px; font-weight: bold; color: var(--text-main);">0</div>
+                </div>
+                <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                    <div style="font-size: 13px; color: var(--text-muted);">已建檔</div>
+                    <div id="rsDoneCount" style="font-size: 24px; font-weight: bold; color: #22c55e;">0</div>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+                    <div style="font-size: 13px; color: var(--text-muted);">未建檔</div>
+                    <div id="rsPendingCount" style="font-size: 24px; font-weight: bold; color: #ef4444;">0</div>
+                </div>
+            </div>
+
+            <!-- List Section -->
+            <div id="rosterListContainer" style="display:none; background: var(--bg-surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden;">
+                <table class="sct" style="margin-bottom:0;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding: 12px 15px;">姓名</th>
+                            <th style="text-align:center; padding: 12px 15px; width:100px;">性別</th>
+                            <th style="text-align:center; padding: 12px 15px; width:100px;">狀態</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rsTableBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="rsEmptyMessage" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                請由上方選擇單位以查看名冊進度。
+            </div>
+        </div>
+    </div>
+
+    <!-- ==============================================
      視圖 3：尺碼對照表 
      ============================================== -->
     <div id="view-chart" class="view-container scroll-view">
@@ -1534,6 +1599,14 @@
             <input type="password" id="adminPwdInput" placeholder="輸入密碼 (按 Enter)">
             <button class="btn btn-primary" style="width: 100%;" onclick="loginAdmin()">登入</button>
             <p id="loginError" style="color:var(--danger); font-size:13px; display:none; margin-top:10px;"></p>
+        </div>
+    </div>
+
+    <div class="login-overlay" id="personDataModal" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width:400px; width:90%; padding: 25px;">
+            <h3 id="pModalTitle" style="margin-top:0; color:var(--primary); font-weight:800; border-bottom: 2px solid var(--border); padding-bottom:10px;"></h3>
+            <div id="pModalContent" style="margin-bottom:20px; line-height:1.6; font-size: 15px;"></div>
+            <button class="btn btn-primary" style="width: 100%;" onclick="document.getElementById('personDataModal').style.display='none'">關閉</button>
         </div>
     </div>
 
@@ -1970,6 +2043,174 @@
         let labelQRCodes = [];
         let globalLockedUnit = null;
 
+        function renderRosterGrid() {
+            const grid = document.getElementById('rosterGrid');
+            grid.innerHTML = '';
+            if (!globalLockedUnit) return;
+            const roster = dbRoster.filter(r => 
+                r['機關名稱'] === globalLockedUnit.agency && 
+                r['大隊'] === globalLockedUnit.brigade && 
+                r['分隊'] === globalLockedUnit.unit
+            );
+            if (roster.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">此單位沒有預載名單</div>';
+                return;
+            }
+            roster.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline';
+                const personMeasuredKey = `${globalLockedUnit.agency}_${globalLockedUnit.brigade}_${globalLockedUnit.unit}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                if (isMeasured) {
+                    btn.classList.add('measured');
+                    btn.innerHTML = `${p['姓名']} <span style="font-size:12px;">✅</span>`;
+                } else {
+                    btn.innerText = p['姓名'];
+                }
+                
+                btn.onclick = () => {
+                    if (isMeasured) {
+                        if(!confirm(`${p['姓名']} 似乎已經量測過了，確定要重新量測嗎？`)) return;
+                    }
+                    startMeasurement({
+                        name: p['姓名'], gender: p['性別'], personId: p['人員識別碼'],
+                        age: p['年齡'], job: p['職稱']
+                    });
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        window.renderRosterStatus = function() {
+            const aSel = document.getElementById('rsAgencySelect').value;
+            const bSel = document.getElementById('rsBrigadeSelect').value;
+            const uSel = document.getElementById('rsUnitSelect').value;
+            
+            const statsContainer = document.getElementById('rosterStatsContainer');
+            const listContainer = document.getElementById('rosterListContainer');
+            const emptyMessage = document.getElementById('rsEmptyMessage');
+            
+            if (!aSel) {
+                statsContainer.style.display = 'none';
+                listContainer.style.display = 'none';
+                emptyMessage.style.display = 'block';
+                return;
+            }
+            
+            statsContainer.style.display = 'grid';
+            
+            const roster = dbRoster.filter(r => {
+                if (aSel && r['機關名稱'] !== aSel) return false;
+                if (bSel && r['大隊'] !== bSel) return false;
+                if (uSel && r['分隊'] !== uSel) return false;
+                return true;
+            });
+            
+            let doneCount = 0;
+            const tbody = document.getElementById('rsTableBody');
+            tbody.innerHTML = '';
+            
+            if (!uSel) {
+                listContainer.style.display = 'none';
+                emptyMessage.innerHTML = `<span style="font-size:24px; display:block; margin-bottom:10px;">📊</span>目前顯示 <b>${bSel || aSel}</b> 的總統計數據。<br>請進一步選擇「分隊」以查看詳細人員名單。`;
+                emptyMessage.style.display = 'block';
+            } else {
+                listContainer.style.display = 'block';
+                emptyMessage.style.display = 'none';
+            }
+            
+            if (roster.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-muted);">此單位沒有預載名單</td></tr>';
+                document.getElementById('rsTotalCount').innerText = '0';
+                document.getElementById('rsDoneCount').innerText = '0';
+                document.getElementById('rsPendingCount').innerText = '0';
+                return;
+            }
+            
+            roster.forEach(p => {
+                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                if (isMeasured) doneCount++;
+                
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.onclick = () => window.viewPersonData(p, isMeasured);
+                // Hover effect for better UX
+                tr.onmouseover = () => tr.style.backgroundColor = 'var(--bg)';
+                tr.onmouseout = () => tr.style.backgroundColor = 'transparent';
+
+                tr.innerHTML = `
+                    <td style="padding: 12px 15px; border-top: 1px solid var(--border);">${p['姓名']} <span style="font-size:12px; color:var(--text-muted); margin-left:8px;">${p['職稱'] || ''}</span></td>
+                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border); color: var(--text-muted);">${p['性別'] || '-'}</td>
+                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border);">
+                        ${isMeasured ? '<span style="color: #22c55e; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">✅ 已建檔</span>' : '<span style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">❌ 未建檔</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            document.getElementById('rsTotalCount').innerText = roster.length;
+            document.getElementById('rsDoneCount').innerText = doneCount;
+            document.getElementById('rsPendingCount').innerText = roster.length - doneCount;
+        };
+
+        window.viewPersonData = function(p, isMeasured) {
+            if (!isMeasured) {
+                if(confirm(`${p['姓名']} 尚未量測建檔，是否現在要跳轉至 AI 測量精靈開始測量？`)) {
+                    startMeasurement({
+                        name: p['姓名'], gender: p['性別'], personId: p['人員識別碼'],
+                        age: p['年齡'], job: p['職稱'],
+                        agency: document.getElementById('rsAgencySelect').value,
+                        brigade: document.getElementById('rsBrigadeSelect').value,
+                        unit: document.getElementById('rsUnitSelect').value
+                    });
+                }
+                return;
+            }
+
+            if (!adminLoggedIn || allRecords.length === 0) {
+                alert("🔒 基於隱私保護，查看詳細測量數據需要具有管理員權限。\n\n請在接下來的畫面中登入後台，登入後即可點擊姓名查看！");
+                document.getElementById('loginOverlay').style.display = 'flex';
+                return;
+            }
+
+            const aSel = document.getElementById('rsAgencySelect').value;
+            const bSel = document.getElementById('rsBrigadeSelect').value;
+            const uSel = document.getElementById('rsUnitSelect').value;
+            
+            const record = allRecords.find(r => r['機關名稱'] === aSel && (r['大隊/分類'] === bSel || r['大隊'] === bSel) && (r['單位名稱'] === uSel || r['分隊'] === uSel) && r['姓名'] === p['姓名']);
+
+            if (!record) {
+                alert('⚠️ 在建檔資料中找不到該員數據，可能尚未同步或已遭刪除。');
+                return;
+            }
+
+            document.getElementById('pModalTitle').innerText = `${record['單位名稱'] || uSel} - ${record['姓名']}`;
+            let content = `
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; background:var(--bg); padding:15px; border-radius:8px;">
+                    <div><b>性別：</b>${record['性別'] || '-'}</div>
+                    <div><b>年齡：</b>${record['年齡'] || '-'}</div>
+                    <div><b>身高：</b>${record['身高'] || '-'} cm</div>
+                    <div><b>體重：</b>${record['體重'] || '-'} kg</div>
+                    <div><b>肩寬：</b>${record['肩寬'] || '-'} cm</div>
+                    <div><b>胸圍：</b>${record['胸圍'] || '-'} cm</div>
+                    <div><b>腰圍：</b>${record['腰圍'] || '-'} cm</div>
+                    <div><b>臀圍：</b>${record['臀圍'] || '-'} cm</div>
+                </div>
+                <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
+                <div style="text-align:center; font-size:18px;">
+                    <b>判定尺碼：</b> <span style="color:var(--primary); font-size:24px; font-weight:bold;">${record['判定尺碼'] || '-'}</span>
+                </div>
+                <div style="text-align:center; font-size:14px; margin-top:8px; color:var(--text-muted);">
+                    <b>目前進度狀態：</b> ${record['狀態'] || '確認中'}
+                </div>
+            `;
+            document.getElementById('pModalContent').innerHTML = content;
+            document.getElementById('personDataModal').style.display = 'flex';
+        };
+
         function lockGlobalUnit() {
             const a = document.getElementById('homeAgencySelect').value;
             const b = document.getElementById('homeBrigadeSelect').value;
@@ -1993,54 +2234,21 @@
             document.querySelector('button[onclick="lockGlobalUnit()"]').style.display = 'block';
         }
 
-        function renderRosterGrid() {
-            const grid = document.getElementById('rosterGrid');
-            grid.innerHTML = '';
-            if (!globalLockedUnit) return;
-            const roster = dbRoster.filter(r => 
-                r['機關名稱'] === globalLockedUnit.agency && 
-                r['大隊'] === globalLockedUnit.brigade && 
-                r['分隊'] === globalLockedUnit.unit
-            );
-            if (roster.length === 0) {
-                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:20px;">此單位沒有預載名單</div>';
-                return;
-            }
-            roster.forEach(p => {
-                const btn = document.createElement('button');
-                btn.className = 'btn btn-outline';
-                btn.style.cssText = 'padding:12px 5px; font-size:14px; text-align:center; border-radius:8px;';
-                
-                const pKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
-                if (window.dbMeasured && window.dbMeasured.includes(pKey)) {
-                    btn.style.backgroundColor = '#333';
-                    btn.style.borderColor = '#444';
-                    btn.style.color = '#888';
-                    btn.innerHTML = p['姓名'] + '<br><small style="font-size:10px;">(已量測)</small>';
-                } else {
-                    btn.innerText = p['姓名'];
-                }
-                
-                btn.onclick = () => startMeasurement(p);
-                grid.appendChild(btn);
-            });
-        }
-
         function startMeasurement(personData) {
             switchTab('measure');
             document.getElementById('wizardUnitContainer').style.display = 'none';
             
-            document.getElementById('agencySelect').value = globalLockedUnit.agency;
+            document.getElementById('agencySelect').value = globalLockedUnit ? globalLockedUnit.agency : personData.agency;
             document.getElementById('agencySelect').dispatchEvent(new Event('change'));
-            document.getElementById('brigadeSelect').value = globalLockedUnit.brigade;
+            document.getElementById('brigadeSelect').value = globalLockedUnit ? globalLockedUnit.brigade : personData.brigade;
             document.getElementById('brigadeSelect').dispatchEvent(new Event('change'));
-            document.getElementById('unitSelect').value = globalLockedUnit.unit;
+            document.getElementById('unitSelect').value = globalLockedUnit ? globalLockedUnit.unit : personData.unit;
             document.getElementById('unitSelect').dispatchEvent(new Event('change'));
             
-            document.getElementById('personName').value = personData ? (personData['姓名'] || '') : '';
-            document.getElementById('personGender').value = personData ? (personData['性別'] || '') : '';
-            document.getElementById('personJob').value = personData ? (personData['職稱'] || '') : '';
-            document.getElementById('personAge').value = personData ? (personData['年齡'] || '') : '';
+            document.getElementById('personName').value = personData ? (personData.name || '') : '';
+            document.getElementById('personGender').value = personData ? (personData.gender || '') : '';
+            document.getElementById('personJob').value = personData ? (personData.job || '') : '';
+            document.getElementById('personAge').value = personData ? (personData.age || '') : '';
             
             goToStep(1);
         }
@@ -2136,15 +2344,20 @@
 
                 const agencySel = document.getElementById('agencySelect'), filterAgency = document.getElementById('filterAgency'), lblAgency = document.getElementById('lblFiltAgency');
                 const homeAgencySel = document.getElementById('homeAgencySelect');
+                const rsAgencySel = document.getElementById('rsAgencySelect');
+                
                 agencySel.innerHTML = '<option value="">請選擇機關...</option>'; 
                 homeAgencySel.innerHTML = '<option value="">請選擇機關...</option>'; 
                 filterAgency.innerHTML = '<option value="">所有機關</option>';
                 lblAgency.innerHTML = '<option value="">所有機關</option>';
+                if (rsAgencySel) rsAgencySel.innerHTML = '<option value="">請選擇機關...</option>';
+
                 for (let agency in dbHierarchy) { 
                     agencySel.innerHTML += `<option value="${agency}">${agency}</option>`; 
                     homeAgencySel.innerHTML += `<option value="${agency}">${agency}</option>`; 
                     filterAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
                     lblAgency.innerHTML += `<option value="${agency}">${agency}</option>`; 
+                    if (rsAgencySel) rsAgencySel.innerHTML += `<option value="${agency}">${agency}</option>`;
                 }
                 
                 function setupCascadingDropdowns(agencyId, brigadeId, unitId) {
@@ -2168,6 +2381,9 @@
                 setupCascadingDropdowns('filterAgency', 'filterBrigade', 'filterUnit');
                 setupCascadingDropdowns('lblFiltAgency', 'lblFiltBrigade', 'lblFiltUnit');
                 setupCascadingDropdowns('homeAgencySelect', 'homeBrigadeSelect', 'homeUnitSelect');
+                setupCascadingDropdowns('rsAgencySelect', 'rsBrigadeSelect', 'rsUnitSelect');
+                document.getElementById('rsAgencySelect').addEventListener('change', window.renderRosterStatus);
+                document.getElementById('rsBrigadeSelect').addEventListener('change', window.renderRosterStatus);
 
             } catch (e) { document.getElementById('agencySelect').innerHTML = `<option value="">⚠️ ${e.message}</option>`; }
         }
