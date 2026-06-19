@@ -3317,23 +3317,149 @@
         // ==========================================
         //  4. 靜態尺碼對照表 (V1.2版)
         // ==========================================
+        window.sizeChartEditMode = false;
+
+        window.toggleSizeEditMode = () => {
+            if (!adminLoggedIn) {
+                document.getElementById('loginOverlay').style.display = 'flex';
+                return;
+            }
+            if (window.sizeChartEditMode) {
+                window.saveSizesConfig();
+            } else {
+                window.sizeChartEditMode = true;
+                window.renderStaticChart();
+            }
+        };
+
+        window.cancelSizeEditMode = () => {
+            window.sizeChartEditMode = false;
+            window.renderStaticChart();
+        };
+
+        window.saveSizesConfig = async () => {
+            if (!adminLoggedIn) return alert("請先登入後台！");
+            
+            const btn = document.getElementById('btnSaveSizesConfig');
+            if (btn) { btn.innerText = "儲存中..."; btn.disabled = true; }
+
+            try {
+                const newConf = JSON.parse(JSON.stringify(window.SIZE_CONFIG));
+
+                const updateIntervals = (typeKey) => {
+                    if (newConf[typeKey] && newConf[typeKey].intervals) {
+                        newConf[typeKey].intervals.forEach((r, idx) => {
+                            if (r.max !== Infinity) {
+                                const el = document.getElementById(`edit_${typeKey}_int_${idx}`);
+                                if (el) r.max = parseInt(el.value);
+                            }
+                        });
+                    }
+                    if (newConf[typeKey] && newConf[typeKey].dualZones) {
+                        newConf[typeKey].dualZones.forEach((dz, idx) => {
+                            const minEl = document.getElementById(`edit_${typeKey}_dzmin_${idx}`);
+                            const maxEl = document.getElementById(`edit_${typeKey}_dzmax_${idx}`);
+                            if (minEl) dz.min = parseInt(minEl.value);
+                            if (maxEl) dz.max = parseInt(maxEl.value);
+                        });
+                    }
+                };
+
+                updateIntervals('top');
+                updateIntervals('jacket');
+
+                if (newConf.pants) {
+                    const pLen = Math.max(newConf.pants.hipIntervals.length, newConf.pants.waistIntervals.length);
+                    for (let i=0; i<pLen; i++) {
+                        let hRule = newConf.pants.hipIntervals[i];
+                        let wRule = newConf.pants.waistIntervals[i];
+                        if (hRule && hRule.max !== Infinity) {
+                            const hEl = document.getElementById(`edit_pant_hip_${i}`);
+                            if (hEl) hRule.max = parseInt(hEl.value);
+                        }
+                        if (wRule && wRule.max !== Infinity) {
+                            const wEl = document.getElementById(`edit_pant_waist_${i}`);
+                            if (wEl) wRule.max = parseInt(wEl.value);
+                        }
+                    }
+                }
+
+                const payload = {
+                    action: 'updateSizesConfig',
+                    password: savedAdminPwd,
+                    data: newConf
+                };
+
+                const res = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ payload: JSON.stringify(payload) })
+                });
+
+                const result = await res.json();
+                if (result.status === 'success') {
+                    alert("儲存成功！數值已同步至雲端。");
+                    window.SIZE_CONFIG = newConf;
+                    window.sizeChartEditMode = false;
+                    window.renderStaticChart();
+                } else {
+                    alert("儲存失敗：" + (result.error || "未知錯誤"));
+                    if (btn) { btn.innerText = "儲存同步設定"; btn.disabled = false; }
+                }
+
+            } catch(e) {
+                console.error(e);
+                alert("網路或系統錯誤，儲存失敗！");
+                if (btn) { btn.innerText = "儲存同步設定"; btn.disabled = false; }
+            }
+        };
+
         window.renderStaticChart = () => {
             let html = '';
             const conf = window.SIZE_CONFIG;
             if (!conf) return;
+
+            html += `
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 15px;">
+                <button id="btnSaveSizesConfig" class="btn btn-${window.sizeChartEditMode ? 'primary' : 'outline'}" onclick="window.toggleSizeEditMode()">
+                    ${window.sizeChartEditMode ? '💾 儲存同步設定' : '✏️ 編輯尺碼邊界'}
+                </button>
+                ${window.sizeChartEditMode ? `<button class="btn btn-ghost" style="margin-left:10px;" onclick="window.cancelSizeEditMode()">取消</button>` : ''}
+            </div>`;
+
+            html += `
+            <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; line-height: 1.6;">
+                <h3 style="color: var(--primary); margin-top: 0; font-size: 16px;">尺寸判斷核心規則</h3>
+                <ul style="padding-left: 20px; color: var(--text-muted); font-size: 14px; margin-bottom: 0;">
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">上衣與外套</strong>：分別比對「胸圍」與「腰圍」，取兩者中<strong style="color:var(--primary)">較大的尺寸級距</strong>。若該數值剛好落在雙尺寸交界區，則判定為跨尺碼（如 S/M）。</li>
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">長褲類</strong>：分別比對「臀圍」與「腰圍」，取兩者中<strong style="color:var(--primary)">較大的尺寸級距</strong>做為字母尺寸。<br>英吋腰圍算法：將公分轉英吋後取偶數。若「臀圍 > 腰圍 + 14cm」，腰圍會自動 <strong style="color:var(--primary)">+2 吋</strong> 預留活動空間。</li>
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">救護背心</strong>：直接依據上衣尺寸對應（XS~S/M 轉 S；M 轉 M；M/L~L/XL 轉 L；XL 以上轉 XL）。</li>
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">消防靴</strong>：依據腳長無條件向上進位至最接近的尺碼。</li>
+                    <li><strong style="color:var(--text-main)">特規標記</strong>：若腰圍比胸圍大 2 級以上，或臀圍比腰圍大 2 級以上，系統將自動標示為特殊體型。</li>
+                </ul>
+            </div>`;
 
             const buildTable = (title, configObj, type) => {
                 if (!configObj || !configObj.intervals) return '';
                 let t = `<h3 style="padding: 15px; margin: 0; background: var(--bg-surface); border-bottom: 1px solid var(--border); color:var(--text-main); font-size:15px;">${title}</h3>
                 <div style="overflow-x: auto; margin-bottom: 30px;">
                     <table class="sct"><thead><tr><th>尺碼</th><th>${type === 'pant' ? '臀圍/腰圍' : '胸圍/腰圍'}上限 (cm)</th></tr></thead><tbody>`;
-                configObj.intervals.forEach(r => {
-                    t += `<tr><td><span class="sz-badge">${r.size}</span></td><td>${r.max === Infinity ? '無上限' : r.max}</td></tr>`;
+                configObj.intervals.forEach((r, idx) => {
+                    let valDisplay = r.max === Infinity ? '無上限' : r.max;
+                    if (window.sizeChartEditMode && r.max !== Infinity) {
+                        valDisplay = `<input type="number" id="edit_${type}_int_${idx}" value="${r.max}" style="width:80px; padding:6px; text-align:center; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--primary); border-radius: 4px;">`;
+                    }
+                    t += `<tr><td><span class="sz-badge">${r.size}</span></td><td>${valDisplay}</td></tr>`;
                 });
                 if (configObj.dualZones && configObj.dualZones.length > 0) {
                     t += `<tr><td colspan="2" style="background: rgba(249, 115, 22, 0.1); color: var(--primary); font-weight:bold; text-align:center; padding: 10px;">雙尺寸交界區</td></tr>`;
-                    configObj.dualZones.forEach(dz => {
-                        t += `<tr><td><span class="sz-badge" style="color: #fff; background: var(--primary); padding: 3px 8px; border-radius: 4px;">${dz.output}</span></td><td style="color: var(--primary);">${dz.min} ~ ${dz.max}</td></tr>`;
+                    configObj.dualZones.forEach((dz, idx) => {
+                        let minDisplay = dz.min, maxDisplay = dz.max;
+                        if (window.sizeChartEditMode) {
+                            minDisplay = `<input type="number" id="edit_${type}_dzmin_${idx}" value="${dz.min}" style="width:70px; padding:6px; text-align:center; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--primary); border-radius: 4px;">`;
+                            maxDisplay = `<input type="number" id="edit_${type}_dzmax_${idx}" value="${dz.max}" style="width:70px; padding:6px; text-align:center; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--primary); border-radius: 4px;">`;
+                        }
+                        t += `<tr><td><span class="sz-badge" style="color: #fff; background: var(--primary); padding: 3px 8px; border-radius: 4px;">${dz.output}</span></td><td style="color: var(--primary);">${minDisplay} ~ ${maxDisplay}</td></tr>`;
                     });
                 }
                 t += `</tbody></table></div>`;
@@ -3352,7 +3478,16 @@
                     let hRule = conf.pants.hipIntervals[i];
                     let wRule = conf.pants.waistIntervals[i];
                     let sz = conf.pants.sizesArray[i] || '';
-                    html += `<tr><td>${hRule ? (hRule.max===Infinity?'無上限':hRule.max) : '-'}</td><td>${wRule ? (wRule.max===Infinity?'無上限':wRule.max) : '-'}</td><td><span class="sz-badge">${sz}</span></td></tr>`;
+                    
+                    let hDisplay = hRule ? (hRule.max===Infinity?'無上限':hRule.max) : '-';
+                    let wDisplay = wRule ? (wRule.max===Infinity?'無上限':wRule.max) : '-';
+
+                    if (window.sizeChartEditMode) {
+                        if (hRule && hRule.max !== Infinity) hDisplay = `<input type="number" id="edit_pant_hip_${i}" value="${hRule.max}" style="width:80px; padding:6px; text-align:center; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--primary); border-radius: 4px;">`;
+                        if (wRule && wRule.max !== Infinity) wDisplay = `<input type="number" id="edit_pant_waist_${i}" value="${wRule.max}" style="width:80px; padding:6px; text-align:center; background: var(--bg-base); color: var(--text-main); border: 1px solid var(--primary); border-radius: 4px;">`;
+                    }
+
+                    html += `<tr><td>${hDisplay}</td><td>${wDisplay}</td><td><span class="sz-badge">${sz}</span></td></tr>`;
                 }
                 html += `</tbody></table></div>`;
             }
@@ -3393,6 +3528,8 @@
                     if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
                     else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     else { throw new Error("VERSION_MISMATCH"); }
+                    
+                    window.renderStaticChart(); // Re-render to show edit button
                     
                     if (document.getElementById('view-admin').classList.contains('active')) {
                         document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">讀取資料中，請稍候...</td></tr>';
