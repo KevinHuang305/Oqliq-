@@ -3045,7 +3045,7 @@
                         const shV = calc(e_sL, e_sR); views[currentView].measureLines.push({ p1: e_sL, p2: e_sR, name: '肩寬', val: shV, rawVal: dist(e_sL, e_sR)/views[currentView].pxPerCm, multiplier: 1, inputId: 'val-shoulder', baseLabel: '肩寬' }); document.getElementById('val-shoulder').value = shV;
                         const chV = calc(c_L, c_R, 2.6); views[currentView].measureLines.push({ p1: c_L, p2: c_R, name: '胸圍(推估)', val: chV, rawVal: dist(c_L, c_R)/views[currentView].pxPerCm, multiplier: 2.6, inputId: 'val-chest', baseLabel: '胸圍' }); document.getElementById('val-chest').value = chV;
                         const waV = calc(w_L, w_R, 2.4); views[currentView].measureLines.push({ p1: w_L, p2: w_R, name: '腰圍(推估)', val: waV, rawVal: dist(w_L, w_R)/views[currentView].pxPerCm, multiplier: 2.4, inputId: 'val-waist', baseLabel: '腰圍' }); document.getElementById('val-waist').value = waV;
-                        const hipV = calc(hp_L, hp_R, 2.2); views[currentView].measureLines.push({ p1: hp_L, p2: hp_R, name: '臀圍(推估)', val: hipV, rawVal: dist(hp_L, hp_R)/views[currentView].pxPerCm, multiplier: 2.2, inputId: 'val-hip', baseLabel: '臀圍' }); document.getElementById('val-hip').value = hipV;
+                        const hipV = calc(hp_L, hp_R, 3); views[currentView].measureLines.push({ p1: hp_L, p2: hp_R, name: '臀圍(推估)', val: hipV, rawVal: dist(hp_L, hp_R)/views[currentView].pxPerCm, multiplier: 3, inputId: 'val-hip', baseLabel: '臀圍' }); document.getElementById('val-hip').value = hipV;
                     } else if (currentView === 'side') {
                         const frontRef = views.front.refLine;
                         if (frontRef && views.front.measureLines.length > 0) {
@@ -3062,7 +3062,7 @@
                                     let mult = 1; let inputId = '';
                                     if (lbl === '胸圍') { mult = 2.6; inputId = 'val-chest'; }
                                     else if (lbl === '腰圍') { mult = 2.4; inputId = 'val-waist'; }
-                                    else if (lbl === '臀圍') { mult = 2.2; inputId = 'val-hip'; }
+                                    else if (lbl === '臀圍') { mult = 3; inputId = 'val-hip'; }
                                     views[currentView].measureLines.push({ p1: p1, p2: p2, name: lbl, rawVal: 25, multiplier: mult, inputId: inputId, baseLabel: lbl });
                                 }
                             });
@@ -3257,9 +3257,9 @@
                         jacket: calcSizeV1_2('jacket', ch, w).isCustomByRule,
                         pant: szPant.isCustomByRule
                     };
-                    addField('戰術褲 (TP)', 'TP', [], szPant.size);
+                    addField('戰術褲 (TP)', 'TP', getSizes('戰術褲', allSz), szPant.size);
                     addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
-                    addField('戰術帽', 'CAP', ['S', 'M', 'L'], h < 165 ? 'S' : h < 178 ? 'M' : 'L');
+                    addField('戰術帽', 'CAP', ['M', 'L'], h < 178 ? 'M' : 'L');
                     const foot = document.getElementById('val-foot').value;
                     const shoeOpts = [
                         '22.0 (日本號 34)', '23.0 (日本號 35)', '24.0 (日本號 36)', '24.5 (日本號 37)',
