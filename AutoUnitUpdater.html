@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單位資料自動更新工具 (Google Apps Script 版)</title>
+    <!-- PapaParse for CSV output -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #09090b;
+            --bg-surface: #18181b;
+            --bg-hover: #27272a;
+            --primary: #f97316;
+            --primary-hover: #ea580c;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border: #27272a;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro TC', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: var(--bg-surface);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-top: 0;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .info-box {
+            background: var(--bg-base);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .info-box p {
+            margin: 0;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn:disabled {
+            background: var(--bg-hover);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+            margin-top: 15px;
+            display: none;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .results-section {
+            display: none;
+            margin-top: 30px;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+        }
+
+        .status-msg {
+            padding: 15px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: #1f1f22;
+            color: var(--text-muted);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        tr:hover {
+            background: var(--bg-hover);
+        }
+
+        .new-row td {
+            color: var(--primary);
+            font-weight: bold;
+            background: rgba(249, 115, 22, 0.05);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>單位資料自動更新工具</h1>
+    <div class="subtitle">Cloud Sync: 直接串接系統 API (Google Apps Script)</div>
+
+    <div class="info-box">
+        <p>此工具將會自動連線至系統預設的 API 讀取目前的「單位資料」與「人員名冊」。</p>
+        <p>系統會自動為您比對兩者差異，抓出新單位並自動配發系統代碼。</p>
+    </div>
+
+    <button id="processBtn" class="btn">開始從系統 API 分析資料</button>
+
+    <div id="resultsSection" class="results-section">
+        <div id="statusMsg" class="status-msg">分析完成！發現 0 個新單位。</div>
+        
+        <div class="table-container">
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>狀態</th>
+                        <th>機關名稱</th>
+                        <th>所屬大隊/分類</th>
+                        <th>單位名稱</th>
+                        <th>系統代碼</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 動態填充 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+            <button id="downloadBtn" class="btn btn-success" style="flex: 1;">下載更新後的「單位資料.csv」</button>
+            <button id="syncCloudBtn" class="btn btn-success" style="flex: 1; background: #3b82f6;">一鍵同步新單位至雲端 (Google Sheets)</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 共用 API URL (取自 index.html)
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbweXBbTFXG6zn5pvaAWb5BNuILZ02gjCQ8nVEA8__HgxLtV6jzDBfIrVnp1OElBxf5y/exec";
+
+    let finalUnits = [];
+    const processBtn = document.getElementById('processBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const syncCloudBtn = document.getElementById('syncCloudBtn');
+
+    // 保存最後產生出來的新單位陣列
+    let currentNewUnits = [];
+
+    function getPrefix(orgName) {
+        if (!orgName) return 'XX';
+        if (orgName.includes('高雄')) return 'KH';
+        if (orgName.includes('臺南') || orgName.includes('台南')) return 'TN';
+        if (orgName.includes('嘉義')) return 'CY';
+        if (orgName.includes('臺北') || orgName.includes('台北')) return 'TP';
+        if (orgName.includes('新北')) return 'NTP';
+        if (orgName.includes('桃園')) return 'TY';
+        if (orgName.includes('台中') || orgName.includes('臺中')) return 'TC';
+        return 'XX';
+    }
+
+    function generateNewCode(prefix, allCodes) {
+        let maxNum = 0;
+        const regex = new RegExp(`^${prefix}(\\d+)$`);
+        
+        allCodes.forEach(code => {
+            if (code) {
+                const match = String(code).trim().match(regex);
+                if (match) {
+                    const num = parseInt(match[1], 10);
+                    if (num > maxNum) maxNum = num;
+                }
+            }
+        });
+        
+        let newNumStr = (maxNum + 1).toString().padStart(3, '0');
+        return `${prefix}${newNumStr}`;
+    }
+
+    processBtn.addEventListener('click', async () => {
+        processBtn.disabled = true;
+        processBtn.innerText = "正在從雲端讀取資料中...";
+        
+        try {
+            // 透過 API 取得資料
+            const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + 'action=getUnits';
+            const res = await fetch(url);
+            const textData = await res.text();
+            
+            let data; 
+            try { 
+                data = JSON.parse(textData); 
+            } catch (err) { 
+                throw new Error("API 解析錯誤，請確認網址或發佈狀態。"); 
+            }
+            if (data.error) throw new Error(data.error);
+
+            // 解析單位資料 (data.systemCodes) -> {"機關|大隊|分隊": "代碼"}
+            const existingSet = new Set();
+            const allCodes = [];
+            const existingUnits = [];
+
+            if (data.systemCodes) {
+                for (const key in data.systemCodes) {
+                    const code = data.systemCodes[key];
+                    const parts = key.split('_');
+                    if (parts.length === 3) {
+                        existingSet.add(key);
+                        if (code) allCodes.push(code);
+                        existingUnits.push({
+                            '機關名稱': parts[0],
+                            '所屬大隊/分類': parts[1],
+                            '單位名稱': parts[2],
+                            '系統代碼': code
+                        });
+                    }
+                }
+            }
+
+            // 解析名單資料 (data.roster)
+            const allRosterData = data.roster || [];
+            let newUnitsToAdd = [];
+
+            processBtn.innerText = "分析資料比對中...";
+            
+            allRosterData.forEach(row => {
+                // API 欄位通常映射為: 機關名稱, 大隊, 分隊 (需對應表單欄位名稱)
+                // 我們嘗試支援多種可能的鍵名
+                const org = row['機關名稱'] || row['機關'] || row['Agency'] || '';
+                const brigade = row['大隊'] || row['所屬大隊/分類'] || row['Brigade'] || '';
+                let unit = row['分隊'] || row['單位名稱'] || row['Unit'] || '';
+                
+                if (!unit.trim()) {
+                    unit = brigade;
+                }
+
+                if (!org && !brigade && !unit) return;
+
+                const key = `${org}_${brigade}_${unit}`;
+                const hqKey = `${org}_${brigade}_大隊本部`;
+
+                if (!existingSet.has(key)) {
+                    if (unit === brigade && existingSet.has(hqKey)) {
+                        return; // 已經有大隊本部，忽略
+                    }
+                    
+                    newUnitsToAdd.push({
+                        '機關名稱': org,
+                        '所屬大隊/分類': brigade,
+                        '單位名稱': unit,
+                        '系統代碼': '',
+                        isNew: true
+                    });
+                    existingSet.add(key);
+                }
+            });
+
+            // 產生新代碼
+            newUnitsToAdd.forEach(u => {
+                const prefix = getPrefix(u['機關名稱']);
+                const newCode = generateNewCode(prefix, allCodes);
+                u['系統代碼'] = newCode;
+                allCodes.push(newCode); // 更新 pool
+            });
+
+            currentNewUnits = newUnitsToAdd;
+
+            // 準備最終資料與渲染 UI
+            finalUnits = [...existingUnits];
+            newUnitsToAdd.forEach(u => {
+                finalUnits.push({
+                    '機關名稱': u['機關名稱'],
+                    '所屬大隊/分類': u['所屬大隊/分類'],
+                    '單位名稱': u['單位名稱'],
+                    '系統代碼': u['系統代碼']
+                });
+            });
+
+            renderTable(existingUnits, newUnitsToAdd);
+            
+            const msgEl = document.getElementById('statusMsg');
+            msgEl.innerText = `分析完成！共發現 ${newUnitsToAdd.length} 個新單位。`;
+            if (newUnitsToAdd.length === 0) {
+                msgEl.style.color = "var(--text-muted)";
+                msgEl.style.borderColor = "var(--border)";
+                msgEl.style.background = "var(--bg-hover)";
+            } else {
+                msgEl.style.color = "var(--success)";
+                msgEl.style.borderColor = "var(--success)";
+                msgEl.style.background = "rgba(16, 185, 129, 0.1)";
+            }
+
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('downloadBtn').style.display = 'block';
+            
+            if (newUnitsToAdd.length > 0) {
+                document.getElementById('syncCloudBtn').style.display = 'block';
+            } else {
+                document.getElementById('syncCloudBtn').style.display = 'none';
+            }
+
+        } catch (error) {
+            alert("處理時發生錯誤：\n" + error);
+            console.error(error);
+        } finally {
+            processBtn.innerText = "開始從系統 API 分析資料";
+            processBtn.disabled = false;
+        }
+    });
+
+    function renderTable(oldData, newData) {
+        const tbody = document.querySelector('#resultTable tbody');
+        tbody.innerHTML = '';
+        
+        newData.forEach(u => {
+            const tr = document.createElement('tr');
+            tr.className = 'new-row';
+            tr.innerHTML = `
+                <td><span style="background:var(--primary); color:#000; padding:2px 6px; border-radius:4px; font-size:11px;">新增</span></td>
+                <td>${u['機關名稱'] || ''}</td>
+                <td>${u['所屬大隊/分類'] || ''}</td>
+                <td>${u['單位名稱'] || ''}</td>
+                <td>${u['系統代碼'] || ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        const displayLimit = 50;
+        oldData.slice(0, displayLimit).forEach(u => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span style="color:var(--text-muted); font-size:11px;">原有</span></td>
+                <td>${u['機關名稱'] || ''}</td>
+                <td>${u['所屬大隊/分類'] || ''}</td>
+                <td>${u['單位名稱'] || ''}</td>
+                <td>${u['系統代碼'] || ''}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        if (oldData.length > displayLimit) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="5" style="text-align:center; color:var(--text-muted);">...還有 ${oldData.length - displayLimit} 筆原有單位省略顯示...</td>`;
+            tbody.appendChild(tr);
+        }
+    }
+
+    downloadBtn.addEventListener('click', () => {
+        const csvString = Papa.unparse(finalUnits);
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csvString], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "合併後_單位資料.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    syncCloudBtn.addEventListener('click', async () => {
+        if (!currentNewUnits || currentNewUnits.length === 0) {
+            alert("沒有需要同步的新單位！");
+            return;
+        }
+
+        if (!confirm(`即將同步 ${currentNewUnits.length} 個新單位至雲端，確定嗎？`)) return;
+
+        syncCloudBtn.disabled = true;
+        syncCloudBtn.innerText = "雲端同步中...";
+
+        try {
+            const formData = new URLSearchParams();
+            const payload = {
+                action: "appendUnits",
+                newUnits: currentNewUnits
+            };
+            formData.append("payload", JSON.stringify(payload));
+
+            const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+            const result = await res.json();
+
+            if (result.success) {
+                alert(`✅ 成功寫入 ${result.added || currentNewUnits.length} 個新單位至雲端！`);
+                // 同步成功後隱藏按鈕避免重複發送
+                syncCloudBtn.style.display = 'none';
+                processBtn.innerText = "重新分析資料";
+            } else {
+                alert(`寫入失敗：${result.error || '未知錯誤'}`);
+            }
+        } catch (e) {
+            console.error(e);
+            alert("連線失敗，請稍後再試！");
+        } finally {
+            syncCloudBtn.disabled = false;
+            syncCloudBtn.innerText = "一鍵同步新單位至雲端 (Google Sheets)";
+        }
+    });
+
+</script>
+</body>
+</html>
