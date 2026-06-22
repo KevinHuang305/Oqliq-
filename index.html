@@ -3413,7 +3413,8 @@
             formData.append("series", seriesArr.join(", "));
 
             const getFinalSz = (code) => { const el = document.getElementById(`sz_${code}`); return el ? (el.value || currentRecordSizes[code]) : ""; };
-            formData.append("sz_long", getFinalSz('TL') || getFinalSz('OPL')); formData.append("sz_short", getFinalSz('TS') || getFinalSz('OPS'));
+            formData.append("sz_long", getFinalSz('TL')); formData.append("sz_short", getFinalSz('TS'));
+            formData.append("sz_op_long", getFinalSz('OPL')); formData.append("sz_op_short", getFinalSz('OPS'));
             formData.append("sz_vest", getFinalSz('TV') || getFinalSz('EV')); formData.append("sz_jacket", getFinalSz('EJ'));
             formData.append("sz_pant", getFinalSz('TP')); formData.append("sz_belt", getFinalSz('BELT'));
             formData.append("sz_cap", getFinalSz('CAP')); formData.append("sz_shoe", getFinalSz('SHOE'));
@@ -4146,7 +4147,7 @@
             document.getElementById('mAdminNote_txt').innerText = r['後台備註'] || '無'; document.getElementById('mAdminNote_inp').value = r['後台備註'] || '';
 
             const szObj = r.sizes || {}; let szHtml = '';
-            const szFields = [{ k: 'TL', l: '長袖' }, { k: 'TS', l: '短袖' }, { k: 'TV', l: '背心' }, { k: 'TJ', l: '戰術外套' }, { k: 'EJ', l: '外套' }, { k: 'EJI', l: '外套內件' }, { k: 'TP', l: '戰術褲' }, { k: 'BELT', l: '褲帶' }, { k: 'CAP', l: '戰術帽' }, { k: 'SHOE', l: '消防靴' }];
+            const szFields = [{ k: 'TL', l: '長袖' }, { k: 'TS', l: '短袖' }, { k: 'OPL', l: '長袖操作服' }, { k: 'OPS', l: '短袖操作服' }, { k: 'TV', l: '背心' }, { k: 'TJ', l: '戰術外套' }, { k: 'EJ', l: '外套' }, { k: 'EJI', l: '外套內件' }, { k: 'TP', l: '戰術褲' }, { k: 'BELT', l: '褲帶' }, { k: 'CAP', l: '戰術帽' }, { k: 'SHOE', l: '消防靴' }];
             const clothesSizes = ['', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL'];
             const shoeSizes = ['', '34', '35', '36', '37', '38', '39', '40', '41', '42', '43'];
             const hatSizes = ['', 'F', 'S', 'M', 'L', 'XL'];
@@ -4222,7 +4223,9 @@
             if (newAdminNote !== (orig['後台備註'] || '')) formData.append("adminNote", newAdminNote);
             
             const szMap = {
-                "sz_long": { el: 'mSz_TL', k: 'TL' }, "sz_short": { el: 'mSz_TS', k: 'TS' }, "sz_vest": { el: 'mSz_TV', k: 'TV' },
+                "sz_long": { el: 'mSz_TL', k: 'TL' }, "sz_short": { el: 'mSz_TS', k: 'TS' }, 
+                "sz_op_long": { el: 'mSz_OPL', k: 'OPL' }, "sz_op_short": { el: 'mSz_OPS', k: 'OPS' },
+                "sz_vest": { el: 'mSz_TV', k: 'TV' },
                 "sz_jacket": { el: 'mSz_EJ', k: 'EJ' }, "sz_tac_jacket": { el: 'mSz_TJ', k: 'TJ' }, "sz_ems_inner": { el: 'mSz_EJI', k: 'EJI' },
                 "sz_pant": { el: 'mSz_TP', k: 'TP' }, "sz_belt": { el: 'mSz_BELT', k: 'BELT' },
                 "sz_cap": { el: 'mSz_CAP', k: 'CAP' }, "sz_shoe": { el: 'mSz_SHOE', k: 'SHOE' }
