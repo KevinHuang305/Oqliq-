@@ -2193,6 +2193,9 @@
             }
 
             document.getElementById('pModalTitle').innerText = `${record['單位名稱'] || uSel} - ${record['姓名']}`;
+            const showTac = (record['配發系列'] || '').includes('TAC');
+            const showOps = (record['配發系列'] || '').includes('OPS');
+            const showEms = (record['配發系列'] || '').includes('EMS');
             let content = `
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; background:var(--bg); padding:15px; border-radius:8px;">
                     <div><b>性別：</b>${record['性別'] || '-'}</div>
@@ -2207,17 +2210,20 @@
                 <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
                 <div style="text-align:center; font-size:16px; margin-bottom: 10px;"><b>服裝配發尺碼 (${record['配發系列'] || '-'})</b></div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; background:var(--bg-hover); padding:15px; border-radius:8px; font-size: 14px; text-align: center;">
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服長袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服長袖'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服短袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服短袖'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>長袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['長袖操作服'] || record['長袖操作服 '] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>短袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['短袖操作服'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術背心</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術背心'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護內件</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套內件'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術外套'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術褲</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術褲'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>褲帶</b><br><span style="color:var(--primary); font-weight:bold;">${record['褲帶'] || '-'}</span></div>
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術帽</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術帽'] || '-'}</span></div>
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服長袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服長袖'] || '-'}</span></div>` : ''}
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服短袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服短袖'] || '-'}</span></div>` : ''}
+                    ${showOps ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>長袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['長袖操作服'] || record['長袖操作服 '] || '-'}</span></div>` : ''}
+                    ${showOps ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>短袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['短袖操作服'] || '-'}</span></div>` : ''}
+                    ${(showTac || showEms) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>${
+                        showTac && showEms ? '戰術/救護背心' :
+                        showEms ? '救護背心' : '戰術背心'
+                    }</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術背心'] || '-'}</span></div>` : ''}
+                    ${showEms ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套'] || '-'}</span></div>` : ''}
+                    ${showEms ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護內件</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套內件'] || '-'}</span></div>` : ''}
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術外套'] || '-'}</span></div>` : ''}
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術褲</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術褲'] || '-'}</span></div>` : ''}
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>褲帶</b><br><span style="color:var(--primary); font-weight:bold;">${record['褲帶'] || '-'}</span></div>` : ''}
+                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術帽</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術帽'] || '-'}</span></div>` : ''}
                     <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>消防靴</b><br><span style="color:var(--primary); font-weight:bold;">${record['消防靴'] || '-'}</span></div>
                 </div>
                 <div style="text-align:center; font-size:14px; margin-top:15px; color:var(--text-muted);">
@@ -3297,9 +3303,11 @@
                         jacket: calcSizeV1_2('jacket', ch, w).isCustomByRule,
                         pant: szPant.isCustomByRule
                     };
-                    addField('戰術褲 (TP)', 'TP', getSizes('戰術褲', allSz), szPant.size);
-                    addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
-                    addField('戰術帽', 'CAP', ['M', 'L'], h < 178 ? 'M' : 'L');
+                    if (selTAC) {
+                        addField('戰術褲 (TP)', 'TP', getSizes('戰術褲', allSz), szPant.size);
+                        addField('戰術腰帶', 'BELT', ['S', 'M', 'L', 'XL', '2XL'], w < 82 ? 'S' : w < 90 ? 'M' : w < 100 ? 'L' : w < 110 ? 'XL' : '2XL');
+                        addField('戰術帽', 'CAP', ['M', 'L'], h < 178 ? 'M' : 'L');
+                    }
                     const foot = document.getElementById('val-foot').value;
                     const shoeOpts = [
                         '22.0 (日本號 34)', '23.0 (日本號 35)', '24.0 (日本號 36)', '24.5 (日本號 37)',
@@ -3318,7 +3326,7 @@
                     const seriesCode = document.getElementById('chk-TAC').checked ? 'TAC' : (document.getElementById('chk-OPS').checked ? 'OPS' : 'EMS');
                     const bagNo = `${pId}`;
 
-                    const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'救護背心','TP':'戰術褲','BELT':'腰帶','CAP':'便帽','SHOE':'工作鞋'};
+                    const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'救護背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
                     let kitHtml = "";
                     ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => {
                         const el = document.getElementById(`sz_${k}`);
@@ -4178,7 +4186,27 @@
             document.getElementById('mStatus_inp').value = r['狀態'];
             document.getElementById('mAdminNote_txt').innerText = r['後台備註'] || '無'; document.getElementById('mAdminNote_inp').value = r['後台備註'] || '';
 
-            const szFields = [{ k: 'TL', col: '戰術服長袖', l: '戰術服長袖' }, { k: 'TS', col: '戰術服短袖', l: '戰術服短袖' }, { k: 'OPL', col: '長袖操作服', l: '長袖操作服' }, { k: 'OPS', col: '短袖操作服', l: '短袖操作服' }, { k: 'TV', col: '戰術背心', l: '戰術背心' }, { k: 'TJ', col: '戰術外套', l: '戰術外套' }, { k: 'EJ', col: '救護外套', l: '救護外套' }, { k: 'EJI', col: '救護外套內件', l: '救護外套內件' }, { k: 'TP', col: '戰術褲', l: '戰術褲' }, { k: 'BELT', col: '褲帶', l: '褲帶' }, { k: 'CAP', col: '戰術帽', l: '戰術帽' }, { k: 'SHOE', col: '消防靴', l: '消防靴' }];
+            const vestLabel = (r['配發系列'] || '').includes('TAC') && (r['配發系列'] || '').includes('EMS') ? '戰術/救護背心' :
+                              (r['配發系列'] || '').includes('EMS') ? '救護背心' : '戰術背心';
+            const showTacFields = (r['配發系列'] || '').includes('TAC');
+            const szFields = [
+                { k: 'TL', col: '戰術服長袖', l: '戰術服長袖' },
+                { k: 'TS', col: '戰術服短袖', l: '戰術服短袖' },
+                { k: 'OPL', col: '長袖操作服', l: '長袖操作服' },
+                { k: 'OPS', col: '短袖操作服', l: '短袖操作服' },
+                { k: 'TV', col: '戰術背心', l: vestLabel },
+                { k: 'TJ', col: '戰術外套', l: '戰術外套' },
+                { k: 'EJ', col: '救護外套', l: '救護外套' },
+                { k: 'EJI', col: '救護外套內件', l: '救護外套內件' }
+            ];
+            if (showTacFields) {
+                szFields.push(
+                    { k: 'TP', col: '戰術褲', l: '戰術褲' },
+                    { k: 'BELT', col: '褲帶', l: '褲帶' },
+                    { k: 'CAP', col: '戰術帽', l: '戰術帽' }
+                );
+            }
+            szFields.push({ k: 'SHOE', col: '消防靴', l: '消防靴' });
             const clothesSizes = ['', 'XS', 'S', 'S/M', 'M', 'M/L', 'L', 'L/XL', 'XL', 'XL/2XL', '2XL', '2XL/3XL', '3XL'];
             const shoeSizes = ['', '22.0', '23.0', '24.0', '24.5', '25.0', '25.5', '26.0', '27.0', '28.0', '29.0'];
             const hatSizes = ['', 'F', 'S', 'M', 'L', 'XL'];
@@ -4265,9 +4293,12 @@
             };
 
             for (let param in szMap) {
-                const newSz = document.getElementById(szMap[param].el).value;
-                const oldSz = orig[szMap[param].col] || orig[szMap[param].col + ' '] || '';
-                if (newSz !== oldSz) formData.append(param, newSz);
+                const el = document.getElementById(szMap[param].el);
+                if (el) {
+                    const newSz = el.value;
+                    const oldSz = orig[szMap[param].col] || orig[szMap[param].col + ' '] || '';
+                    if (newSz !== oldSz) formData.append(param, newSz);
+                }
             }
             try {
                 const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
@@ -4444,11 +4475,16 @@
             const getPrintTool = () => `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="const card = this.closest('.label-card'); const val = this.previousElementSibling.value; openPrintChoice(() => printSingleLabel(card, val))">列印</button></div>`;
 
             if (type === 'inner') {
-                const sizeNames = {'TL':'戰術服長袖','TS':'戰術服短袖','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'戰術背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
+                const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'救護背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
                 const colNames = {'TL':'戰術服長袖','TS':'戰術服短袖','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'戰術背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
                 targetRecords.forEach((r, idx) => {
                     let kit = '';
+                    const series = r['配發系列'] || '';
                     ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { 
+                        if (['TL', 'TS', 'TV', 'TJ', 'TP', 'BELT', 'CAP'].includes(k) && !series.includes('TAC')) return;
+                        if (['OPL', 'OPS'].includes(k) && !series.includes('OPS')) return;
+                        if (['EJ', 'EJI', 'EV'].includes(k) && !series.includes('EMS')) return;
+
                         const val = r[colNames[k]] || r[colNames[k] + ' '];
                         if (val && val !== '-') {
                             kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k] || k}(${k}) : ${val}</div>`; 

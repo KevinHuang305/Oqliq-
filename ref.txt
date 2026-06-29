@@ -3,3 +3,7 @@
 
 測試網址:https://kevinhuang305.github.io/Oqliq-
 預設密碼 admin123
+
+單位資料更新網址:https://kevinhuang305.github.io/Oqliq-/AutoUnitUpdater.html
+Google 帳號firescue2026@gmail.com
+密碼/fire119
