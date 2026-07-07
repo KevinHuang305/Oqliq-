@@ -1547,6 +1547,21 @@
                 </div>
             </div>
 
+            <!-- Export Section -->
+            <div id="rosterExportContainer" style="display: none; background: var(--bg-surface); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+                <span style="font-size: 13px; color: var(--text-muted); font-weight: 600;">名冊資料匯出：</span>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; flex: 1; justify-content: flex-end;">
+                    <button class="btn btn-outline" style="font-size: 13px; padding: 10px 18px; border-radius: 8px; border-width: 1px; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="window.exportRsMeasured()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        匯出已建檔尺寸
+                    </button>
+                    <button class="btn btn-ghost" style="font-size: 13px; padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; gap: 6px; cursor: pointer;" onclick="window.exportRsUnmeasured()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        匯出未建檔名單
+                    </button>
+                </div>
+            </div>
+
             <!-- Stats Section -->
             <div id="rosterStatsContainer" style="display:none; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
                 <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border);">
@@ -2099,11 +2114,15 @@
             if (!aSel) {
                 statsContainer.style.display = 'none';
                 listContainer.style.display = 'none';
+                const expContainer = document.getElementById('rosterExportContainer');
+                if (expContainer) expContainer.style.display = 'none';
                 emptyMessage.style.display = 'block';
                 return;
             }
             
             statsContainer.style.display = 'grid';
+            const expContainer = document.getElementById('rosterExportContainer');
+            if (expContainer) expContainer.style.display = 'flex';
             
             const roster = dbRoster.filter(r => {
                 if (aSel && r['機關名稱'] !== aSel) return false;
@@ -2159,6 +2178,137 @@
             document.getElementById('rsTotalCount').innerText = roster.length;
             document.getElementById('rsDoneCount').innerText = doneCount;
             document.getElementById('rsPendingCount').innerText = roster.length - doneCount;
+        };
+
+        window.exportRsMeasured = function () {
+            const aSel = document.getElementById('rsAgencySelect').value;
+            const bSel = document.getElementById('rsBrigadeSelect').value;
+            const uSel = document.getElementById('rsUnitSelect').value;
+
+            if (!aSel) {
+                alert("請先選擇機關名稱再進行匯出！");
+                return;
+            }
+
+            if (!adminLoggedIn || allRecords.length === 0) {
+                alert("🔒 匯出已建檔尺寸資料需要管理員權限。\n請先點選上方「建檔名單」或登入後台，取得資料後即可進行匯出！");
+                document.getElementById('loginOverlay').style.display = 'flex';
+                return;
+            }
+
+            const filteredRoster = dbRoster.filter(r => {
+                if (aSel && r['機關名稱'] !== aSel) return false;
+                if (bSel && r['大隊'] !== bSel) return false;
+                if (uSel && r['分隊'] !== uSel) return false;
+                return true;
+            });
+
+            const exportRecords = [];
+            filteredRoster.forEach(p => {
+                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                if (isMeasured) {
+                    let record = null;
+                    for (let i = allRecords.length - 1; i >= 0; i--) {
+                        const r = allRecords[i];
+                        if (r['機關名稱'] === p['機關名稱'] && 
+                            (r['大隊/分類'] === p['大隊'] || r['大隊'] === p['大隊']) && 
+                            (r['單位名稱'] === p['分隊'] || r['分隊'] === p['分隊']) && 
+                            r['姓名'] === p['姓名']) {
+                            record = r;
+                            break;
+                        }
+                    }
+                    if (record) {
+                        exportRecords.push(record);
+                    }
+                }
+            });
+
+            if (exportRecords.length === 0) {
+                alert("目前選取條件下，無已建檔人員資料！");
+                return;
+            }
+
+            let csvContent = "\uFEFF";
+            const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "戰術服短袖", "長袖操作服", "短袖操作服", "戰術背心", "救護外套", "救護外套內件", "戰術外套", "戰術褲", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
+            csvContent += headers.join(",") + "\r\n";
+            
+            exportRecords.forEach(r => {
+                let row = headers.map(h => {
+                    let val = r[h] !== undefined ? r[h] : r[h + ' '];
+                    let cell = val === undefined ? "" : val.toString();
+                    cell = cell.replace(/"/g, '""');
+                    return `"${cell}"`;
+                });
+                csvContent += row.join(",") + "\r\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.setAttribute("href", URL.createObjectURL(blob));
+            link.setAttribute("download", `FIRESCUE_已建檔衣服尺寸_${aSel}_${bSel || '所有'}_${uSel || '所有'}_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        window.exportRsUnmeasured = function () {
+            const aSel = document.getElementById('rsAgencySelect').value;
+            const bSel = document.getElementById('rsBrigadeSelect').value;
+            const uSel = document.getElementById('rsUnitSelect').value;
+
+            if (!aSel) {
+                alert("請先選擇機關名稱再進行匯出！");
+                return;
+            }
+
+            const filteredRoster = dbRoster.filter(r => {
+                if (aSel && r['機關名稱'] !== aSel) return false;
+                if (bSel && r['大隊'] !== bSel) return false;
+                if (uSel && r['分隊'] !== uSel) return false;
+                return true;
+            });
+
+            const exportRecords = [];
+            filteredRoster.forEach(p => {
+                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                if (!isMeasured) {
+                    exportRecords.push(p);
+                }
+            });
+
+            if (exportRecords.length === 0) {
+                alert("目前選取條件下，所有人員皆已建檔！");
+                return;
+            }
+
+            let csvContent = "\uFEFF";
+            const headers = ["機關名稱", "大隊", "分隊", "姓名", "性別", "職稱"];
+            csvContent += headers.join(",") + "\r\n";
+            
+            exportRecords.forEach(r => {
+                let row = headers.map(h => {
+                    let val = r[h];
+                    let cell = val === undefined ? "" : val.toString();
+                    cell = cell.replace(/"/g, '""');
+                    return `"${cell}"`;
+                });
+                csvContent += row.join(",") + "\r\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.setAttribute("href", URL.createObjectURL(blob));
+            link.setAttribute("download", `FIRESCUE_未建檔人員清單_${aSel}_${bSel || '所有'}_${uSel || '所有'}_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         };
 
         window.viewPersonData = function(p, isMeasured) {
