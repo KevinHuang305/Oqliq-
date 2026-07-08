@@ -2063,6 +2063,20 @@
         let labelQRCodes = [];
         let globalLockedUnit = null;
 
+        function deduplicateRecords(records) {
+            if (!Array.isArray(records)) return [];
+            const map = new Map();
+            records.forEach(r => {
+                const agency = r['機關名稱'] || '';
+                const brigade = r['大隊/分類'] || r['大隊'] || '';
+                const unit = r['單位名稱'] || r['分隊'] || '';
+                const name = r['姓名'] || '';
+                const key = `${agency}_${brigade}_${unit}_${name}`;
+                map.set(key, r);
+            });
+            return Array.from(map.values());
+        }
+
         function renderRosterGrid() {
             const grid = document.getElementById('rosterGrid');
             grid.innerHTML = '';
@@ -3950,8 +3964,8 @@
                 else {
                     document.getElementById('loginOverlay').style.display = 'none';
                     adminLoggedIn = true; savedAdminPwd = pwd;
-                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
+                    if (Array.isArray(data)) { allRecords = deduplicateRecords(data); window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
+                    else if (data.records) { allRecords = deduplicateRecords(data.records); window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     else { throw new Error("VERSION_MISMATCH"); }
                     
                     window.renderStaticChart(); // Re-render to show edit button
@@ -3993,8 +4007,8 @@
                 const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `action=getRecords&password=${encodeURIComponent(savedAdminPwd)}`;
                 const res = await fetch(url); const data = await res.json();
                 if (!data.error) {
-                    if (Array.isArray(data)) { allRecords = data; window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
-                    else if (data.records) { allRecords = data.records; window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; if (data.clothingSizes && Object.keys(data.clothingSizes).length > 0) window.RESERVE_ITEMS = data.clothingSizes; }
+                    if (Array.isArray(data)) { allRecords = deduplicateRecords(data); window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
+                    else if (data.records) { allRecords = deduplicateRecords(data.records); window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; if (data.clothingSizes && Object.keys(data.clothingSizes).length > 0) window.RESERVE_ITEMS = data.clothingSizes; }
                     renderAdminBoard();
                     window.renderBoxAdminBoard();
                     populateLabelFilters();
@@ -5132,13 +5146,13 @@
                 const res = await fetch(url);
                 const data = await res.json();
                 if (Array.isArray(data)) {
-                    allRecords = data;
+                    allRecords = deduplicateRecords(data);
                     window.boxStatuses = {};
                     window.boxTrackingNos = {};
                     window.boxUpdateTimes = {};
                     window.renderScanResult(scanMode, params);
                 } else if (data.records) {
-                    allRecords = data.records;
+                    allRecords = deduplicateRecords(data.records);
                     window.boxStatuses = data.boxStatuses || {};
                     window.boxTrackingNos = data.boxTrackingNos || {};
                     window.boxUpdateTimes = data.boxUpdateTimes || {};
