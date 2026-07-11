@@ -839,6 +839,31 @@
             display: none !important;
         }
 
+        /* 排除列印項目樣式 */
+        .exclude-item-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            padding: 6px 12px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            user-select: none;
+            transition: all 0.2s;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .exclude-item-label:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+        }
+        .exclude-item-label:has(input:checked) {
+            border-color: var(--primary);
+            background: rgba(249, 115, 22, 0.05);
+            color: var(--primary);
+        }
+
         /* Modal 個人資料卡 */
         .modal {
             display: none;
@@ -1783,6 +1808,26 @@
                     <option value="">所有單位</option>
                 </select>
                 <button class="btn btn-primary" onclick="applyLabelFilter()">篩選並產生</button>
+            </div>
+        </div>
+
+        <div id="excludeItemsArea" class="no-print"
+            style="display:none; background:var(--bg-surface); padding:15px; border-radius:8px; margin-bottom:15px; border:1px solid var(--border);">
+            <h4 style="margin-top:0; margin-bottom:10px; color:var(--primary); font-size:14px;">排除列印項目 (勾選之項目將不會印在標籤上)</h4>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="TL" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>長袖戰術服</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="TS" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>短袖戰術服</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="TV" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>戰術背心</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="TJ" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>戰術外套</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="OPL" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>長袖操作服</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="OPS" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>短袖操作服</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="EJ" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>救護外套</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="EJI" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>救護外套內件</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="EV" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>救護背心</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="TP" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>戰術褲</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="BELT" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>褲帶</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="CAP" onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>戰術帽</span></label>
+                <label class="exclude-item-label"><input type="checkbox" class="exclude-item-chk" value="SHOE" checked onchange="window.renderLabels(window.currentLabelType, window.currentSpecificBagNos)"><span>消防靴</span></label>
             </div>
         </div>
 
@@ -4608,6 +4653,8 @@
             document.getElementById('reserveInputArea').style.display = (type === 'reserve') ? 'block' : 'none';
             document.getElementById('labelFilterArea').style.display = ((type === 'inner' || type === 'squad') && !specificBagNos) ? 'block' : 'none';
             document.getElementById('globalCopiesWrap').style.display = (type === 'squad' || type === 'unit') ? 'flex' : 'none';
+            document.getElementById('excludeItemsArea').style.display = (type === 'inner') ? 'block' : 'none';
+            window.currentSpecificBagNos = specificBagNos;
 
             renderArea.innerHTML = '';
             if (!allRecords || allRecords.length === 0) { renderArea.innerHTML = '<div style="color:var(--danger); padding:20px;">無資料可產生標籤，請先登入後台確認數據。</div>'; return; }
@@ -4641,10 +4688,12 @@
             if (type === 'inner') {
                 const sizeNames = {'TL':'長袖戰術服','TS':'短袖戰術服','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'救護背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
                 const colNames = {'TL':'戰術服長袖','TS':'戰術服短袖','TV':'戰術背心','TJ':'戰術外套','OPL':'長袖操作服','OPS':'短袖操作服','EJ':'救護外套','EJI':'救護外套內件','EV':'戰術背心','TP':'戰術褲','BELT':'褲帶','CAP':'戰術帽','SHOE':'消防靴'};
+                const excludedItems = Array.from(document.querySelectorAll('.exclude-item-chk:checked')).map(cb => cb.value);
                 targetRecords.forEach((r, idx) => {
                     let kit = '';
                     const series = r['配發系列'] || '';
                     ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { 
+                        if (excludedItems.includes(k)) return;
                         if (['TL', 'TS', 'TV', 'TJ', 'TP', 'BELT', 'CAP'].includes(k) && !series.includes('TAC')) return;
                         if (['OPL', 'OPS'].includes(k) && !series.includes('OPS')) return;
                         if (['EJ', 'EJI', 'EV'].includes(k) && !series.includes('EMS')) return;
