@@ -11,39 +11,34 @@
             top: {
                 intervals: [
                     { size: "XS", max: 87, value: 0 }, { size: "S", max: 93, value: 1 }, { size: "M", max: 99, value: 2 },
-                    { size: "L", max: 105, value: 3 }, { size: "XL", max: 111, value: 4 }, { size: "2XL", max: 117, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
-                ],
-                dualZones: [
-                    { min: 92, max: 93, output: "S/M" }, { min: 98, max: 99, output: "M/L" }, { min: 104, max: 105, output: "L/XL" },
-                    { min: 110, max: 111, output: "XL/2XL" }, { min: 116, max: 117, output: "2XL/3XL" }
+                    { size: "L", max: 105, value: 3 }, { size: "XL", max: 111, value: 4 }, { size: "2XL", max: 117, value: 5 }, 
+                    { size: "3XL", max: 123, value: 6 }, { size: "4XL", max: 129, value: 7 }, { size: "5XL", max: Infinity, value: 8 }
                 ]
             },
             jacket: {
                 intervals: [
                     { size: "XS", max: 91, value: 0 }, { size: "S", max: 97, value: 1 }, { size: "M", max: 103, value: 2 },
-                    { size: "L", max: 109, value: 3 }, { size: "XL", max: 115, value: 4 }, { size: "2XL", max: 121, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
-                ],
-                dualZones: [
-                    { min: 96, max: 97, output: "S/M" }, { min: 102, max: 103, output: "M/L" }, { min: 108, max: 109, output: "L/XL" },
-                    { min: 114, max: 115, output: "XL/2XL" }, { min: 120, max: 121, output: "2XL/3XL" }
+                    { size: "L", max: 109, value: 3 }, { size: "XL", max: 115, value: 4 }, { size: "2XL", max: 121, value: 5 }, 
+                    { size: "3XL", max: 127, value: 6 }, { size: "4XL", max: 133, value: 7 }, { size: "5XL", max: Infinity, value: 8 }
                 ]
             },
             vest: {
                 emsMapping: {
-                    "XS": "S", "S": "S", "S/M": "S", "M": "M", "M/L": "L", "L": "L", "L/XL": "L",
-                    "XL": "XL", "XL/2XL": "XL", "2XL": "XL", "2XL/3XL": "XL", "3XL": "XL"
+                    "XS": "S", "S": "S", "M": "M", "L": "L", "XL": "XL", "2XL": "XL", "3XL": "XL", "4XL": "XL", "5XL": "XL"
                 }
             },
             pants: {
                 hipIntervals: [
                     { size: "XS", max: 86, value: 0 }, { size: "S", max: 91, value: 1 }, { size: "M", max: 96, value: 2 },
-                    { size: "L", max: 101, value: 3 }, { size: "XL", max: 106, value: 4 }, { size: "2XL", max: 111, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                    { size: "L", max: 101, value: 3 }, { size: "XL", max: 106, value: 4 }, { size: "2XL", max: 111, value: 5 }, 
+                    { size: "3XL", max: 116, value: 6 }, { size: "4XL", max: 121, value: 7 }, { size: "5XL", max: Infinity, value: 8 }
                 ],
                 waistIntervals: [
                     { size: "XS", max: 71, value: 0 }, { size: "S", max: 77, value: 1 }, { size: "M", max: 83, value: 2 },
-                    { size: "L", max: 89, value: 3 }, { size: "XL", max: 95, value: 4 }, { size: "2XL", max: 101, value: 5 }, { size: "3XL", max: Infinity, value: 6 }
+                    { size: "L", max: 89, value: 3 }, { size: "XL", max: 95, value: 4 }, { size: "2XL", max: 101, value: 5 }, 
+                    { size: "3XL", max: 107, value: 6 }, { size: "4XL", max: 113, value: 7 }, { size: "5XL", max: Infinity, value: 8 }
                 ],
-                sizesArray: ["XS", "S", "M", "L", "XL", "2XL", "3XL"]
+                sizesArray: ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"]
             },
             customRules: { sleeveMaxMod: 5, pantMaxMod: 8, waistOverChestSizeDiff: 2, hipOverWaistSizeDiff: 2 }
         };
@@ -2108,19 +2103,78 @@
         let labelQRCodes = [];
         let globalLockedUnit = null;
 
+        function parseDateTime(dtStr) {
+            if (!dtStr) return new Date(0);
+            let str = dtStr.toString().trim();
+            
+            // Try standard Date parsing first
+            let d = new Date(str);
+            if (!isNaN(d.getTime())) return d;
+            
+            // Handle Chinese "上午" / "下午" format, e.g., "2026/6/18 下午 10:58:35"
+            let isPM = str.includes("下午");
+            let isAM = str.includes("上午");
+            
+            if (isPM || isAM) {
+                let cleaned = str.replace("下午", "").replace("上午", "").trim();
+                let parts = cleaned.split(/\s+/);
+                if (parts.length === 2) {
+                    let datePart = parts[0];
+                    let timePart = parts[1];
+                    let timeSubparts = timePart.split(":");
+                    if (timeSubparts.length >= 2) {
+                        let hour = parseInt(timeSubparts[0], 10);
+                        let minute = parseInt(timeSubparts[1], 10);
+                        let second = timeSubparts[2] ? parseInt(timeSubparts[2], 10) : 0;
+                        
+                        if (isPM && hour < 12) hour += 12;
+                        else if (isAM && hour === 12) hour = 0;
+                        
+                        let dateSubparts = datePart.split(/[\/\-]/);
+                        if (dateSubparts.length === 3) {
+                            let year = parseInt(dateSubparts[0], 10);
+                            let month = parseInt(dateSubparts[1], 10) - 1;
+                            let day = parseInt(dateSubparts[2], 10);
+                            return new Date(year, month, day, hour, minute, second);
+                        }
+                    }
+                }
+            }
+            
+            // Fallback replacements
+            let cleanFallback = str.replace("下午", "PM").replace("上午", "AM");
+            let d2 = new Date(cleanFallback);
+            if (!isNaN(d2.getTime())) return d2;
+            
+            return new Date(0);
+        }
+
         function deduplicateRecords(records) {
             if (!Array.isArray(records)) return [];
             const map = new Map();
             records.forEach(r => {
+                const personId = r['人員識別碼'] || '';
                 const agency = r['機關名稱'] || '';
                 const brigade = r['大隊/分類'] || r['大隊'] || '';
                 const unit = r['單位名稱'] || r['分隊'] || '';
                 const name = r['姓名'] || '';
-                const key = `${agency}_${brigade}_${unit}_${name}`;
-                map.set(key, r);
+                const key = personId ? personId : `${agency}_${brigade}_${unit}_${name}`;
+                
+                const existing = map.get(key);
+                if (!existing) {
+                    map.set(key, r);
+                } else {
+                    const timeField = '系統建檔時間';
+                    const existingTime = parseDateTime(existing[timeField] || existing[timeField + ' ']);
+                    const newTime = parseDateTime(r[timeField] || r[timeField + ' ']);
+                    if (newTime >= existingTime) {
+                        map.set(key, r);
+                    }
+                }
             });
             return Array.from(map.values());
         }
+
 
         function renderRosterGrid() {
             const grid = document.getElementById('rosterGrid');
@@ -2285,7 +2339,31 @@
                 }
             });
 
-            if (exportRecords.length === 0) {
+            // Deduplicate to ensure each person only has the latest record exported
+            const dedupedExportMap = new Map();
+            exportRecords.forEach(r => {
+                const personId = r['人員識別碼'] || '';
+                const agency = r['機關名稱'] || '';
+                const brigade = r['大隊/分類'] || r['大隊'] || '';
+                const unit = r['單位名稱'] || r['分隊'] || '';
+                const name = r['姓名'] || '';
+                const key = personId ? personId : `${agency}_${brigade}_${unit}_${name}`;
+                
+                const existing = dedupedExportMap.get(key);
+                if (!existing) {
+                    dedupedExportMap.set(key, r);
+                } else {
+                    const timeField = '系統建檔時間';
+                    const existingTime = parseDateTime(existing[timeField] || existing[timeField + ' ']);
+                    const newTime = parseDateTime(r[timeField] || r[timeField + ' ']);
+                    if (newTime >= existingTime) {
+                        dedupedExportMap.set(key, r);
+                    }
+                }
+            });
+            const finalExportRecords = Array.from(dedupedExportMap.values());
+
+            if (finalExportRecords.length === 0) {
                 alert("目前選取條件下，無已建檔人員資料！");
                 return;
             }
@@ -2294,7 +2372,7 @@
             const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "戰術服短袖", "長袖操作服", "短袖操作服", "戰術背心", "救護外套", "救護外套內件", "戰術外套", "戰術褲", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
             csvContent += headers.join(",") + "\r\n";
             
-            exportRecords.forEach(r => {
+            finalExportRecords.forEach(r => {
                 let row = headers.map(h => {
                     let val = r[h] !== undefined ? r[h] : r[h + ' '];
                     let cell = val === undefined ? "" : val.toString();
@@ -3484,7 +3562,7 @@
 
                     const selTAC = document.getElementById('chk-TAC').checked, selOPS = document.getElementById('chk-OPS').checked, selEMS = document.getElementById('chk-EMS').checked;
                     const getSizes = (name, fallback) => window.RESERVE_ITEMS && window.RESERVE_ITEMS[name] ? window.RESERVE_ITEMS[name] : fallback;
-                    const allSz = ['XS', 'S', 'S/M', 'M', 'M/L', 'L', 'L/XL', 'XL', 'XL/2XL', '2XL', '2XL/3XL', '3XL'];
+                    const allSz = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '量身訂製'];
 
                     if (selTAC) { 
                         let szTop = calcSizeV1_2('top', ch, w); 
@@ -3671,8 +3749,13 @@
             let finalNote = document.getElementById('val-note').value.trim();
             const modType = document.getElementById('val-pant-mod-type').value;
             if (modType) {
-                const pantMod = modType + (document.getElementById('val-pant-mod-num').value || 1) + "吋";
+                const pantMod = modType + (document.getElementById('val-pant-mod-num').value || 1) + "cm";
                 finalNote = (finalNote ? finalNote + " / " : "") + `褲長修改:${pantMod}`;
+            }
+            const sleeveModType = document.getElementById('val-sleeve-mod-type')?.value;
+            if (sleeveModType) {
+                const sleeveMod = sleeveModType + (document.getElementById('val-sleeve-mod-num').value || 1) + "cm";
+                finalNote = (finalNote ? finalNote + " / " : "") + `袖長修改:${sleeveMod}`;
             }
             formData.append("note", finalNote);
 
@@ -3915,9 +3998,9 @@
             <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; line-height: 1.6;">
                 <h3 style="color: var(--primary); margin-top: 0; font-size: 16px;">尺寸判斷核心規則</h3>
                 <ul style="padding-left: 20px; color: var(--text-muted); font-size: 14px; margin-bottom: 0;">
-                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">上衣與外套</strong>：分別比對「胸圍」與「腰圍」，取兩者中<strong style="color:var(--primary)">較大的尺寸級距</strong>。若該數值剛好落在雙尺寸交界區，則判定為跨尺碼（如 S/M）。</li>
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">上衣與外套</strong>：分別比對「胸圍」與「腰圍」，取兩者中<strong style="color:var(--primary)">較大的尺寸級距</strong>。</li>
                     <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">長褲類</strong>：分別比對「臀圍」與「腰圍」，取兩者中<strong style="color:var(--primary)">較大的尺寸級距</strong>做為字母尺寸。<br>英吋腰圍算法：將公分轉英吋後取偶數。若「臀圍 > 腰圍 + 14cm」，腰圍會自動 <strong style="color:var(--primary)">+2 吋</strong> 預留活動空間。</li>
-                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">救護背心</strong>：直接依據上衣尺寸對應（XS~S/M 轉 S；M 轉 M；M/L~L/XL 轉 L；XL 以上轉 XL）。</li>
+                    <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">救護背心</strong>：直接依據上衣尺寸對應（XS~S 轉 S；M 轉 M；L 轉 L；XL 以上轉 XL）。</li>
                     <li style="margin-bottom: 8px;"><strong style="color:var(--text-main)">消防靴</strong>：依據腳長無條件向上進位至最接近的尺碼。</li>
                     <li><strong style="color:var(--text-main)">特規標記</strong>：若腰圍比胸圍大 2 級以上，或臀圍比腰圍大 2 級以上，系統將自動標示為特殊體型。</li>
                 </ul>
@@ -4416,7 +4499,7 @@
                 );
             }
             szFields.push({ k: 'SHOE', col: '消防靴', l: '消防靴' });
-            const clothesSizes = ['', 'XS', 'S', 'S/M', 'M', 'M/L', 'L', 'L/XL', 'XL', 'XL/2XL', '2XL', '2XL/3XL', '3XL'];
+            const clothesSizes = ['', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '量身訂製'];
             const shoeSizes = ['', '22.0', '23.0', '24.0', '24.5', '25.0', '25.5', '26.0', '27.0', '28.0', '29.0'];
             const hatSizes = ['', 'F', 'S', 'M', 'L', 'XL'];
 
@@ -4883,14 +4966,14 @@
         };
 
         window.RESERVE_ITEMS = {
-            "長袖戰術服": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "短袖戰術服": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "戰術背心": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "長袖操作服": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "短袖操作服": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "救護外套": ["XS", "S", "S/M", "M", "M/L", "L", "L/XL", "XL", "XL/2XL", "2XL", "2XL/3XL", "3XL"],
-            "救護背心": ["S", "S/M", "M", "M/L", "L", "L/XL", "XL"],
-            "戰術褲": ["XS", "S", "M", "L", "XL", "2XL", "3XL"],
+            "長袖戰術服": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "短袖戰術服": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "戰術背心": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "長袖操作服": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "短袖操作服": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "救護外套": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "救護背心": ["S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
+            "戰術褲": ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL", "量身訂製"],
             "消防靴": ["22.0", "23.0", "24.0", "24.5", "25.0", "25.5", "26.0", "27.0", "28.0", "29.0"]
         };
 
