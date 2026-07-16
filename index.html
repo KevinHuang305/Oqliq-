@@ -2153,12 +2153,11 @@
             if (!Array.isArray(records)) return [];
             const map = new Map();
             records.forEach(r => {
-                const personId = r['人員識別碼'] || '';
                 const agency = r['機關名稱'] || '';
                 const brigade = r['大隊/分類'] || r['大隊'] || '';
                 const unit = r['單位名稱'] || r['分隊'] || '';
                 const name = r['姓名'] || '';
-                const key = personId ? personId : `${agency}_${brigade}_${unit}_${name}`;
+                const key = `${agency}_${brigade}_${unit}_${name}`;
                 
                 const existing = map.get(key);
                 if (!existing) {
@@ -2342,12 +2341,11 @@
             // Deduplicate to ensure each person only has the latest record exported
             const dedupedExportMap = new Map();
             exportRecords.forEach(r => {
-                const personId = r['人員識別碼'] || '';
                 const agency = r['機關名稱'] || '';
                 const brigade = r['大隊/分類'] || r['大隊'] || '';
                 const unit = r['單位名稱'] || r['分隊'] || '';
                 const name = r['姓名'] || '';
-                const key = personId ? personId : `${agency}_${brigade}_${unit}_${name}`;
+                const key = `${agency}_${brigade}_${unit}_${name}`;
                 
                 const existing = dedupedExportMap.get(key);
                 if (!existing) {
