@@ -2650,6 +2650,17 @@
                 dbRoster = data.roster || [];
                 window.dbMeasured = data.measured || [];
 
+                // ★ 動態載入職稱選單（若 API 回傳為空則保留 HTML 預設值作為備用）
+                if (data.jobs && data.jobs.length > 0) {
+                    const personJobSel = document.getElementById('personJob');
+                    if (personJobSel) {
+                        personJobSel.innerHTML = '<option value="">選擇職稱...</option>';
+                        data.jobs.forEach(job => {
+                            personJobSel.innerHTML += `<option value="${job}">${job}</option>`;
+                        });
+                    }
+                }
+
                 const agencySel = document.getElementById('agencySelect'), filterAgency = document.getElementById('filterAgency'), lblAgency = document.getElementById('lblFiltAgency');
                 const homeAgencySel = document.getElementById('homeAgencySelect');
                 const rsAgencySel = document.getElementById('rsAgencySelect');
