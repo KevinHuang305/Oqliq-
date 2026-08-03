@@ -966,6 +966,9 @@
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
+                transformHeader: function (h) {
+                    return h.replace(/^\ufeff/, '').trim();
+                },
                 complete: function (results) {
                     try {
                         rawRecords = results.data;
