@@ -1323,9 +1323,9 @@
                             try {
                                 new QRCode(containerEl, {
                                     text: q.text,
-                                    width: qrSize,
-                                    height: qrSize,
-                                    correctLevel: QRCode.CorrectLevel.M
+                                    width: 256,
+                                    height: 256,
+                                    correctLevel: QRCode.CorrectLevel.L
                                 });
                             } catch (e) {
                                 console.error("QR Code Error on ID: " + q.id, e);
