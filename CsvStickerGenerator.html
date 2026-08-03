@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIRESCUE 裝袋貼紙列印工具</title>
+    <!-- Include CDN scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            /* 深黑與質感橘 色彩計畫 */
+            --bg-base: #09090b;
+            --bg-surface: #18181b;
+            --bg-hover: #27272a;
+            --primary: #f97316;
+            --primary-hover: #ea580c;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border: #27272a;
+            --danger: #ef4444;
+            --success: #10b981;
+
+            /* 列印版面設定預設值 (CSS 變數) */
+            --lbl-width: 100mm;
+            --lbl-height: 150mm;
+            --lbl-scale: 100%;
+            --lbl-scale-ratio: 1;
+            --lbl-font-size: 13px;
+            --lbl-qr-size: 80px;
+            --lbl-padding: 15px;
+            --print-columns: 1;
+            --print-gap: 5mm;
+            --print-margin: 0;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'SF Pro TC', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-base);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* 導覽列 */
+        .navbar {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-brand {
+            font-size: 18px;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            color: var(--text-main);
+            letter-spacing: 2px;
+        }
+
+        .nav-brand span {
+            color: var(--primary);
+            margin-left: 5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+
+        .nav-btn:hover {
+            color: var(--text-main);
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 主佈局 */
+        .app-container {
+            display: flex;
+            min-height: calc(100vh - 60px);
+            position: relative;
+        }
+
+        /* 側邊設定面板 */
+        .control-panel {
+            width: 380px;
+            background: var(--bg-surface);
+            border-right: 1px solid var(--border);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            flex-shrink: 0;
+        }
+
+        /* 預覽區域 */
+        .preview-area {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #0f0f12;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+        }
+
+        .preview-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* 表單元素 */
+        .section-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 5px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .form-row>* {
+            flex: 1;
+        }
+
+        /* 上傳區域 */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            background: rgba(255, 255, 255, 0.01);
+        }
+
+        .drop-zone:hover,
+        .drop-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(249, 115, 22, 0.05);
+        }
+
+        .drop-zone svg {
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            transition: 0.2s;
+        }
+
+        .drop-zone:hover svg {
+            color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .drop-zone-text {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .drop-zone-text span {
+            color: var(--primary);
+        }
+
+        .drop-zone-subtext {
+            font-size: 11px;
+            color: #52525b;
+            margin-top: 5px;
+        }
+
+        /* 輸入框、下拉選單 */
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            background: var(--bg-base);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            width: 100%;
+            transition: 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+        }
+
+        /* 滑桿樣式 */
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .slider-val {
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--primary);
+            min-width: 35px;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        /* 按鈕 */
+        .btn {
+            padding: 10px 16px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--text-main);
+            border-color: var(--border);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-hover);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* 標籤清單與單張標籤卡片 */
+        .label-grid {
+            display: grid;
+            /* 預覽時依照寬度自適應 */
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        /* 預覽用 label-card，印表時會被 RWD 與 page-break 控制 */
+        .label-card-wrapper {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: 0.2s;
+            align-items: center;
+        }
+
+        .label-card-wrapper:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .label-card-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 10px;
+            width: 100%;
+        }
+
+        .label-card-checkbox {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        /* 貼紙縮放容器 */
+        .label-card-container {
+            width: calc(var(--lbl-width) * var(--lbl-scale-ratio));
+            height: calc(var(--lbl-height) * var(--lbl-scale-ratio));
+            overflow: hidden;
+            position: relative;
+            border-radius: 4px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            flex-shrink: 0;
+        }
+
+        /* 純貼紙內容，列印時套用此樣式 */
+        .label-card {
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+            padding: var(--lbl-padding);
+            width: var(--lbl-width);
+            height: var(--lbl-height);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', 'Segoe UI', monospace;
+            font-size: var(--lbl-font-size);
+            line-height: 1.5;
+            font-weight: 600;
+            box-sizing: border-box;
+            transform: scale(var(--lbl-scale-ratio));
+            transform-origin: top left;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .label-header {
+            font-weight: bold;
+            font-size: calc(var(--lbl-font-size) + 3px);
+            border-bottom: 2px solid #000;
+            padding-bottom: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            letter-spacing: 0.5px;
+        }
+
+        .label-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .label-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .label-name {
+            font-size: calc(var(--lbl-font-size) + 20px);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: 1px;
+            word-break: break-all;
+            margin-bottom: 6px;
+        }
+
+        .label-qr-wrap {
+            text-align: right;
+            margin-left: 10px;
+            flex-shrink: 0;
+        }
+
+        .qr-box {
+            background: white;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .qr-box img {
+            display: block;
+            width: var(--lbl-qr-size);
+            height: var(--lbl-qr-size);
+        }
+
+        .label-divider {
+            border: 0;
+            border-top: 1px dashed #71717a;
+            margin: 6px 0;
+        }
+
+        .label-kit {
+            margin-top: 6px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .label-kit-title {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 4px;
+        }
+
+        .kit-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+
+        .kit-item-box {
+            width: 12px;
+            height: 12px;
+            border: 1.5px solid #000;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .label-remark {
+            margin-top: 8px;
+            border-top: 1px dashed #71717a;
+            padding-top: 6px;
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .label-footer {
+            margin-top: 8px;
+            font-size: calc(var(--lbl-font-size) + 1px);
+            font-weight: bold;
+            border-top: 1px solid #000;
+            padding-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* 篩選與清單統計卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat-card-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .stat-card-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary);
+            font-family: monospace;
+        }
+
+        /* 排除項目清單 */
+        .exclusion-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 6px;
+            background: var(--bg-base);
+        }
+
+        .exclusion-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .exclusion-item input {
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* 載入中遮罩 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(9, 9, 11, 0.8);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 15px;
+            backdrop-filter: blur(4px);
+        }
+
+        .spinner {
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ======= 列印樣式規則 ======= */
+        @media print {
+            @page {
+                size: auto;
+                margin: var(--print-margin);
+            }
+
+            body {
+                background: #fff !important;
+                color: #000 !important;
+            }
+
+            .navbar,
+            .control-panel,
+            .preview-header,
+            .label-card-actions,
+            .loading-overlay,
+            .stats-grid,
+            .no-print {
+                display: none !important;
+            }
+
+            .app-container {
+                display: block !important;
+                min-height: 0 !important;
+            }
+
+            .preview-area {
+                padding: 0 !important;
+                background: #fff !important;
+                display: block !important;
+            }
+
+            /* 列印格線系統 */
+            .label-grid {
+                display: grid !important;
+                grid-template-columns: repeat(var(--print-columns), var(--lbl-width)) !important;
+                gap: var(--print-gap) !important;
+                justify-content: center;
+            }
+
+            .label-card-wrapper {
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+                margin: 0 !important;
+                box-shadow: none !important;
+                display: block !important;
+                width: calc(var(--lbl-width) * var(--lbl-scale-ratio)) !important;
+                height: calc(var(--lbl-height) * var(--lbl-scale-ratio)) !important;
+            }
+
+            .label-card-container {
+                width: 100% !important;
+                height: 100% !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+            }
+
+            .label-card {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+                transform: scale(var(--lbl-scale-ratio)) !important;
+                transform-origin: top left !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div style="font-weight: bold;" id="loadingText">處理中，請稍候...</div>
+    </div>
+
+    <!-- 頂部列 -->
+    <div class="navbar no-print">
+        <div class="nav-brand">FIRESCUE <span>裝袋貼紙列印工具</span></div>
+        <div class="nav-links">
+            <a href="index.html" class="nav-btn">← 返回系統</a>
+        </div>
+    </div>
+
+    <!-- 主要容器 -->
+    <div class="app-container">
+        <!-- 側邊設定面板 -->
+        <div class="control-panel no-print">
+            <!-- 檔案上傳 -->
+            <div class="section-title">數據來源</div>
+            <div class="form-group">
+                <div class="drop-zone" id="dropZone">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <div class="drop-zone-text">拖曳 CSV 檔案至此或 <span>點擊瀏覽</span></div>
+                    <div class="drop-zone-subtext">支援 Unicode UTF-8 編碼 CSV 格式</div>
+                </div>
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+            </div>
+
+            <!-- 列印版面設定 -->
+            <div class="section-title" style="margin-top: 10px;">貼紙列印設定</div>
+
+            <div class="form-group">
+                <label>版面尺寸預設</label>
+                <select id="presetSelect" onchange="applyPreset(this.value)">
+                    <option value="thermal-100x150">熱敏物流貼紙 100 x 150 mm</option>
+                    <option value="thermal-100x100">熱敏正方貼紙 100 x 100 mm</option>
+                    <option value="a4-2x2">A4 貼紙 (2 x 2) 每頁 4 張</option>
+                    <option value="a4-2x4">A4 貼紙 (2 x 4) 每頁 8 張</option>
+                    <option value="custom">自訂版面尺寸</option>
+                </select>
+            </div>
+
+            <div id="customLayoutArea" style="display: none; flex-direction: column; gap: 12px;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>貼紙寬度 (mm)</label>
+                        <input type="number" id="lblWidth" value="100" min="20" max="300" oninput="updateLayoutStyles()">
+                    </div>
+                    <div class="form-group">
+                        <label>貼紙高度 (mm)</label>
+                        <input type="number" id="lblHeight" value="150" min="20" max="400" oninput="updateLayoutStyles()">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>列印欄數 (Columns)</label>
+                        <input type="number" id="printColumns" value="1" min="1" max="6" oninput="updateLayoutStyles()">
+                    </div>
+                    <div class="form-group">
+                        <label>間隔距離 (Gap mm)</label>
+                        <input type="number" id="printGap" value="5" min="0" max="50" oninput="updateLayoutStyles()">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>縮放比例 (Scale)</label>
+                <div class="slider-container">
+                    <input type="range" id="lblScale" min="50" max="150" value="100" oninput="updateSliderVal(this, '%')">
+                    <span class="slider-val" id="lblScaleVal">100%</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>字體大小</label>
+                    <div class="slider-container">
+                        <input type="range" id="lblFontSize" min="8" max="24" value="13" oninput="updateSliderVal(this, 'px')">
+                        <span class="slider-val" id="lblFontSizeVal">13px</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>QR碼大小</label>
+                    <div class="slider-container">
+                        <input type="range" id="lblQrSize" min="40" max="150" value="80" oninput="updateSliderVal(this, 'px')">
+                        <span class="slider-val" id="lblQrSizeVal">80px</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+                    <input type="checkbox" id="showQrCheckbox" checked onchange="toggleQrDisplay(this.checked)" style="width: 16px; height: 16px; accent-color: var(--primary);">
+                    顯示 QR Code 條碼
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>QR Code 連結前綴</label>
+                <input type="text" id="qrPrefix" value="https://oqliq.firescue.tw/index.html?scan=person&id=" placeholder="輸入掃描連結前綴">
+            </div>
+
+            <!-- 數據篩選與過濾 -->
+            <div class="section-title" style="margin-top: 10px;">數據過濾</div>
+            <div class="form-group">
+                <label>關鍵字搜尋 (姓名/袋號)</label>
+                <input type="text" id="searchInp" placeholder="輸入搜尋關鍵字..." oninput="applyFilters()">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>單位過濾</label>
+                    <select id="unitFilter" onchange="applyFilters()">
+                        <option value="">所有單位</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>系列過濾</label>
+                    <select id="seriesFilter" onchange="applyFilters()">
+                        <option value="">所有系列</option>
+                        <option value="EMS">EMS (救護)</option>
+                        <option value="TAC">TAC (戰術)</option>
+                        <option value="OPS">OPS (操作)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 配件排除 -->
+            <div class="section-title" style="margin-top: 10px;">排除套件細項</div>
+            <div class="form-group">
+                <div class="exclusion-list" id="exclusionList">
+                    <div style="color: #52525b; font-size: 11px; text-align: center; padding: 15px;">尚未匯入數據</div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="section-title" style="margin-top: 10px;">列印操作</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="btn btn-primary" id="btnPrintAll" onclick="printAllLabels()" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                        <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    列印全部標籤 (<span id="printAllCount">0</span>)
+                </button>
+                <button class="btn btn-outline" id="btnPrintSelected" onclick="printSelectedLabels()" disabled>
+                    列印已勾選標籤 (<span id="printSelCount">0</span>)
+                </button>
+                <button class="btn btn-danger" id="btnClearData" onclick="clearData()" style="margin-top: 10px;">
+                    清空資料
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側預覽區 -->
+        <div class="preview-area">
+            <div class="preview-header no-print">
+                <div class="preview-title">貼紙實體列印預覽</div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; user-select: none; margin-right: 15px;">
+                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)" style="width: 16px; height: 16px; accent-color: var(--primary);">
+                        全選已篩選項目
+                    </label>
+                    <span style="font-size: 13px; color: var(--text-muted);">
+                        顯示 <strong style="color: var(--primary);" id="visibleCount">0</strong> / 總數 <strong id="totalCount">0</strong> 筆
+                    </span>
+                </div>
+            </div>
+
+            <!-- 數據統計區 -->
+            <div class="stats-grid no-print" id="statsGrid" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-card-title">總貼紙數</div>
+                    <div class="stat-card-value" id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-title">EMS 系列</div>
+                    <div class="stat-card-value" id="statEMS">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-title">TAC 系列</div>
+                    <div class="stat-card-value" id="statTAC">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-title">OPS 系列</div>
+                    <div class="stat-card-value" id="statOPS">0</div>
+                </div>
+            </div>
+
+            <!-- 貼紙生成格線 -->
+            <div class="label-grid" id="labelGrid">
+                <!-- Labels will be dynamically appended here -->
+                <div style="grid-column: 1 / -1; text-align: center; padding: 100px 20px; color: var(--text-muted);" id="placeholderText">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+                        stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 15px; color: var(--border);">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <div style="font-size: 16px; font-weight: bold; color: var(--text-main); margin-bottom: 5px;">尚未載入數據</div>
+                    <div style="font-size: 13px;">請從左側上傳 CSV 檔案，即可在此處即時預覽並列印貼紙。</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // 全域變數
+        let rawRecords = [];      // 原始 CSV 紀錄
+        let parsedStickers = [];  // 解析後的貼紙物件清單
+        let allUniqueItems = [];  // 收集到的所有不重複 kit content 配件名稱
+        let excludedItemSet = new Set(); // 使用者排除的配件名稱
+        let qrCodes = [];         // 暫存 QR Code 的物件清單，便於列印時重繪或延遲載入
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initDragAndDrop();
+            applyPreset('thermal-100x150');
+        });
+
+        // 拖曳上傳初始化
+        function initDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            const fileInput = document.getElementById('fileInput');
+
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    processFile(e.target.files[0]);
+                }
+            });
+
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.classList.remove('dragover');
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        // 載入與處理檔案
+        function processFile(file) {
+            showLoading("正在解析 CSV 檔案，請稍候...");
+            
+            // PapaParse 讀取
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function (results) {
+                    try {
+                        rawRecords = results.data;
+                        if (rawRecords.length === 0) {
+                            alert("CSV 檔案內無資料！");
+                            hideLoading();
+                            return;
+                        }
+                        parseRecordsToStickers();
+                    } catch (err) {
+                        console.error(err);
+                        alert("解析 CSV 過程發生錯誤: " + err.message);
+                        hideLoading();
+                    }
+                },
+                error: function (error) {
+                    alert("檔案讀取失敗: " + error.message);
+                    hideLoading();
+                }
+            });
+        }
+
+        // 解析 CSV 紀錄為貼紙資料
+        function parseRecordsToStickers() {
+            parsedStickers = [];
+            allUniqueItems = [];
+            excludedItemSet.clear();
+
+            // 判斷欄位名稱
+            const firstRowKeys = Object.keys(rawRecords[0]);
+            
+            // 尋找「貼紙明細」欄位名稱 (可以是模糊匹配)
+            let detailColKey = firstRowKeys.find(k => k.trim() === "貼紙明細");
+            if (!detailColKey) {
+                // 如果沒有精確匹配，使用最後一個欄位
+                detailColKey = firstRowKeys[firstRowKeys.length - 1];
+            }
+
+            let bagNoColKey = firstRowKeys.find(k => k.trim() === "袋號" || k.trim() === "裝袋序號");
+            if (!bagNoColKey) bagNoColKey = firstRowKeys[0]; // 預設使用第一個欄位
+
+            rawRecords.forEach((r, index) => {
+                const rawDetail = r[detailColKey] || "";
+                if (!rawDetail.trim()) return; // 空白明細跳過
+
+                const bagNo = r[bagNoColKey] || (index + 1).toString();
+                
+                // 開始解析 multiline 文字
+                const lines = rawDetail.split(/\r?\n/);
+                let name = r["姓名"] || "";
+                let unit = r["單位"] || r["單位名稱"] || "";
+                let series = r["系列"] || r["配發系列"] || "";
+                const kitItems = [];
+
+                lines.forEach(line => {
+                    const cleanLine = line.trim();
+                    if (!cleanLine) return;
+
+                    // 正規表達式匹配 "欄位：值" 或 "欄位:值"
+                    if (/^姓名[：:]/.test(cleanLine)) {
+                        name = cleanLine.replace(/^姓名[：:]/, "").trim();
+                    } else if (/^單位[：:]/.test(cleanLine)) {
+                        unit = cleanLine.replace(/^單位[：:]/, "").trim();
+                    } else if (/^系列[：:]/.test(cleanLine)) {
+                        series = cleanLine.replace(/^系列[：:]/, "").trim();
+                    } else {
+                        // 其餘為服裝配發內容
+                        kitItems.push(cleanLine);
+                        
+                        // 嘗試提煉配件的基礎名稱 (去尾部的 ×數量 或 尺寸值)
+                        // 例如 "生命之星 ×1" -> "生命之星"
+                        // 例如 "救護外套：L" -> "救護外套"
+                        let baseName = cleanLine;
+                        if (cleanLine.includes("×")) {
+                            baseName = cleanLine.split("×")[0].trim();
+                        } else if (cleanLine.includes("*")) {
+                            baseName = cleanLine.split("*")[0].trim();
+                        } else if (cleanLine.includes("：")) {
+                            baseName = cleanLine.split("：")[0].trim();
+                        } else if (cleanLine.includes(":")) {
+                            baseName = cleanLine.split(":")[0].trim();
+                        }
+                        if (baseName && !allUniqueItems.includes(baseName)) {
+                            allUniqueItems.push(baseName);
+                        }
+                    }
+                });
+
+                parsedStickers.push({
+                    id: `sticker_${index}`,
+                    bagNo: bagNo,
+                    name: name,
+                    unit: unit,
+                    series: series,
+                    kitItems: kitItems,
+                    remark: r["備註"] || "",
+                    selected: true // 預設全部勾選列印
+                });
+            });
+
+            // 更新排除配件清單
+            renderExclusionList();
+            
+            // 更新篩選下拉選單
+            populateFilterOptions();
+
+            // 執行渲染
+            applyFilters();
+        }
+
+        // 產生排除配件 HTML 清單
+        function renderExclusionList() {
+            const container = document.getElementById('exclusionList');
+            if (allUniqueItems.length === 0) {
+                container.innerHTML = `<div style="color: #52525b; font-size: 11px; text-align: center; padding: 15px;">無配件細項</div>`;
+                return;
+            }
+
+            let html = '';
+            // 排序，好找
+            allUniqueItems.sort().forEach((item, idx) => {
+                html += `
+                    <label class="exclusion-item">
+                        <input type="checkbox" value="${item}" onchange="toggleExclusion('${item}', this.checked)">
+                        ${item}
+                    </label>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // 勾選/取消配件排除
+        function toggleExclusion(itemName, isChecked) {
+            if (isChecked) {
+                excludedItemSet.add(itemName);
+            } else {
+                excludedItemSet.delete(itemName);
+            }
+            renderPreviewGrid();
+        }
+
+        // 收集所有單位與系列做下拉篩選
+        function populateFilterOptions() {
+            const unitFilter = document.getElementById('unitFilter');
+            const units = new Set();
+            
+            parsedStickers.forEach(s => {
+                if (s.unit) units.add(s.unit);
+            });
+
+            // 清空舊選項並填入
+            unitFilter.innerHTML = '<option value="">所有單位</option>';
+            Array.from(units).sort().forEach(u => {
+                unitFilter.innerHTML += `<option value="${u}">${u}</option>`;
+            });
+        }
+
+        // 套用搜尋與過濾條件
+        function applyFilters() {
+            const search = document.getElementById('searchInp').value.trim().toLowerCase();
+            const unit = document.getElementById('unitFilter').value;
+            const series = document.getElementById('seriesFilter').value;
+
+            // 標示符合過濾條件的貼紙
+            parsedStickers.forEach(s => {
+                const matchSearch = !search || s.name.toLowerCase().includes(search) || s.bagNo.toLowerCase().includes(search);
+                const matchUnit = !unit || s.unit === unit;
+                const matchSeries = !series || (s.series && s.series.toUpperCase().includes(series.toUpperCase()));
+                
+                s.visible = matchSearch && matchUnit && matchSeries;
+            });
+
+            // 重新整理全選框狀態
+            updateSelectAllCheckbox();
+            
+            // 重新渲染畫面
+            renderPreviewGrid();
+        }
+
+        // 渲染貼紙預覽格線
+        function renderPreviewGrid() {
+            const grid = document.getElementById('labelGrid');
+            const placeholder = document.getElementById('placeholderText');
+            const statsGrid = document.getElementById('statsGrid');
+            
+            // 統計計數器
+            let visibleCount = 0;
+            let selectedCount = 0;
+            let emsCount = 0;
+            let tacCount = 0;
+            let opsCount = 0;
+
+            // 清空舊的
+            grid.innerHTML = '';
+            qrCodes = [];
+
+            const showQr = document.getElementById('showQrCheckbox').checked;
+            const qrPrefix = document.getElementById('qrPrefix').value.trim();
+
+            const visibleStickers = parsedStickers.filter(s => s.visible);
+            visibleCount = visibleStickers.length;
+
+            if (visibleStickers.length === 0) {
+                if (parsedStickers.length > 0) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 100px 20px; color: var(--text-muted);">
+                            <div style="font-size: 16px; font-weight: bold; color: var(--text-main); margin-bottom: 5px;">沒有符合篩選條件的貼紙</div>
+                            <div style="font-size: 13px;">請調整您的搜尋關鍵字或過濾條件。</div>
+                        </div>
+                    `;
+                } else {
+                    grid.appendChild(placeholder);
+                    statsGrid.style.display = 'none';
+                    updateBtnStates(false);
+                    return;
+                }
+            } else {
+                statsGrid.style.display = 'grid';
+                updateBtnStates(true);
+            }
+
+            // 收集統計資料
+            parsedStickers.forEach(s => {
+                if (s.visible) {
+                    if (s.selected) selectedCount++;
+                    const ser = (s.series || "").toUpperCase();
+                    if (ser.includes("EMS")) emsCount++;
+                    if (ser.includes("TAC")) tacCount++;
+                    if (ser.includes("OPS")) opsCount++;
+                }
+            });
+
+            // 更新控制面板統計數值
+            document.getElementById('statTotal').innerText = parsedStickers.length;
+            document.getElementById('statEMS').innerText = emsCount;
+            document.getElementById('statTAC').innerText = tacCount;
+            document.getElementById('statOPS').innerText = opsCount;
+            document.getElementById('visibleCount').innerText = visibleCount;
+            document.getElementById('totalCount').innerText = parsedStickers.length;
+            document.getElementById('printAllCount').innerText = visibleCount;
+            document.getElementById('printSelCount').innerText = selectedCount;
+
+            // 批次繪製貼紙卡片 HTML
+            let html = '';
+            
+            visibleStickers.forEach((s, idx) => {
+                // 過濾配件項目 (是否被排除)
+                const visibleKitItems = s.kitItems.filter(item => {
+                    // 檢查此配件是否在排除集合中
+                    for (let excluded of excludedItemSet) {
+                        if (item.includes(excluded)) return false;
+                    }
+                    return true;
+                });
+
+                // 配件 HTML 渲染
+                let kitContentHtml = '';
+                if (visibleKitItems.length > 0) {
+                    kitContentHtml = `
+                        <div class="label-kit">
+                            <div class="label-kit-title">KIT CONTENT:</div>
+                            ${visibleKitItems.map(item => `
+                                <div class="kit-item">
+                                    <div class="kit-item-box"></div>
+                                    <div>${item}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                // 備註 HTML 渲染
+                const remarkHtml = s.remark ? `<div class="label-remark">※ 備註：${s.remark}</div>` : '';
+                
+                // 每個貼紙的條碼區 ID
+                const qrId = `qr_${s.id}`;
+
+                html += `
+                    <div class="label-card-wrapper" id="wrap_${s.id}">
+                        <div class="label-card-actions no-print">
+                            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; user-select: none;">
+                                <input type="checkbox" class="label-card-checkbox" ${s.selected ? 'checked' : ''} onchange="toggleStickerSelect('${s.id}', this.checked)">
+                                勾選列印
+                            </label>
+                            <div style="display: flex; gap: 5px; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-muted);">單張複製：</span>
+                                <select id="copies_${s.id}" style="width: 55px; padding: 2px 4px; font-size: 12px; height: 24px;">
+                                    <option value="1">1 張</option>
+                                    <option value="2">2 張</option>
+                                    <option value="3">3 張</option>
+                                    <option value="5">5 張</option>
+                                    <option value="10">10 張</option>
+                                </select>
+                                <button class="btn btn-outline" style="padding: 2px 10px; font-size: 12px; height: 24px;" onclick="printSingleLabel('${s.id}')">列印</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 貼紙實體外框容器 -->
+                        <div class="label-card-container">
+                            <!-- 貼紙實體 -->
+                            <div class="label-card" id="card_${s.id}">
+                                <div class="label-header">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="12" cy="7" r="4"></circle>
+                                    </svg>
+                                    PERSONAL ISSUE BAG
+                                </div>
+                                <div class="label-main">
+                                    <div class="label-info">
+                                        <div class="label-name">${s.name}</div>
+                                        <div>UNIT: ${s.unit || '-'}</div>
+                                        <div>SERIES: ${s.series || '-'}</div>
+                                    </div>
+                                    ${showQr ? `
+                                        <div class="label-qr-wrap">
+                                            <div id="${qrId}" class="qr-box"></div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <div class="label-divider"></div>
+                                ${kitContentHtml}
+                                ${remarkHtml}
+                                <div class="label-footer">
+                                    <div>BAG NO: ${s.bagNo}</div>
+                                    <div style="font-size: 10px; font-weight: normal; color: #71717a;">FIRESCUE v4</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (showQr) {
+                    qrCodes.push({
+                        id: qrId,
+                        text: qrPrefix + encodeURIComponent(s.bagNo)
+                    });
+                }
+            });
+
+            grid.innerHTML = html;
+            hideLoading();
+
+            // 批次繪製 QR Code (使用 setTimeout 避免 UI 卡頓)
+            if (showQr && qrCodes.length > 0) {
+                let qrIdx = 0;
+                const qrSize = parseInt(document.getElementById('lblQrSize').value);
+                
+                function drawQRBatch() {
+                    const end = Math.min(qrIdx + 30, qrCodes.length);
+                    for (; qrIdx < end; qrIdx++) {
+                        const q = qrCodes[qrIdx];
+                        const containerEl = document.getElementById(q.id);
+                        if (containerEl) {
+                            try {
+                                new QRCode(containerEl, {
+                                    text: q.text,
+                                    width: qrSize,
+                                    height: qrSize,
+                                    correctLevel: QRCode.CorrectLevel.M
+                                });
+                            } catch (e) {
+                                console.error("QR Code Error on ID: " + q.id, e);
+                            }
+                        }
+                    }
+                    if (qrIdx < qrCodes.length) {
+                        setTimeout(drawQRBatch, 5);
+                    }
+                }
+                drawQRBatch();
+            }
+        }
+
+        // 單張貼紙勾選狀態變更
+        function toggleStickerSelect(stickerId, isChecked) {
+            const sticker = parsedStickers.find(s => s.id === stickerId);
+            if (sticker) {
+                sticker.selected = isChecked;
+            }
+            // 更新已勾選計數器
+            const selectedCount = parsedStickers.filter(s => s.visible && s.selected).length;
+            document.getElementById('printSelCount').innerText = selectedCount;
+            updateSelectAllCheckbox();
+        }
+
+        // 全選/反選
+        function toggleSelectAll(isChecked) {
+            parsedStickers.forEach(s => {
+                if (s.visible) {
+                    s.selected = isChecked;
+                }
+            });
+
+            // 同步所有複選框
+            const checkboxes = document.querySelectorAll('.label-card-checkbox');
+            checkboxes.forEach(cb => cb.checked = isChecked);
+
+            const selectedCount = parsedStickers.filter(s => s.visible && s.selected).length;
+            document.getElementById('printSelCount').innerText = selectedCount;
+        }
+
+        // 更新全選複選框狀態
+        function updateSelectAllCheckbox() {
+            const visibleStickers = parsedStickers.filter(s => s.visible);
+            if (visibleStickers.length === 0) {
+                document.getElementById('selectAllCheckbox').checked = false;
+                return;
+            }
+            const allSelected = visibleStickers.every(s => s.selected);
+            document.getElementById('selectAllCheckbox').checked = allSelected;
+        }
+
+        // 按鈕啟用狀態
+        function updateBtnStates(hasData) {
+            document.getElementById('btnPrintAll').disabled = !hasData;
+            document.getElementById('btnPrintSelected').disabled = !hasData;
+        }
+
+        // 介面與列印設定預設套用
+        function applyPreset(presetName) {
+            const customArea = document.getElementById('customLayoutArea');
+            const root = document.documentElement;
+
+            if (presetName === 'custom') {
+                customArea.style.display = 'flex';
+                return;
+            }
+
+            customArea.style.display = 'none';
+
+            let width, height, columns, gap, margin;
+
+            switch (presetName) {
+                case 'thermal-100x150': // 熱敏物流貼紙
+                    width = 100;
+                    height = 150;
+                    columns = 1;
+                    gap = 0;
+                    margin = 0;
+                    break;
+                case 'thermal-100x100': // 熱敏正方形
+                    width = 100;
+                    height = 100;
+                    columns = 1;
+                    gap = 0;
+                    margin = 0;
+                    break;
+                case 'a4-2x2': // A4 每頁 4 張
+                    width = 95;
+                    height = 135;
+                    columns = 2;
+                    gap = 8;
+                    margin = 10;
+                    break;
+                case 'a4-2x4': // A4 每頁 8 張
+                    width = 95;
+                    height = 68;
+                    columns = 2;
+                    gap = 6;
+                    margin = 8;
+                    break;
+            }
+
+            // 更新 DOM 值
+            document.getElementById('lblWidth').value = width;
+            document.getElementById('lblHeight').value = height;
+            document.getElementById('printColumns').value = columns;
+            document.getElementById('printGap').value = gap;
+
+            // 寫入 CSS 變數
+            updateLayoutStyles();
+        }
+
+        // 更新列印的 CSS 變數設定
+        function updateLayoutStyles() {
+            const root = document.documentElement;
+            const w = document.getElementById('lblWidth').value;
+            const h = document.getElementById('lblHeight').value;
+            const cols = document.getElementById('printColumns').value;
+            const gap = document.getElementById('printGap').value;
+            const scale = document.getElementById('lblScale').value;
+            const fontSize = document.getElementById('lblFontSize').value;
+            const qrSize = document.getElementById('lblQrSize').value;
+
+            root.style.setProperty('--lbl-width', `${w}mm`);
+            root.style.setProperty('--lbl-height', `${h}mm`);
+            root.style.setProperty('--print-columns', cols);
+            root.style.setProperty('--print-gap', `${gap}mm`);
+            root.style.setProperty('--lbl-scale', `${scale}%`);
+            root.style.setProperty('--lbl-scale-ratio', (scale / 100).toString());
+            root.style.setProperty('--lbl-font-size', `${fontSize}px`);
+            root.style.setProperty('--lbl-qr-size', `${qrSize}px`);
+
+            // 如果是在 A4 模式下，自動算出合適的 padding
+            const padding = parseInt(h) < 80 ? '8px' : '15px';
+            root.style.setProperty('--lbl-padding', padding);
+        }
+
+        // 更新滑桿數值文字與變數
+        function updateSliderVal(slider, unit) {
+            const idVal = slider.id + 'Val';
+            document.getElementById(idVal).innerText = slider.value + unit;
+            updateLayoutStyles();
+        }
+
+        // 控制條碼顯示
+        function toggleQrDisplay(visible) {
+            renderPreviewGrid();
+        }
+
+        // 清空所有資料
+        function clearData() {
+            if (rawRecords.length === 0) return;
+            if (confirm("確定要清空所有已載入的貼紙資料嗎？")) {
+                rawRecords = [];
+                parsedStickers = [];
+                allUniqueItems = [];
+                excludedItemSet.clear();
+                
+                document.getElementById('fileInput').value = '';
+                document.getElementById('unitFilter').innerHTML = '<option value="">所有單位</option>';
+                document.getElementById('searchInp').value = '';
+                document.getElementById('seriesFilter').value = '';
+                
+                renderExclusionList();
+                renderPreviewGrid();
+            }
+        }
+
+        // 列印單張貼紙 (支援複製份數)
+        function printSingleLabel(stickerId) {
+            const copies = parseInt(document.getElementById(`copies_${stickerId}`).value) || 1;
+            const wrapper = document.getElementById(`wrap_${stickerId}`);
+            if (!wrapper) return;
+
+            // 建立列印所需的 clones
+            const container = wrapper.parentElement;
+            const clones = [];
+
+            // 先隱藏其他所有貼紙
+            const allWrappers = document.querySelectorAll('.label-card-wrapper');
+            allWrappers.forEach(w => {
+                if (w !== wrapper) w.style.display = 'none';
+            });
+
+            // 複製列印副本
+            for (let i = 1; i < copies; i++) {
+                const clone = wrapper.cloneNode(true);
+                
+                // 確保 QR 碼也被複製 (因為 cloneNode 不會複製 canvas/img 的動態繪圖)
+                const originalImg = wrapper.querySelector('.qr-box img');
+                const clonedImg = clone.querySelector('.qr-box img');
+                if (originalImg && clonedImg) {
+                    clonedImg.src = originalImg.src;
+                }
+                
+                container.appendChild(clone);
+                clones.push(clone);
+            }
+
+            // 觸發列印
+            setTimeout(() => {
+                window.print();
+                
+                // 列印完畢後清理與復原
+                clones.forEach(c => c.remove());
+                allWrappers.forEach(w => w.style.display = '');
+            }, 50);
+        }
+
+        // 列印所有已篩選貼紙
+        function printAllLabels() {
+            // 先隱藏未勾選/不符合篩選的
+            const allWrappers = document.querySelectorAll('.label-card-wrapper');
+            allWrappers.forEach(w => {
+                const stickerId = w.id.replace('wrap_', '');
+                const sticker = parsedStickers.find(s => s.id === stickerId);
+                if (sticker && sticker.visible) {
+                    w.style.display = '';
+                } else {
+                    w.style.display = 'none';
+                }
+            });
+
+            setTimeout(() => {
+                window.print();
+                allWrappers.forEach(w => w.style.display = '');
+            }, 50);
+        }
+
+        // 列印勾選的貼紙
+        function printSelectedLabels() {
+            const allWrappers = document.querySelectorAll('.label-card-wrapper');
+            let count = 0;
+            
+            allWrappers.forEach(w => {
+                const stickerId = w.id.replace('wrap_', '');
+                const sticker = parsedStickers.find(s => s.id === stickerId);
+                if (sticker && sticker.visible && sticker.selected) {
+                    w.style.display = '';
+                    count++;
+                } else {
+                    w.style.display = 'none';
+                }
+            });
+
+            if (count === 0) {
+                alert("請先勾選要列印的貼紙！");
+                allWrappers.forEach(w => w.style.display = '');
+                return;
+            }
+
+            setTimeout(() => {
+                window.print();
+                allWrappers.forEach(w => w.style.display = '');
+            }, 50);
+        }
+
+        // Loading 遮罩控制
+        function showLoading(text) {
+            document.getElementById('loadingText').innerText = text;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>
