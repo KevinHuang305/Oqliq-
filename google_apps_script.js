@@ -1002,6 +1002,19 @@ function onEditTrigger(e) {
   
   if (sheetName === "測量紀錄") {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    
+    // 檢查是否清空了裝袋序號 (鍵盤 Delete / Backspace 清除內容)
+    var colBagNo = headers.indexOf("裝袋序號") + 1;
+    var isBagNoColumnEdited = (range.getColumn() <= colBagNo && colBagNo <= range.getLastColumn());
+    if (isBagNoColumnEdited) {
+      var currentBagNo = sheet.getRange(row, colBagNo).getValue().toString().trim();
+      if (currentBagNo === "") {
+        // 裝袋序號被清空了，視同刪除該筆紀錄，執行刪除比對同步！
+        syncDeletionsToD1();
+        return;
+      }
+    }
+    
     var rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
     var record = {};
     for (var j = 0; j < headers.length; j++) {
