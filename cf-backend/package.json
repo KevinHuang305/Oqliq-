@@ -1,0 +1,14 @@
+{
+  "name": "firescue-cf-backend",
+  "version": "1.0.0",
+  "description": "Firescue Cloudflare Workers and D1 Backend",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "wrangler": "^3.109.0"
+  }
+}

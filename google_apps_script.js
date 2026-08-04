@@ -59,6 +59,22 @@ function getSystemSettings(ss) {
   return settings;
 }
 
+function getSystemSettingsCached(ss) {
+  var cache = CacheService.getScriptCache();
+  try {
+    var cached = cache.get("system_settings");
+    if (cached !== null) {
+      return JSON.parse(cached);
+    }
+  } catch(e) {}
+  
+  var settings = getSystemSettings(ss);
+  try {
+    cache.put("system_settings", JSON.stringify(settings), 600); // 快取 10 分鐘
+  } catch(e) {}
+  return settings;
+}
+
 function saveSystemSettings(ss, baseUrl, adminPwd, labelConfig) {
   var sheet = initSettingsSheet(ss);
   var data = sheet.getDataRange().getValues();
@@ -84,6 +100,11 @@ function saveSystemSettings(ss, baseUrl, adminPwd, labelConfig) {
   if (!updatedBaseUrl) sheet.appendRow(["base_url", baseUrl, "系統前端發佈網址 (用於產生QR Code)"]);
   if (!updatedAdminPwd && adminPwd) sheet.appendRow(["admin_pwd", adminPwd, "管理員密碼"]);
   if (!updatedLabelConfig && labelConfig) sheet.appendRow(["label_config", labelConfig, "標籤列印版面設定"]);
+  
+  // 清除設定快取
+  try {
+    CacheService.getScriptCache().remove("system_settings");
+  } catch(e) {}
 }
 
 // ==========================================
@@ -200,7 +221,7 @@ function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   
   if (action === "getSettings") {
-    var settings = getSystemSettings(ss);
+    var settings = getSystemSettingsCached(ss);
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       data: settings
@@ -253,7 +274,7 @@ function doGet(e) {
     }
 
     if (rosterSheet) {
-      var rosterData = rosterSheet.getDataRange().getDisplayValues();
+      var rosterData = rosterSheet.getDataRange().getValues();
       if (rosterData.length > 1) {
         var headers = rosterData[0];
         for (var r = 1; r < rosterData.length; r++) {
@@ -266,34 +287,283 @@ function doGet(e) {
       }
     }
     
+    var existingIds = [];
     if (measureSheet) {
-       var mData = measureSheet.getDataRange().getDisplayValues();
+       var mData = measureSheet.getDataRange().getValues();
        if (mData.length > 1) {
          var mHeaders = mData[0];
          var nameIdx = mHeaders.indexOf("姓名");
          var agencyIdx = mHeaders.indexOf("機關名稱");
          var brigadeIdx = mHeaders.indexOf("大隊/分類");
          var unitIdx = mHeaders.indexOf("單位名稱");
+         var personIdIdx = mHeaders.indexOf("人員識別碼");
+         var bagNoIdx = mHeaders.indexOf("裝袋序號");
          
-         if (nameIdx > -1 && agencyIdx > -1 && brigadeIdx > -1 && unitIdx > -1) {
-           for(var i = 1; i < mData.length; i++){
-              var n = mData[i][nameIdx];
-              var a = mData[i][agencyIdx];
-              var b = mData[i][brigadeIdx];
-              var u = mData[i][unitIdx];
-              result.measured.push(a + "_" + b + "_" + u + "_" + n);
-           }
+         for (var i = 1; i < mData.length; i++) {
+            if (nameIdx > -1 && agencyIdx > -1 && brigadeIdx > -1 && unitIdx > -1) {
+               var n = mData[i][nameIdx];
+               var a = mData[i][agencyIdx];
+               var b = mData[i][brigadeIdx];
+               var u = mData[i][unitIdx];
+               result.measured.push(a + "_" + b + "_" + u + "_" + n);
+            }
+            if (personIdIdx > -1) {
+               var pId = mData[i][personIdIdx];
+               if (pId && pId.toString().trim() !== "" && existingIds.indexOf(pId) === -1) {
+                  existingIds.push(pId.toString().trim());
+               }
+            }
+            if (bagNoIdx > -1) {
+               var bgNo = mData[i][bagNoIdx];
+               if (bgNo && bgNo.toString().trim() !== "" && existingIds.indexOf(bgNo) === -1) {
+                  existingIds.push(bgNo.toString().trim());
+               }
+            }
          }
        }
     }
+    result.existingIds = existingIds;
     
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  else if (action === "getRecordByBagNo") {
+    var pwd = e.parameter.password;
+    var settings = getSystemSettingsCached(ss);
+    var currentAdminPwd = settings["admin_pwd"] || "admin123"; 
+    if (pwd !== currentAdminPwd) return ContentService.createTextOutput(JSON.stringify({"error": "密碼錯誤"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var bagNo = e.parameter.bagNo;
+    if (!bagNo) return ContentService.createTextOutput(JSON.stringify({"error": "缺少裝袋序號"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var sheet = ss.getSheetByName("測量紀錄");
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify({"error": "找不到測量紀錄"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return ContentService.createTextOutput(JSON.stringify({"error": "無資料"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var headers = data[0];
+    var rowIndex = -1;
+    var colBagNo = headers.indexOf("裝袋序號");
+    if (colBagNo !== -1 && sheet.getLastRow() > 1) {
+      var range = sheet.getRange(2, colBagNo + 1, sheet.getLastRow() - 1, 1);
+      var finder = range.createTextFinder(String(bagNo)).matchEntireCell(true);
+      var resultCell = finder.findNext();
+      if (resultCell) {
+        rowIndex = resultCell.getRow();
+      }
+    }
+    
+    // Fallback: search row by row if finder failed
+    if (rowIndex === -1) {
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][colBagNo]).trim() === String(bagNo).trim()) {
+          rowIndex = i + 1;
+          break;
+        }
+      }
+    }
+    
+    if (rowIndex === -1) {
+      return ContentService.createTextOutput(JSON.stringify({"error": "找不到該筆資料"})).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var rowValues = sheet.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+    var obj = {};
+    for (var j = 0; j < headers.length; j++) {
+      obj[headers[j]] = rowValues[j];
+    }
+    obj.sizes = {
+      'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
+      'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
+      'TV': obj['背心'], 'EV': obj['背心'],
+      'EJ': obj['外套'], 'TP': obj['戰術褲'],
+      'BELT': obj['褲帶'], 'CAP': obj['戰術帽'], 'SHOE': obj['消防靴'],
+      'TJ': obj['戰術外套'], 'EJI': obj['救護外套內件'] 
+    };
+    
+    var boxSheet = initBoxStatusSheet(ss);
+    var boxStatuses = {};
+    var boxTrackingNos = {}; 
+    var boxUpdateTimes = {}; 
+    
+    if (boxSheet) {
+      var boxData = boxSheet.getDataRange().getValues();
+      for (var k = 1; k < boxData.length; k++) {
+        var bId = boxData[k][0];
+        if (bId) {
+          boxStatuses[bId] = boxData[k][1];
+          if (boxData[k][2]) boxTrackingNos[bId] = boxData[k][2].toString();
+          if (boxData[k][3]) boxUpdateTimes[bId] = boxData[k][3].toString();
+        }
+      }
+    }
+
+    var sizeSheet = ss.getSheetByName("服裝尺碼");
+    var clothingSizes = {}; 
+    if (sizeSheet) {
+      var sizeData = sizeSheet.getDataRange().getValues();
+      for (var s = 1; s < sizeData.length; s++) {
+        var itemName = sizeData[s][2]; 
+        var sizeValue = sizeData[s][4]; 
+        if (itemName && sizeValue) {
+          if (!clothingSizes[itemName]) clothingSizes[itemName] = [];
+          if (clothingSizes[itemName].indexOf(sizeValue) === -1) {
+            clothingSizes[itemName].push(sizeValue);
+          }
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      record: obj,
+      boxStatuses: boxStatuses,
+      boxTrackingNos: boxTrackingNos, 
+      boxUpdateTimes: boxUpdateTimes, 
+      clothingSizes: clothingSizes 
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  else if (action === "getRecordsBySquad") {
+    var pwd = e.parameter.password;
+    var settings = getSystemSettingsCached(ss);
+    var currentAdminPwd = settings["admin_pwd"] || "admin123";
+    if (pwd !== currentAdminPwd) return ContentService.createTextOutput(JSON.stringify({"error": "密碼錯誤"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var box = e.parameter.box;
+    if (!box) return ContentService.createTextOutput(JSON.stringify({"error": "缺少箱號"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var unitSheet = ss.getSheetByName("單位資料");
+    var unitData = unitSheet ? unitSheet.getDataRange().getValues() : [];
+    var matchingUnits = [];
+    for (var u = 1; u < unitData.length; u++) {
+      var agency = unitData[u][0], brigade = unitData[u][1], unitName = unitData[u][2], sysCode = unitData[u][3];
+      if (sysCode === box || (agency + "_" + brigade + "_" + unitName) === box) {
+        matchingUnits.push(agency + "_" + brigade + "_" + unitName);
+      }
+    }
+    
+    var sheet = ss.getSheetByName("測量紀錄");
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+    
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+    
+    var headers = data[0];
+    var records = [];
+    var agencyIdx = headers.indexOf("機關名稱");
+    var brigadeIdx = headers.indexOf("大隊/分類");
+    var unitIdx = headers.indexOf("單位名稱");
+    
+    for (var i = 1; i < data.length; i++) {
+      var a = data[i][agencyIdx];
+      var b = data[i][brigadeIdx];
+      var un = data[i][unitIdx];
+      var key = a + "_" + b + "_" + un;
+      if (matchingUnits.indexOf(key) !== -1 || key === box) {
+        var obj = {};
+        for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+        obj.sizes = {
+          'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
+          'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
+          'TV': obj['背心'], 'EV': obj['背心'],
+          'EJ': obj['外套'], 'TP': obj['戰術褲'],
+          'BELT': obj['褲帶'], 'CAP': obj['戰術帽'], 'SHOE': obj['消防靴'],
+          'TJ': obj['戰術外套'], 'EJI': obj['救護外套內件'] 
+        };
+        records.push(obj);
+      }
+    }
+    
+    var boxSheet = initBoxStatusSheet(ss);
+    var boxStatuses = {};
+    var boxTrackingNos = {}; 
+    var boxUpdateTimes = {}; 
+    
+    if (boxSheet) {
+      var boxData = boxSheet.getDataRange().getValues();
+      for (var k = 1; k < boxData.length; k++) {
+        var bId = boxData[k][0];
+        if (bId && (bId === box || bId.indexOf(box) === 0)) {
+          boxStatuses[bId] = boxData[k][1];
+          if (boxData[k][2]) boxTrackingNos[bId] = boxData[k][2].toString();
+          if (boxData[k][3]) boxUpdateTimes[bId] = boxData[k][3].toString();
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      records: records.reverse(),
+      boxStatuses: boxStatuses,
+      boxTrackingNos: boxTrackingNos, 
+      boxUpdateTimes: boxUpdateTimes
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  else if (action === "getRecordsByUnit") {
+    var pwd = e.parameter.password;
+    var settings = getSystemSettingsCached(ss);
+    var currentAdminPwd = settings["admin_pwd"] || "admin123";
+    if (pwd !== currentAdminPwd) return ContentService.createTextOutput(JSON.stringify({"error": "密碼錯誤"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var unitName = e.parameter.name;
+    if (!unitName) return ContentService.createTextOutput(JSON.stringify({"error": "缺少機關名稱"})).setMimeType(ContentService.MimeType.JSON);
+    
+    var sheet = ss.getSheetByName("測量紀錄");
+    if (!sheet) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+    
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
+    
+    var headers = data[0];
+    var records = [];
+    var agencyIdx = headers.indexOf("機關名稱");
+    
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][agencyIdx] === unitName) {
+        var obj = {};
+        for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+        obj.sizes = {
+          'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
+          'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
+          'TV': obj['背心'], 'EV': obj['背心'],
+          'EJ': obj['外套'], 'TP': obj['戰術褲'],
+          'BELT': obj['褲帶'], 'CAP': obj['戰術帽'], 'SHOE': obj['消防靴'],
+          'TJ': obj['戰術外套'], 'EJI': obj['救護外套內件'] 
+        };
+        records.push(obj);
+      }
+    }
+    
+    var boxSheet = initBoxStatusSheet(ss);
+    var boxStatuses = {};
+    var boxTrackingNos = {}; 
+    var boxUpdateTimes = {}; 
+    
+    if (boxSheet) {
+      var boxData = boxSheet.getDataRange().getValues();
+      for (var k = 1; k < boxData.length; k++) {
+        var bId = boxData[k][0];
+        if (bId && (bId === unitName || bId.indexOf(unitName) === 0)) {
+          boxStatuses[bId] = boxData[k][1];
+          if (boxData[k][2]) boxTrackingNos[bId] = boxData[k][2].toString();
+          if (boxData[k][3]) boxUpdateTimes[bId] = boxData[k][3].toString();
+        }
+      }
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      records: records.reverse(),
+      boxStatuses: boxStatuses,
+      boxTrackingNos: boxTrackingNos, 
+      boxUpdateTimes: boxUpdateTimes
+    })).setMimeType(ContentService.MimeType.JSON);
   }
   
   else if (action === "getRecords") {
     var pwd = e.parameter.password;
     
-    var settings = getSystemSettings(ss);
+    var settings = getSystemSettingsCached(ss);
     var currentAdminPwd = settings["admin_pwd"] || "admin123"; 
     
     if (pwd !== currentAdminPwd) return ContentService.createTextOutput(JSON.stringify({"error": "密碼錯誤"})).setMimeType(ContentService.MimeType.JSON);
@@ -301,7 +571,7 @@ function doGet(e) {
     var sheet = ss.getSheetByName("測量紀錄");
     if (!sheet) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
     
-    var data = sheet.getDataRange().getDisplayValues(); 
+    var data = sheet.getDataRange().getValues(); 
     if (data.length <= 1) return ContentService.createTextOutput(JSON.stringify([])).setMimeType(ContentService.MimeType.JSON);
     
     var headers = data[0];
@@ -382,7 +652,7 @@ function doPost(e) {
       
       if (payloadObj.action === "updateSizesConfig") {
         var pwd = payloadObj.password;
-        var settings = getSystemSettings(ss);
+        var settings = getSystemSettingsCached(ss);
         var currentAdminPwd = settings["admin_pwd"] || "admin123";
         
         if (pwd !== currentAdminPwd) {
@@ -548,4 +818,84 @@ function doPost(e) {
   sheet.appendRow([new Date(), regDate, agency, brigade, unit, personId, bagNo, name, gender, age, job, source, filename, fileUrl, height, shoulder, chest, waist, hip, inseam, series, sz_long, sz_short, sz_op_long, sz_op_short, sz_vest, sz_jacket, sz_ems_inner, sz_tac_jacket, sz_pant, sz_belt, sz_cap, sz_shoe, status, note, adminNote]);
   
   return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}
+
+// ==========================================
+// 🌟 歷史資料批次同步至 Cloudflare D1
+// ==========================================
+function exportAllSheetsToD1() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/";
+  
+  // 1. 同步「測量紀錄」
+  var measureSheet = ss.getSheetByName("測量紀錄");
+  if (measureSheet) {
+    var data = measureSheet.getDataRange().getValues();
+    if (data.length > 1) {
+      var headers = data[0];
+      var records = [];
+      for (var i = 1; i < data.length; i++) {
+        var obj = {};
+        for (var j = 0; j < headers.length; j++) {
+          var val = data[i][j];
+          if (val instanceof Date) {
+            val = val.toISOString();
+          }
+          obj[headers[j]] = val;
+        }
+        records.push(obj);
+      }
+      
+      // 每 100 筆為一個 chunk 分批發送，防範 payload 過大
+      var chunk = 100;
+      for (var k = 0; k < records.length; k += chunk) {
+        var sub = records.slice(k, k + chunk);
+        var options = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ records: sub })
+        };
+        try {
+          var res = UrlFetchApp.fetch(cfUrl + "importRecords", options);
+          Logger.log("批次測量紀錄寫入成功: " + (k + sub.length) + "/" + records.length);
+        } catch(err) {
+          Logger.log("批次測量紀錄寫入失敗 (索引 " + k + "): " + err.toString());
+        }
+      }
+      Logger.log("✅ 測量紀錄同步完成，共 " + records.length + " 筆。");
+    }
+  }
+  
+  // 2. 同步「分隊箱狀態」
+  var boxSheet = ss.getSheetByName("分隊箱狀態");
+  if (boxSheet) {
+    var bData = boxSheet.getDataRange().getValues();
+    if (bData.length > 1) {
+      var bHeaders = bData[0];
+      var boxes = [];
+      for (var i = 1; i < bData.length; i++) {
+        var bObj = {};
+        for (var j = 0; j < bHeaders.length; j++) {
+          var bVal = bData[i][j];
+          if (bVal instanceof Date) {
+            bVal = bVal.toISOString();
+          }
+          bObj[bHeaders[j]] = bVal;
+        }
+        boxes.push(bObj);
+      }
+      
+      var bOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ boxes: boxes })
+      };
+      try {
+        UrlFetchApp.fetch(cfUrl + "importBoxStatus", bOptions);
+        Logger.log("✅ 分隊箱狀態同步完成，共 " + boxes.length + " 筆。");
+      } catch(err) {
+        Logger.log("分隊箱狀態同步失敗: " + err.toString());
+      }
+    }
+  }
 }

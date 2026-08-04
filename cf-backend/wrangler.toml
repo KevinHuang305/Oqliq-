@@ -1,0 +1,11 @@
+name = "firescue-cf-backend"
+main = "src/index.js"
+compatibility_date = "2024-04-03"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "firescue-db"
+database_id = "7ca7c0ce-6811-47d4-bd76-8d783983459c"
+
+[vars]
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbweXBbTFXG6zn5pvaAWb5BNuILZ02gjCQ8nVEA8__HgxLtV6jzDBfIrVnp1OElBxf5y/exec"

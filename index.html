@@ -2666,6 +2666,7 @@
                 dbHierarchy = data.hierarchy; dbSystemCodes = data.systemCodes;
                 dbRoster = data.roster || [];
                 window.dbMeasured = data.measured || [];
+                window.dbExistingIds = data.existingIds || [];
 
                 // ★ 動態載入職稱選單（若 API 回傳為空則保留 HTML 預設值作為備用）
                 if (data.jobs && data.jobs.length > 0) {
@@ -2748,8 +2749,16 @@
             const agency = document.getElementById('agencySelect').value, brigade = document.getElementById('brigadeSelect').value;
             if (this.value) {
                 const sysCode = dbSystemCodes[`${agency}_${brigade}_${this.value}`] || "SYS";
-                const rnd = Math.floor(1000 + Math.random() * 9000);
-                document.getElementById('personId').value = `${sysCode}-${rnd}`;
+                let rnd;
+                let newId;
+                let attempts = 0;
+                const maxAttempts = 10000;
+                do {
+                    rnd = Math.floor(1000 + Math.random() * 9000);
+                    newId = `${sysCode}-${rnd}`;
+                    attempts++;
+                } while (window.dbExistingIds && window.dbExistingIds.includes(newId) && attempts < maxAttempts);
+                document.getElementById('personId').value = newId;
             } else { document.getElementById('personId').value = ""; }
         });
 
@@ -3857,6 +3866,14 @@
                     if (window.dbMeasured && !window.dbMeasured.includes(pKey)) {
                         window.dbMeasured.push(pKey);
                         renderRosterGrid();
+                    }
+                    const pIdVal = document.getElementById('personId').value;
+                    if (!window.dbExistingIds) window.dbExistingIds = [];
+                    if (pIdVal && !window.dbExistingIds.includes(pIdVal)) {
+                        window.dbExistingIds.push(pIdVal);
+                    }
+                    if (bagNo && !window.dbExistingIds.includes(bagNo)) {
+                        window.dbExistingIds.push(bagNo);
                     }
                 }).catch(err => {
                     alert("⚠️ 網路請求已送出。若 GAS 設定正確資料應已寫入！");
@@ -5300,20 +5317,38 @@
 
         window.initScanMode = async function (scanMode, params) {
             try {
-                const url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `action=getRecords&password=${encodeURIComponent(DEFAULT_ADMIN_PWD)}`;
+                let url = APPS_SCRIPT_URL + (APPS_SCRIPT_URL.includes('?') ? '&' : '?') + `password=${encodeURIComponent(DEFAULT_ADMIN_PWD)}`;
+                if (scanMode === 'person') {
+                    const id = params.get('id');
+                    url += `&action=getRecordByBagNo&bagNo=${encodeURIComponent(id)}`;
+                } else if (scanMode === 'squad') {
+                    const box = params.get('box');
+                    url += `&action=getRecordsBySquad&box=${encodeURIComponent(box)}`;
+                } else if (scanMode === 'unit') {
+                    const name = params.get('name');
+                    url += `&action=getRecordsByUnit&name=${encodeURIComponent(name)}`;
+                } else {
+                    url += `&action=getRecords`;
+                }
                 const res = await fetch(url);
                 const data = await res.json();
-                if (Array.isArray(data)) {
-                    allRecords = deduplicateRecords(data);
-                    window.boxStatuses = {};
-                    window.boxTrackingNos = {};
-                    window.boxUpdateTimes = {};
+                if (data.record) {
+                    allRecords = [data.record];
+                    window.boxStatuses = data.boxStatuses || {};
+                    window.boxTrackingNos = data.boxTrackingNos || {};
+                    window.boxUpdateTimes = data.boxUpdateTimes || {};
                     window.renderScanResult(scanMode, params);
                 } else if (data.records) {
                     allRecords = deduplicateRecords(data.records);
                     window.boxStatuses = data.boxStatuses || {};
                     window.boxTrackingNos = data.boxTrackingNos || {};
                     window.boxUpdateTimes = data.boxUpdateTimes || {};
+                    window.renderScanResult(scanMode, params);
+                } else if (Array.isArray(data)) {
+                    allRecords = deduplicateRecords(data);
+                    window.boxStatuses = {};
+                    window.boxTrackingNos = {};
+                    window.boxUpdateTimes = {};
                     window.renderScanResult(scanMode, params);
                 } else {
                     document.getElementById('scanSubtitle').innerText = "密碼錯誤或無法取得資料";
@@ -5586,13 +5621,41 @@
                 const result = await res.json();
                 if (result.success) {
                     alert(`處理完成！成功更新資料。`);
+                    
+                    // Update in-memory state
+                    if (scanMode === 'person') {
+                        currentScanRecords.forEach(r => r['狀態'] = newStatus);
+                    } else if (scanMode === 'squad') {
+                        if (newStatus !== '有缺袋') {
+                            currentScanRecords.forEach(r => r['狀態'] = newStatus);
+                        }
+                        if (window.currentBoxId) {
+                            if (!window.boxStatuses) window.boxStatuses = {};
+                            window.boxStatuses[window.currentBoxId] = newStatus;
+                            if (scanTrackingNoVal) {
+                                if (!window.boxTrackingNos) window.boxTrackingNos = {};
+                                window.boxTrackingNos[window.currentBoxId] = scanTrackingNoVal;
+                            }
+                        }
+                    } else if (scanMode === 'unit') {
+                        if (newStatus !== '有缺袋') {
+                            currentScanRecords.forEach(r => r['狀態'] = newStatus);
+                        }
+                        if (window.currentBoxId) {
+                            if (!window.boxStatuses) window.boxStatuses = {};
+                            window.boxStatuses[window.currentBoxId] = newStatus;
+                        }
+                    }
                 } else {
                     alert("更新發生錯誤，請稍後再試。");
                 }
             } catch (e) {
                 alert("連線失敗！");
             }
-            window.location.reload();
+            
+            // Re-render scan result to update UI and restore buttons
+            window.renderScanResult(scanMode, params);
+            btns.forEach(b => b.disabled = false);
         };
 
         window.updateOnlyTrackingNumber = async function() {
@@ -5632,6 +5695,15 @@
                         history[todayStr][squadKey] = scanTrackingNoVal;
                         localStorage.setItem('tracking_history', JSON.stringify(history));
                     }
+                    
+                    // Update in-memory state
+                    if (window.currentBoxId) {
+                        if (!window.boxTrackingNos) window.boxTrackingNos = {};
+                        window.boxTrackingNos[window.currentBoxId] = scanTrackingNoVal;
+                    }
+                    
+                    // Re-render scan result to reflect the updated tracking number
+                    window.renderScanResult(scanMode, params);
                 } else {
                     alert("更新失敗：" + (result.error || "未知錯誤"));
                 }
