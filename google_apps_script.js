@@ -721,6 +721,17 @@ function doPost(e) {
         if (e.parameter.sz_belt) sheet.getRange(i + 1, headers.indexOf("褲帶") + 1).setValue(e.parameter.sz_belt);
         if (e.parameter.sz_cap) sheet.getRange(i + 1, headers.indexOf("戰術帽") + 1).setValue(e.parameter.sz_cap);
         if (e.parameter.sz_shoe) sheet.getRange(i + 1, headers.indexOf("消防靴") + 1).setValue(e.parameter.sz_shoe);
+        
+        // 主動推送更新至 D1
+        var updatedRowValues = sheet.getRange(i + 1, 1, 1, headers.length).getValues()[0];
+        var record = {};
+        for (var col = 0; col < headers.length; col++) {
+          var val = updatedRowValues[col];
+          if (val instanceof Date) val = val.toISOString();
+          record[headers[col]] = val;
+        }
+        pushRecordToD1(record);
+        
         return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
       }
     }
@@ -772,6 +783,22 @@ function doPost(e) {
       }
     }
     
+    // 主動推送批量更新至 D1
+    var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/bulkUpdate";
+    var options = {
+      method: 'post',
+      contentType: 'application/x-www-form-urlencoded',
+      payload: {
+        bagNos: e.parameter.bagNos || "",
+        status: newStatus || "",
+        boxId: boxId || "",
+        boxStatus: boxStatus || "",
+        trackingNo: trackingNo || "",
+        action: "bulkUpdate"
+      }
+    };
+    try { UrlFetchApp.fetch(cfUrl, options); } catch(err) {}
+    
     return ContentService.createTextOutput(JSON.stringify({success: true, updatedCount: updatedCount})).setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -817,7 +844,65 @@ function doPost(e) {
   
   sheet.appendRow([new Date(), regDate, agency, brigade, unit, personId, bagNo, name, gender, age, job, source, filename, fileUrl, height, shoulder, chest, waist, hip, inseam, series, sz_long, sz_short, sz_op_long, sz_op_short, sz_vest, sz_jacket, sz_ems_inner, sz_tac_jacket, sz_pant, sz_belt, sz_cap, sz_shoe, status, note, adminNote]);
   
+  // 主動推送全新紀錄至 D1
+  var record = {
+    "系統建檔時間": new Date().toISOString(),
+    "登記日期": regDate,
+    "機關名稱": agency,
+    "大隊/分類": brigade,
+    "單位名稱": unit,
+    "人員識別碼": personId,
+    "裝袋序號": bagNo,
+    "姓名": name,
+    "性別": gender,
+    "年齡": age,
+    "職稱": job,
+    "量測方式": source,
+    "照片檔名": filename,
+    "照片連結": fileUrl,
+    "身高": height,
+    "肩寬": shoulder,
+    "胸圍": chest,
+    "腰圍": waist,
+    "臀圍": hip,
+    "褲內長": inseam,
+    "配發系列": series,
+    "長袖": sz_long,
+    "短袖": sz_short,
+    "長袖操作服": sz_op_long,
+    "短袖操作服": sz_op_short,
+    "背心": sz_vest,
+    "外套": sz_jacket,
+    "救護外套內件": sz_ems_inner,
+    "戰術外套": sz_tac_jacket,
+    "戰術褲": sz_pant,
+    "褲帶": sz_belt,
+    "戰術帽": sz_cap,
+    "消防靴": sz_shoe,
+    "狀態": status,
+    "現場備註": note,
+    "後台備註": adminNote
+  };
+  pushRecordToD1(record);
+  
   return ContentService.createTextOutput("Success").setMimeType(ContentService.MimeType.TEXT);
+}
+
+// ==========================================
+// 🌟 主動發送資料給 D1 的輔助函數
+// ==========================================
+function pushRecordToD1(record) {
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/importRecords";
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ records: [record] })
+  };
+  try {
+    UrlFetchApp.fetch(cfUrl, options);
+  } catch(err) {
+    Logger.log("主動推送紀錄至 D1 失敗: " + err.toString());
+  }
 }
 
 // ==========================================
@@ -896,6 +981,103 @@ function exportAllSheetsToD1() {
       } catch(err) {
         Logger.log("分隊箱狀態同步失敗: " + err.toString());
       }
+  }
+}
+}
+
+// ==========================================
+// 🌟 手動修改同步至 D1 觸發器
+// ==========================================
+function onEditTrigger(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
+  var sheetName = sheet.getName();
+  
+  if (sheetName !== "測量紀錄" && sheetName !== "分隊箱狀態") return;
+  
+  var row = range.getRow();
+  if (row === 1) return; // 忽略標頭列
+  
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/";
+  
+  if (sheetName === "測量紀錄") {
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var record = {};
+    for (var j = 0; j < headers.length; j++) {
+      var val = rowValues[j];
+      if (val instanceof Date) {
+        val = val.toISOString();
+      }
+      record[headers[j]] = val;
     }
+    
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ records: [record] })
+    };
+    try {
+      UrlFetchApp.fetch(cfUrl + "importRecords", options);
+    } catch(err) {
+      Logger.log("手動修改同步至 D1 失敗: " + err.toString());
+    }
+  }
+  
+  if (sheetName === "分隊箱狀態") {
+    var bHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var bRowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var box = {};
+    for (var k = 0; k < bHeaders.length; k++) {
+      var bVal = bRowValues[k];
+      if (bVal instanceof Date) {
+        bVal = bVal.toISOString();
+      }
+      box[bHeaders[k]] = bVal;
+    }
+    
+    var bOptions = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ boxes: [box] })
+    };
+    try {
+      UrlFetchApp.fetch(cfUrl + "importBoxStatus", bOptions);
+    } catch(err) {
+      Logger.log("手動修改箱狀態同步至 D1 失敗: " + err.toString());
+    }
+  }
+}
+
+// ==========================================
+// 🌟 表單提交同步至 D1 觸發器
+// ==========================================
+function onFormSubmitTrigger(e) {
+  var range = e.range;
+  var sheet = range.getSheet();
+  
+  var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var rowValues = range.getValues()[0];
+  
+  var record = {};
+  for (var j = 0; j < headers.length; j++) {
+    var val = rowValues[j];
+    if (val instanceof Date) {
+      val = val.toISOString();
+    }
+    record[headers[j]] = val;
+  }
+  
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/importRecords";
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ records: [record] })
+  };
+  
+  try {
+    UrlFetchApp.fetch(cfUrl, options);
+  } catch(err) {
+    Logger.log("表單提交同步至 D1 失敗: " + err.toString());
   }
 }
