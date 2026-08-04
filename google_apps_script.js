@@ -1081,3 +1081,68 @@ function onFormSubmitTrigger(e) {
     Logger.log("表單提交同步至 D1 失敗: " + err.toString());
   }
 }
+
+// ==========================================
+// 🌟 變更時同步刪除觸發器
+// ==========================================
+function onChangeTrigger(e) {
+  if (e && e.changeType === "REMOVE_ROW") {
+    syncDeletionsToD1();
+  }
+}
+
+// ==========================================
+// 🌟 比較並同步 D1 清理已在 Google Sheet 被刪除的紀錄
+// ==========================================
+function syncDeletionsToD1() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("測量紀錄");
+  if (!sheet) return;
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return;
+  
+  var headers = data[0];
+  var colBagNo = headers.indexOf("裝袋序號");
+  if (colBagNo === -1) return;
+  
+  // 1. 獲取 Google Sheets 所有既存的袋號
+  var sheetBagNos = {};
+  for (var i = 1; i < data.length; i++) {
+    var bNo = data[i][colBagNo];
+    if (bNo) {
+      sheetBagNos[bNo.toString().trim()] = true;
+    }
+  }
+  
+  // 2. 獲取 D1 目前存在的袋號
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/";
+  try {
+    var res = UrlFetchApp.fetch(cfUrl + "getExistingBagNos");
+    var d1BagNos = JSON.parse(res.getContentText());
+    
+    // 3. 比對出 D1 存在但試算表已不存在的袋號
+    var missingBagNos = [];
+    for (var j = 0; j < d1BagNos.length; j++) {
+      var d1No = d1BagNos[j];
+      if (!sheetBagNos[d1No]) {
+        missingBagNos.push(d1No);
+      }
+    }
+    
+    // 4. 發送刪除請求給 D1
+    if (missingBagNos.length > 0) {
+      var options = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ bagNos: missingBagNos })
+      };
+      UrlFetchApp.fetch(cfUrl + "deleteRecords", options);
+      Logger.log("✅ 已同步將試算表中不存在的資料從 D1 刪除，共 " + missingBagNos.length + " 筆。袋號：" + missingBagNos.join(", "));
+    } else {
+      Logger.log("無須刪除任何資料，試算表與 D1 同步一致。");
+    }
+  } catch(err) {
+    Logger.log("比對 D1 刪除紀錄失敗: " + err.toString());
+  }
+}

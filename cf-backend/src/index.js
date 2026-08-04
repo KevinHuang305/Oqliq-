@@ -504,6 +504,31 @@ export default {
       }
 
       // ==========================================
+      // [GET] getExistingBagNos - 獲取 D1 所有既存袋號
+      // ==========================================
+      if (action === 'getExistingBagNos') {
+        const result = await env.DB.prepare("SELECT bag_no FROM records").all();
+        const bagNos = (result.results || []).map(r => r.bag_no);
+        return jsonResponse(bagNos);
+      }
+
+      // ==========================================
+      // [POST] deleteRecords - 批次刪除紀錄
+      // ==========================================
+      if (action === 'deleteRecords' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const bagNos = payload.bagNos || [];
+        
+        if (bagNos.length === 0) return jsonResponse({ success: true, count: 0 });
+        
+        const stmt = env.DB.prepare("DELETE FROM records WHERE bag_no = ?");
+        const statements = bagNos.map(b => stmt.bind(b));
+        
+        await env.DB.batch(statements);
+        return jsonResponse({ success: true, count: bagNos.length });
+      }
+
+      // ==========================================
       // [POST] updateSizesConfig / appendUnits / 其他轉發至 GAS
       // ==========================================
       if (request.method === 'POST') {
