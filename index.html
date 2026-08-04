@@ -2762,7 +2762,7 @@
             } else { document.getElementById('personId').value = ""; }
         });
 
-        loadDropdowns();
+        // loadDropdowns(); // Moved to loginAdmin for security
 
         // ==========================================
         //  2. 畫布與 AI 測量
@@ -4135,6 +4135,14 @@
                 else {
                     document.getElementById('loginOverlay').style.display = 'none';
                     adminLoggedIn = true; savedAdminPwd = pwd;
+                    localStorage.setItem('admin_pwd', pwd);
+                    
+                    if (!window.dropdownsLoaded) {
+                        loadDropdowns();
+                        if (window.initSystemSettings) window.initSystemSettings();
+                        window.dropdownsLoaded = true;
+                    }
+                    
                     if (Array.isArray(data)) { allRecords = deduplicateRecords(data); window.boxStatuses = {}; window.boxTrackingNos = {}; window.boxUpdateTimes = {}; }
                     else if (data.records) { allRecords = deduplicateRecords(data.records); window.boxStatuses = data.boxStatuses || {}; window.boxTrackingNos = data.boxTrackingNos || {}; window.boxUpdateTimes = data.boxUpdateTimes || {}; }
                     else { throw new Error("VERSION_MISMATCH"); }
@@ -5789,8 +5797,10 @@
         } else {
             if (DEFAULT_ADMIN_PWD) {
                 document.getElementById('adminPwdInput').value = DEFAULT_ADMIN_PWD;
+                window.loginAdmin();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
             }
-            window.initSystemSettings();
         }
 
         let pendingPrintAction = null;
