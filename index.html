@@ -1591,15 +1591,15 @@
 
             <!-- Stats Section -->
             <div id="rosterStatsContainer" style="display:none; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px;">
-                <div style="background: var(--bg-surface); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border);">
+                <div id="rsCardTotal" style="background: var(--bg-surface); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid var(--border); cursor: pointer; transition: all 0.2s;" onclick="window.setRosterFilter('all')">
                     <div style="font-size: 13px; color: var(--text-muted);">總人數</div>
                     <div id="rsTotalCount" style="font-size: 24px; font-weight: bold; color: var(--text-main);">0</div>
                 </div>
-                <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2);">
+                <div id="rsCardDone" style="background: rgba(34, 197, 94, 0.05); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(34, 197, 94, 0.2); cursor: pointer; transition: all 0.2s;" onclick="window.setRosterFilter('done')">
                     <div style="font-size: 13px; color: var(--text-muted);">已建檔</div>
                     <div id="rsDoneCount" style="font-size: 24px; font-weight: bold; color: #22c55e;">0</div>
                 </div>
-                <div style="background: rgba(239, 68, 68, 0.1); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+                <div id="rsCardPending" style="background: rgba(239, 68, 68, 0.05); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid rgba(239, 68, 68, 0.2); cursor: pointer; transition: all 0.2s;" onclick="window.setRosterFilter('pending')">
                     <div style="font-size: 13px; color: var(--text-muted);">未建檔</div>
                     <div id="rsPendingCount" style="font-size: 24px; font-weight: bold; color: #ef4444;">0</div>
                 </div>
@@ -2240,6 +2240,113 @@
             });
         }
 
+        window.rosterFilterMode = 'all'; // 'all', 'done', 'pending'
+
+        window.setRosterFilter = function(mode) {
+            window.rosterFilterMode = mode;
+            
+            const cardTotal = document.getElementById('rsCardTotal');
+            const cardDone = document.getElementById('rsCardDone');
+            const cardPending = document.getElementById('rsCardPending');
+            
+            if (cardTotal && cardDone && cardPending) {
+                if (mode === 'all') {
+                    cardTotal.style.border = '2px solid var(--primary)';
+                    cardTotal.style.boxShadow = '0 0 8px rgba(249, 115, 22, 0.2)';
+                    cardTotal.style.transform = 'scale(1.02)';
+                    
+                    cardDone.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+                    cardDone.style.boxShadow = 'none';
+                    cardDone.style.transform = 'scale(1)';
+                    
+                    cardPending.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                    cardPending.style.boxShadow = 'none';
+                    cardPending.style.transform = 'scale(1)';
+                } else if (mode === 'done') {
+                    cardTotal.style.border = '1px solid var(--border)';
+                    cardTotal.style.boxShadow = 'none';
+                    cardTotal.style.transform = 'scale(1)';
+                    
+                    cardDone.style.border = '2px solid #22c55e';
+                    cardDone.style.boxShadow = '0 0 8px rgba(34, 197, 94, 0.2)';
+                    cardDone.style.transform = 'scale(1.02)';
+                    
+                    cardPending.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+                    cardPending.style.boxShadow = 'none';
+                    cardPending.style.transform = 'scale(1)';
+                } else if (mode === 'pending') {
+                    cardTotal.style.border = '1px solid var(--border)';
+                    cardTotal.style.boxShadow = 'none';
+                    cardTotal.style.transform = 'scale(1)';
+                    
+                    cardDone.style.border = '1px solid rgba(34, 197, 94, 0.2)';
+                    cardDone.style.boxShadow = 'none';
+                    cardDone.style.transform = 'scale(1)';
+                    
+                    cardPending.style.border = '2px solid #ef4444';
+                    cardPending.style.boxShadow = '0 0 8px rgba(239, 68, 68, 0.2)';
+                    cardPending.style.transform = 'scale(1.02)';
+                }
+            }
+            
+            window.renderRosterStatusList();
+        };
+
+        window.renderRosterStatusList = function() {
+            const aSel = document.getElementById('rsAgencySelect').value;
+            const bSel = document.getElementById('rsBrigadeSelect').value;
+            const uSel = document.getElementById('rsUnitSelect').value;
+            const tbody = document.getElementById('rsTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            const baseRoster = dbRoster.filter(r => {
+                if (aSel && r['機關名稱'] !== aSel) return false;
+                if (bSel && r['大隊'] !== bSel) return false;
+                if (uSel && r['分隊'] !== uSel) return false;
+                return true;
+            });
+            
+            const displayRoster = baseRoster.filter(p => {
+                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                if (window.rosterFilterMode === 'done') return isMeasured;
+                if (window.rosterFilterMode === 'pending') return !isMeasured;
+                return true;
+            });
+            
+            if (displayRoster.length === 0) {
+                let emptyText = "此單位沒有預載名單";
+                if (window.rosterFilterMode === 'done') emptyText = "此單位尚無人完成建檔";
+                if (window.rosterFilterMode === 'pending') emptyText = "此單位全員皆已完成建檔！";
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-muted);">${emptyText}</td></tr>`;
+                return;
+            }
+            
+            displayRoster.forEach(p => {
+                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
+                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
+                
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                tr.onclick = () => window.viewPersonData(p, isMeasured);
+                tr.onmouseover = () => tr.style.backgroundColor = 'var(--bg)';
+                tr.onmouseout = () => tr.style.backgroundColor = 'transparent';
+
+                const deptInfo = !uSel ? ` <span style="color:var(--text-muted); font-size:11px;">(${p['大隊']}/${p['分隊']})</span>` : '';
+                tr.innerHTML = `
+                    <td style="padding: 12px 15px; border-top: 1px solid var(--border);">${p['姓名']} <span style="font-size:12px; color:var(--text-muted); margin-left:8px;">${p['職稱'] || ''}${deptInfo}</span></td>
+                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border); color: var(--text-muted);">${p['性別'] || '-'}</td>
+                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border);">
+                        ${isMeasured ? '<span style="color: #22c55e; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">✅ 已建檔</span>' : '<span style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">❌ 未建檔</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
         window.renderRosterStatus = function() {
             const aSel = document.getElementById('rsAgencySelect').value;
             const bSel = document.getElementById('rsBrigadeSelect').value;
@@ -2270,52 +2377,22 @@
             });
             
             let doneCount = 0;
-            const tbody = document.getElementById('rsTableBody');
-            tbody.innerHTML = '';
-            
-            if (!uSel) {
-                listContainer.style.display = 'none';
-                emptyMessage.innerHTML = `<span style="font-size:24px; display:block; margin-bottom:10px;">📊</span>目前顯示 <b>${bSel || aSel}</b> 的總統計數據。<br>請進一步選擇「分隊」以查看詳細人員名單。`;
-                emptyMessage.style.display = 'block';
-            } else {
-                listContainer.style.display = 'block';
-                emptyMessage.style.display = 'none';
-            }
-            
-            if (roster.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 20px; color: var(--text-muted);">此單位沒有預載名單</td></tr>';
-                document.getElementById('rsTotalCount').innerText = '0';
-                document.getElementById('rsDoneCount').innerText = '0';
-                document.getElementById('rsPendingCount').innerText = '0';
-                return;
-            }
-            
             roster.forEach(p => {
                 const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
-                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
-                
-                if (isMeasured) doneCount++;
-                
-                const tr = document.createElement('tr');
-                tr.style.cursor = 'pointer';
-                tr.onclick = () => window.viewPersonData(p, isMeasured);
-                // Hover effect for better UX
-                tr.onmouseover = () => tr.style.backgroundColor = 'var(--bg)';
-                tr.onmouseout = () => tr.style.backgroundColor = 'transparent';
-
-                tr.innerHTML = `
-                    <td style="padding: 12px 15px; border-top: 1px solid var(--border);">${p['姓名']} <span style="font-size:12px; color:var(--text-muted); margin-left:8px;">${p['職稱'] || ''}</span></td>
-                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border); color: var(--text-muted);">${p['性別'] || '-'}</td>
-                    <td style="text-align:center; padding: 12px 15px; border-top: 1px solid var(--border);">
-                        ${isMeasured ? '<span style="color: #22c55e; background: rgba(34, 197, 94, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">✅ 已建檔</span>' : '<span style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">❌ 未建檔</span>'}
-                    </td>
-                `;
-                tbody.appendChild(tr);
+                if (window.dbMeasured && window.dbMeasured.includes(personMeasuredKey)) {
+                    doneCount++;
+                }
             });
             
             document.getElementById('rsTotalCount').innerText = roster.length;
             document.getElementById('rsDoneCount').innerText = doneCount;
             document.getElementById('rsPendingCount').innerText = roster.length - doneCount;
+            
+            listContainer.style.display = 'block';
+            emptyMessage.style.display = 'none';
+            
+            // 預設切換為 'all' 並更新列表
+            window.setRosterFilter('all');
         };
 
         window.exportRsMeasured = function () {
