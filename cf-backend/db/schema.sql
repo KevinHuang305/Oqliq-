@@ -61,3 +61,42 @@ CREATE TABLE IF NOT EXISTS records (
 CREATE INDEX IF NOT EXISTS idx_records_bag_no ON records(bag_no);
 CREATE INDEX IF NOT EXISTS idx_records_unit ON records(agency, brigade, unit);
 CREATE INDEX IF NOT EXISTS idx_records_agency ON records(agency);
+
+-- 單位資料表 (對應試算表「單位資料」)
+CREATE TABLE IF NOT EXISTS units (
+    agency TEXT,
+    brigade TEXT,
+    unit TEXT,
+    sys_code TEXT PRIMARY KEY
+);
+
+-- 人員名冊表 (對應試算表「人員名冊」)
+CREATE TABLE IF NOT EXISTS roster (
+    agency TEXT,
+    brigade TEXT,
+    unit TEXT,
+    name TEXT,
+    gender TEXT,
+    person_id TEXT,
+    age INTEGER,
+    job TEXT,
+    PRIMARY KEY (agency, brigade, unit, name)
+);
+
+-- 系統職稱選項表 (對應試算表「職稱」)
+CREATE TABLE IF NOT EXISTS jobs (
+    job TEXT PRIMARY KEY
+);
+
+-- 服裝尺碼選項表 (對應試算表「服裝尺碼」)
+CREATE TABLE IF NOT EXISTS clothing_sizes (
+    item_name TEXT,
+    size_value TEXT,
+    PRIMARY KEY (item_name, size_value)
+);
+
+-- 建立索引以加速查詢
+CREATE INDEX IF NOT EXISTS idx_units_lookup ON units(agency, brigade, unit);
+CREATE INDEX IF NOT EXISTS idx_roster_lookup ON roster(agency, brigade, unit);
+CREATE INDEX IF NOT EXISTS idx_clothing_sizes_item ON clothing_sizes(item_name);
+

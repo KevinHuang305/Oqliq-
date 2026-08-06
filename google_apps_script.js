@@ -676,6 +676,8 @@ function doPost(e) {
             var u = newUnits[i];
             unitSheet.appendRow([u['機關名稱'] || "", u['所屬大隊/分類'] || "", u['單位名稱'] || "", u['系統代碼'] || ""]);
           }
+          // 同步新寫入的單位至 D1 (增量更新)
+          pushUnitsToD1(newUnits);
         }
         return ContentService.createTextOutput(JSON.stringify({success: true, added: newUnits.length})).setMimeType(ContentService.MimeType.JSON);
       }
@@ -981,8 +983,296 @@ function exportAllSheetsToD1() {
       } catch(err) {
         Logger.log("分隊箱狀態同步失敗: " + err.toString());
       }
+    }
+  }
+
+  // 3. 同步「單位資料」
+  var unitSheet = ss.getSheetByName("單位資料");
+  if (unitSheet) {
+    var uData = unitSheet.getDataRange().getValues();
+    if (uData.length > 1) {
+      var uHeaders = uData[0];
+      var units = [];
+      for (var i = 1; i < uData.length; i++) {
+        var uObj = {};
+        for (var j = 0; j < uHeaders.length; j++) {
+          uObj[uHeaders[j]] = uData[i][j];
+        }
+        units.push(uObj);
+      }
+      
+      // 每 200 筆為一個 chunk 分批發送，防範 payload 過大
+      var uChunk = 200;
+      for (var ku = 0; ku < units.length; ku += uChunk) {
+        var uSub = units.slice(ku, ku + uChunk);
+        var uOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ units: uSub, incremental: ku > 0 })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importUnits", uOptions);
+        } catch(err) {
+          Logger.log("批次單位資料同步失敗 (索引 " + ku + "): " + err.toString());
+        }
+      }
+      Logger.log("✅ 單位資料同步完成，共 " + units.length + " 筆。");
+    }
+  }
+
+  // 4. 同步「人員名冊」
+  var rosterSheet = ss.getSheetByName("人員名冊");
+  if (rosterSheet) {
+    var rData = rosterSheet.getDataRange().getValues();
+    if (rData.length > 1) {
+      var rHeaders = rData[0];
+      var roster = [];
+      for (var i = 1; i < rData.length; i++) {
+        var rObj = {};
+        for (var j = 0; j < rHeaders.length; j++) {
+          rObj[rHeaders[j]] = rData[i][j];
+        }
+        roster.push(rObj);
+      }
+      
+      var rChunk = 200;
+      for (var kr = 0; kr < roster.length; kr += rChunk) {
+        var rSub = roster.slice(kr, kr + rChunk);
+        var rOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ roster: rSub, incremental: kr > 0 })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importRoster", rOptions);
+        } catch(err) {
+          Logger.log("批次人員名冊同步失敗 (索引 " + kr + "): " + err.toString());
+        }
+      }
+      Logger.log("✅ 人員名冊同步完成，共 " + roster.length + " 筆。");
+    }
+  }
+
+  // 5. 同步「職稱」
+  var jobSheet = ss.getSheetByName("職稱");
+  if (jobSheet) {
+    var jData = jobSheet.getDataRange().getValues();
+    var jobs = [];
+    var startRow = (jData.length > 0 && (jData[0][0] === "職稱" || jData[0][0] === "項目")) ? 1 : 0;
+    for (var i = startRow; i < jData.length; i++) {
+      var val = jData[i][0];
+      if (val && val.toString().trim() !== "") {
+        jobs.push(val.toString().trim());
+      }
+    }
+    if (jobs.length > 0) {
+      var jOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ jobs: jobs })
+      };
+      try {
+        UrlFetchApp.fetch(cfUrl + "importJobs", jOptions);
+        Logger.log("✅ 職稱資料同步完成，共 " + jobs.length + " 筆。");
+      } catch(err) {
+        Logger.log("職稱資料同步失敗: " + err.toString());
+      }
+    }
+  }
+
+  // 6. 同步「服裝尺碼」
+  var sizeSheet = ss.getSheetByName("服裝尺碼");
+  if (sizeSheet) {
+    var sData = sizeSheet.getDataRange().getValues();
+    if (sData.length > 1) {
+      var sizes = [];
+      for (var i = 1; i < sData.length; i++) {
+        var sObj = {
+          item_name: sData[i][2],
+          size_value: sData[i][4]
+        };
+        if (sObj.item_name && sObj.size_value) {
+          sizes.push(sObj);
+        }
+      }
+      if (sizes.length > 0) {
+        var sOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ sizes: sizes })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importClothingSizes", sOptions);
+          Logger.log("✅ 服裝尺碼同步完成，共 " + sizes.length + " 筆。");
+        } catch(err) {
+          Logger.log("服裝尺碼同步失敗: " + err.toString());
+        }
+      }
+    }
+  }
+
+  // 7. 同步「尺寸參數」對照表
+  try {
+    var config = getSizesConfigFromSheet();
+    if (config && !config.error) {
+      var cOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ config: config })
+      };
+      UrlFetchApp.fetch(cfUrl + "importSizesConfig", cOptions);
+      Logger.log("✅ 尺寸參數對照表同步完成。");
+    }
+  } catch(err) {
+    Logger.log("尺寸參數對照表同步失敗: " + err.toString());
   }
 }
+
+// ==========================================
+// 🌟 專用：快速同步靜態資料表 (單位、名冊、職稱、服裝尺碼、級距) 至 D1
+// 避開了同步大量歷史測量紀錄，只要 2-3 秒即可修復名冊進度無資料的問題
+// ==========================================
+function syncStaticTablesToD1() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/";
+  
+  // 1. 同步「單位資料」
+  var unitSheet = ss.getSheetByName("單位資料");
+  if (unitSheet) {
+    var uData = unitSheet.getDataRange().getValues();
+    if (uData.length > 1) {
+      var uHeaders = uData[0];
+      var units = [];
+      for (var i = 1; i < uData.length; i++) {
+        var uObj = {};
+        for (var j = 0; j < uHeaders.length; j++) {
+          uObj[uHeaders[j]] = uData[i][j];
+        }
+        units.push(uObj);
+      }
+      var uChunk = 200;
+      for (var ku = 0; ku < units.length; ku += uChunk) {
+        var uSub = units.slice(ku, ku + uChunk);
+        var uOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ units: uSub, incremental: ku > 0 })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importUnits", uOptions);
+        } catch(err) {
+          Logger.log("單位資料同步失敗: " + err.toString());
+        }
+      }
+      Logger.log("✅ 單位資料同步完成，共 " + units.length + " 筆。");
+    }
+  }
+
+  // 2. 同步「人員名冊」
+  var rosterSheet = ss.getSheetByName("人員名冊");
+  if (rosterSheet) {
+    var rData = rosterSheet.getDataRange().getValues();
+    if (rData.length > 1) {
+      var rHeaders = rData[0];
+      var roster = [];
+      for (var i = 1; i < rData.length; i++) {
+        var rObj = {};
+        for (var j = 0; j < rHeaders.length; j++) {
+          rObj[rHeaders[j]] = rData[i][j];
+        }
+        roster.push(rObj);
+      }
+      var rChunk = 200;
+      for (var kr = 0; kr < roster.length; kr += rChunk) {
+        var rSub = roster.slice(kr, kr + rChunk);
+        var rOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ roster: rSub, incremental: kr > 0 })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importRoster", rOptions);
+        } catch(err) {
+          Logger.log("人員名冊同步失敗: " + err.toString());
+        }
+      }
+      Logger.log("✅ 人員名冊同步完成，共 " + roster.length + " 筆。");
+    }
+  }
+
+  // 3. 同步「職稱」
+  var jobSheet = ss.getSheetByName("職稱");
+  if (jobSheet) {
+    var jData = jobSheet.getDataRange().getValues();
+    var jobs = [];
+    var startRow = (jData.length > 0 && (jData[0][0] === "職稱" || jData[0][0] === "項目")) ? 1 : 0;
+    for (var i = startRow; i < jData.length; i++) {
+      var val = jData[i][0];
+      if (val && val.toString().trim() !== "") {
+        jobs.push(val.toString().trim());
+      }
+    }
+    if (jobs.length > 0) {
+      var jOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ jobs: jobs })
+      };
+      try {
+        UrlFetchApp.fetch(cfUrl + "importJobs", jOptions);
+        Logger.log("✅ 職稱資料同步完成，共 " + jobs.length + " 筆。");
+      } catch(err) {
+        Logger.log("職稱資料同步失敗: " + err.toString());
+      }
+    }
+  }
+
+  // 4. 同步「服裝尺碼」
+  var sizeSheet = ss.getSheetByName("服裝尺碼");
+  if (sizeSheet) {
+    var sData = sizeSheet.getDataRange().getValues();
+    if (sData.length > 1) {
+      var sizes = [];
+      for (var i = 1; i < sData.length; i++) {
+        var sObj = {
+          item_name: sData[i][2],
+          size_value: sData[i][4]
+        };
+        if (sObj.item_name && sObj.size_value) {
+          sizes.push(sObj);
+        }
+      }
+      if (sizes.length > 0) {
+        var sOptions = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ sizes: sizes })
+        };
+        try {
+          UrlFetchApp.fetch(cfUrl + "importClothingSizes", sOptions);
+          Logger.log("✅ 服裝尺碼同步完成，共 " + sizes.length + " 筆。");
+        } catch(err) {
+          Logger.log("服裝尺碼同步失敗: " + err.toString());
+        }
+      }
+    }
+  }
+
+  // 5. 同步「尺寸參數」對照表
+  try {
+    var config = getSizesConfigFromSheet();
+    if (config && !config.error) {
+      var cOptions = {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify({ config: config })
+      };
+      UrlFetchApp.fetch(cfUrl + "importSizesConfig", cOptions);
+      Logger.log("✅ 尺寸參數對照表同步完成。");
+    }
+  } catch(err) {
+    Logger.log("尺寸參數對照表同步失敗: " + err.toString());
+  }
 }
 
 // ==========================================
@@ -993,7 +1283,7 @@ function onEditTrigger(e) {
   var sheet = range.getSheet();
   var sheetName = sheet.getName();
   
-  if (sheetName !== "測量紀錄" && sheetName !== "分隊箱狀態") return;
+  if (sheetName !== "測量紀錄" && sheetName !== "分隊箱狀態" && sheetName !== "單位資料" && sheetName !== "人員名冊" && sheetName !== "職稱") return;
   
   var row = range.getRow();
   if (row === 1) return; // 忽略標頭列
@@ -1058,6 +1348,62 @@ function onEditTrigger(e) {
       UrlFetchApp.fetch(cfUrl + "importBoxStatus", bOptions);
     } catch(err) {
       Logger.log("手動修改箱狀態同步至 D1 失敗: " + err.toString());
+    }
+  }
+
+  if (sheetName === "單位資料") {
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var unit = {};
+    for (var j = 0; j < headers.length; j++) {
+      unit[headers[j]] = rowValues[j];
+    }
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ units: [unit], incremental: true })
+    };
+    try {
+      UrlFetchApp.fetch(cfUrl + "importUnits", options);
+    } catch(err) {
+      Logger.log("單位修改單筆同步至 D1 失敗: " + err.toString());
+    }
+  }
+  
+  if (sheetName === "人員名冊") {
+    var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    var person = {};
+    for (var j = 0; j < headers.length; j++) {
+      person[headers[j]] = rowValues[j];
+    }
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ roster: [person], incremental: true })
+    };
+    try {
+      UrlFetchApp.fetch(cfUrl + "importRoster", options);
+    } catch(err) {
+      Logger.log("名冊修改單筆同步至 D1 失敗: " + err.toString());
+    }
+  }
+  
+  if (sheetName === "職稱") {
+    var data = sheet.getDataRange().getValues();
+    var jobs = [];
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][0]) jobs.push(data[i][0].toString().trim());
+    }
+    var options = {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ jobs: jobs })
+    };
+    try {
+      UrlFetchApp.fetch(cfUrl + "importJobs", options);
+    } catch(err) {
+      Logger.log("職稱修改同步至 D1 失敗: " + err.toString());
     }
   }
 }
@@ -1157,5 +1503,22 @@ function syncDeletionsToD1() {
     }
   } catch(err) {
     Logger.log("比對 D1 刪除紀錄失敗: " + err.toString());
+  }
+}
+
+// ==========================================
+// 🌟 增量推送新單位至 D1 (用於 appendUnits 後台)
+// ==========================================
+function pushUnitsToD1(newUnits) {
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/importUnits";
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ units: newUnits, incremental: true })
+  };
+  try {
+    UrlFetchApp.fetch(cfUrl, options);
+  } catch(err) {
+    Logger.log("增量推送新單位至 D1 失敗: " + err.toString());
   }
 }

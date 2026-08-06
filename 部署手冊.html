@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FIRESCUE 裝備配發與 AI 測量系統 - 部署與轉移手冊</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            /* 螢幕顯示 - 質感深灰與橘橘色調 */
+            --bg-base: #09090b;
+            --bg-surface: #18181b;
+            --bg-sidebar: #121214;
+            --primary: #f97316;
+            --primary-hover: #ea580c;
+            --primary-rgb: 249, 115, 22;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --border: #27272a;
+            
+            --success: #10b981;
+            --success-bg: rgba(16, 185, 129, 0.1);
+            --success-border: rgba(16, 185, 129, 0.3);
+            
+            --warning: #facc15;
+            --warning-bg: rgba(250, 204, 21, 0.1);
+            --warning-border: rgba(250, 204, 21, 0.3);
+            
+            --danger: #ef4444;
+            --danger-bg: rgba(239, 68, 68, 0.1);
+            --danger-border: rgba(239, 68, 68, 0.3);
+            
+            --info: #3b82f6;
+            --info-bg: rgba(59, 130, 246, 0.1);
+            --info-border: rgba(59, 130, 246, 0.3);
+
+            --font-main: 'Inter', 'SF Pro TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            --font-headings: 'Outfit', 'SF Pro TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            --font-mono: 'Fira Code', 'JetBrains Mono', monospace;
+        }
+
+        /* 全域重設與捲軸 */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            line-height: 1.7;
+            display: flex;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-base);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        /* 側邊導覽列 (僅在螢幕顯示) */
+        .sidebar {
+            width: 320px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            padding: 30px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            font-family: var(--font-headings);
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 2px;
+            color: var(--text-main);
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar-brand span {
+            color: var(--primary);
+            margin-left: 5px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            flex: 1;
+        }
+
+        .nav-item {
+            margin-bottom: 8px;
+        }
+
+        .nav-link {
+            display: block;
+            padding: 10px 15px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-link:hover {
+            color: var(--text-main);
+            background-color: var(--bg-hover);
+            transform: translateX(4px);
+        }
+
+        .nav-link.active {
+            color: var(--bg-base);
+            background-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .sidebar-footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        /* 主要內容區域 */
+        .main-wrapper {
+            margin-left: 320px;
+            width: calc(100% - 320px);
+            padding: 60px 80px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .content-container {
+            max-width: 900px;
+            width: 100%;
+        }
+
+        /* 標題與段落 */
+        h1, h2, h3, h4 {
+            font-family: var(--font-headings);
+            color: var(--text-main);
+            margin-top: 1.8em;
+            margin-bottom: 0.6em;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        h1 {
+            font-size: 34px;
+            margin-top: 0;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h3 {
+            font-size: 18px;
+            color: var(--text-main);
+            border-left: 3px solid var(--primary);
+            padding-left: 12px;
+        }
+
+        p {
+            margin-top: 0;
+            margin-bottom: 1.2em;
+            color: var(--text-main);
+            opacity: 0.95;
+        }
+
+        /* 強調與代碼 */
+        strong {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--primary);
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        pre {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            padding: 18px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5em 0;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: var(--text-main);
+            padding: 0;
+            border: none;
+            font-size: 13.5px;
+            line-height: 1.5;
+            display: block;
+        }
+
+        /* 列表 */
+        ul, ol {
+            margin-top: 0;
+            margin-bottom: 1.5em;
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        li::marker {
+            color: var(--primary);
+        }
+
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--border);
+            margin: 40px 0;
+        }
+
+        /* 提示框 / 警告框 */
+        .callout {
+            border-left: 4px solid transparent;
+            padding: 15px 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 1.8em 0;
+        }
+
+        .callout-important {
+            background-color: var(--danger-bg);
+            border-color: var(--danger);
+        }
+
+        .callout-warning {
+            background-color: var(--warning-bg);
+            border-color: var(--warning);
+        }
+
+        .callout-tip {
+            background-color: var(--success-bg);
+            border-color: var(--success);
+        }
+
+        .callout-info {
+            background-color: var(--info-bg);
+            border-color: var(--info);
+        }
+
+        .callout-header {
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .callout-important .callout-header { color: var(--danger); }
+        .callout-warning .callout-header { color: var(--warning); }
+        .callout-tip .callout-header { color: var(--success); }
+        .callout-info .callout-header { color: var(--info); }
+
+        .callout p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* 按鈕元件 */
+        .btn {
+            background-color: var(--primary);
+            color: #000;
+            font-weight: 700;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-main);
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(249, 115, 22, 0.3);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background-color: var(--border);
+            color: var(--text-main);
+            box-shadow: none;
+        }
+
+        /* 標籤機印表頁籤標示 */
+        .print-only-header {
+            display: none;
+        }
+
+        /* =======================================================
+           列印樣式：A4 手冊優化
+           ======================================================= */
+        @media print {
+            @page {
+                size: A4;
+                margin: 20mm 20mm 20mm 20mm;
+            }
+
+            body {
+                background: white !important;
+                color: #111827 !important;
+                font-size: 11pt !important;
+                line-height: 1.6 !important;
+                display: block !important;
+            }
+
+            /* 隱藏網頁元件 */
+            .sidebar, .btn, .no-print {
+                display: none !important;
+            }
+
+            /* 滿版主要內容 */
+            .main-wrapper {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 0 !important;
+            }
+
+            .content-container {
+                max-width: 100% !important;
+            }
+
+            /* A4 分頁與排版優化 */
+            .page-break {
+                page-break-before: always !important;
+                break-before: page !important;
+            }
+
+            h1, h2, h3, h4 {
+                color: #000 !important;
+                page-break-after: avoid !important;
+            }
+
+            h1 {
+                font-size: 24pt !important;
+                border-bottom: 2px solid #111827 !important;
+                padding-bottom: 12px !important;
+                margin-top: 0 !important;
+                margin-bottom: 20pt !important;
+            }
+
+            h2 {
+                font-size: 16pt !important;
+                border-bottom: 1px solid #374151 !important;
+                padding-bottom: 6px !important;
+                margin-top: 30pt !important;
+                margin-bottom: 12pt !important;
+                color: #000 !important;
+            }
+
+            h3 {
+                font-size: 12pt !important;
+                border-left: 4px solid #111827 !important;
+                padding-left: 8pt !important;
+                margin-top: 20pt !important;
+                margin-bottom: 8pt !important;
+            }
+
+            p, li {
+                color: #1f2937 !important;
+                font-size: 11pt !important;
+            }
+
+            /* 程式碼列印優化 */
+            code {
+                background-color: #f3f4f6 !important;
+                color: #0f172a !important;
+                border: 1px solid #e5e7eb !important;
+                font-size: 9.5pt !important;
+                padding: 2px 4px !important;
+            }
+
+            pre {
+                background-color: #f8fafc !important;
+                border: 1px solid #cbd5e1 !important;
+                padding: 12pt !important;
+                margin: 12pt 0 !important;
+                page-break-inside: avoid !important;
+            }
+
+            pre code {
+                color: #0f172a !important;
+                background-color: transparent !important;
+                font-size: 9pt !important;
+                border: none !important;
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
+            }
+
+            /* 區塊框列印優化 */
+            .callout {
+                background-color: #f8fafc !important;
+                border-color: #475569 !important;
+                border-left-width: 4px !important;
+                padding: 10pt 15pt !important;
+                margin: 15pt 0 !important;
+                page-break-inside: avoid !important;
+            }
+
+            .callout-important { border-color: #dc2626 !important; background-color: #fef2f2 !important; }
+            .callout-warning { border-color: #d97706 !important; background-color: #fffbeb !important; }
+            .callout-tip { border-color: #059669 !important; background-color: #ecfdf5 !important; }
+            
+            .callout-important .callout-header { color: #b91c1c !important; }
+            .callout-warning .callout-header { color: #b45309 !important; }
+            .callout-tip .callout-header { color: #047857 !important; }
+
+            /* 輸出連結網址以利紙本閱讀 */
+            a::after {
+                content: " (" attr(href) ")";
+                font-size: 9pt !important;
+                color: #4b5563 !important;
+            }
+            /* 不要顯示本地 file:/// 網址 */
+            a[href^="file://"]::after, a[href^="#"]::after {
+                content: "" !important;
+            }
+        }
+
+        /* 響應式手機介面優化 */
+        @media (max-width: 992px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                position: relative;
+                width: 100%;
+                height: auto;
+                padding: 20px;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            .main-wrapper {
+                margin-left: 0;
+                width: 100%;
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 側邊欄 (導覽 & 功能鍵，僅螢幕可見) -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            FIRESCUE<span>DEPLOY</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item"><a href="#arch" class="nav-link">📌 系統架構簡介</a></li>
+            <li class="nav-item"><a href="#step1" class="nav-link">階段一：Google 雲端環境設定</a></li>
+            <li class="nav-item"><a href="#step2" class="nav-link">階段二：Google 表單設定</a></li>
+            <li class="nav-item"><a href="#step3" class="nav-link">階段三：Cloudflare 後端部署</a></li>
+            <li class="nav-item"><a href="#step4" class="nav-link">階段四：設定與發布前端網頁</a></li>
+            <li class="nav-item"><a href="#verify" class="nav-link">🛠️ 部署完成驗證測試</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <button onclick="window.print();" class="btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                列印 A4 手冊 / 輸出 PDF
+            </button>
+        </div>
+    </aside>
+
+    <!-- 主要內容區 -->
+    <main class="main-wrapper">
+        <article class="content-container">
+            
+            <!-- 手冊標題 -->
+            <header>
+                <h1>FIRESCUE 裝備配發與 AI 測量系統<br><span style="font-size: 0.6em; color: var(--primary); font-weight: 600;">系統部署與轉移手冊 (SOP)</span></h1>
+                <p>本系統採前後端分離架構，結合了 <strong>Cloudflare Worker (D1 雲端資料庫)</strong> 與 <strong>Google 雲端生態系 (Google 試算表、雲端硬碟、表單與 Apps Script)</strong>。兩者之間透過 API 進行雙向同步，能同時兼顧 Cloudflare D1 資料庫的高效讀取與 Google Sheets 試算表的直觀行政管理。</p>
+                <p>本手冊提供從零開始設定本系統完整環境（或轉移至全新帳號）的標準作業流程。</p>
+            </header>
+
+            <hr>
+
+            <!-- 系統架構簡介 -->
+            <section id="arch">
+                <h2><span style="color: var(--primary);">📌</span> 系統架構簡介</h2>
+                <p>在開始部署前，請先理解系統各組件之間的運作邏輯：</p>
+                <ol>
+                    <li>
+                        <strong>前端靜態網頁 (GitHub Pages 等)</strong>：
+                        <ul>
+                            <li>包含主頁面 <code>index.html</code> 以及 <code>AutoUnitUpdater.html</code>。</li>
+                            <li>使用者瀏覽前端網頁進行測量與標籤列印，前端的 API 請求會直接發送給 <strong>Cloudflare Worker</strong>。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Cloudflare Worker 後端 (cf-backend)</strong>：
+                        <ul>
+                            <li>作為核心 API 伺服器，負責處理前端的讀取與寫入請求。</li>
+                            <li>搭配 <strong>Cloudflare D1 資料庫</strong> 提供即時的資料讀寫（如儲存量測紀錄、更新分隊箱狀態）。</li>
+                            <li>在寫入資料時，會在背景非同步將資料發送至 <strong>Google Apps Script</strong> 進行同步備份。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Google 雲端硬碟與試算表 (Google Apps Script / GAS)</strong>：
+                        <ul>
+                            <li><strong>Google 雲端硬碟</strong>：專門儲存使用者上傳的測量照片。</li>
+                            <li><strong>Google 試算表</strong>：作為備份資料庫與行政管理後台。</li>
+                            <li><strong>Google 表單 (選用)</strong>：若外部使用者填寫表單，資料會寫入試算表並自動同步回 Cloudflare D1 資料庫。</li>
+                            <li><strong>Google Apps Script (GAS)</strong>：負責接收 Cloudflare Worker 的同步寫入，並透過活動觸發器 (Triggers) 監聽試算表變動，將試算表的編輯與刪除即時同步回 Cloudflare D1。</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- 階段一 -->
+            <section id="step1" class="page-break">
+                <h2>階段一：Google 雲端環境設定 (雲端硬碟、試算表與 GAS)</h2>
+                <p>請登入您的 Google 帳號，並依照以下步驟進行設定：</p>
+
+                <h3>1. 建立照片儲存資料夾 (Google 雲端硬碟)</h3>
+                <ol>
+                    <li>在 Google 雲端硬碟中，建立一個新的資料夾（例如命名為 <code>FIRESCUE_Photos</code>）。</li>
+                    <li>在資料夾上點選右鍵 &gt; <strong>共用</strong> &gt; 將一般存取權設為「<strong>知道連結的任何人皆可查看</strong>」(Anyone with the link can view) 並設為「檢視者」。
+                        <div class="callout callout-important">
+                            <div class="callout-header">⚠️ 重要提示</div>
+                            <p>必須設定此共用權限，系統前端才能正常顯示上傳的照片。</p>
+                        </div>
+                    </li>
+                    <li>進入該資料夾，並複製網址中的 <strong>資料夾 ID</strong>：
+                        <ul>
+                            <li>網址格式為：<code>https://drive.google.com/drive/folders/【這一段就是資料夾ID】</code>。請先將這串 ID 記下來。</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>2. 建立 Google 試算表 (資料庫)</h3>
+                <ol>
+                    <li>在雲端硬碟中建立一個新的 Google 試算表。</li>
+                    <li>根據系統結構，在該試算表中建立以下工作表 (Sheet names)，請確保名稱完全相同：
+                        <ul>
+                            <li><code>系統設定</code>：用於存放後台管理設定與列印參數。</li>
+                            <li><code>分隊箱狀態</code>：用於追蹤各分隊裝箱進度與貨運單號。</li>
+                            <li><code>單位資料</code>：存放機關、大隊、分隊階層架構與代碼。</li>
+                            <li><code>人員名冊</code>：匯入要參與測量的人員清單。</li>
+                            <li><code>尺寸參數</code>：系統進行尺碼推薦時的對照級距。</li>
+                            <li><code>測量紀錄</code>：儲存所有使用者的量測數據與推薦尺碼。</li>
+                            <li><code>職稱</code>：下拉式選單的職稱清單。</li>
+                            <li><code>服裝尺碼</code>：備用的尺碼規格。</li>
+                        </ul>
+                    </li>
+                    <li>請將舊系統對應工作表中的基礎資料複製貼上至新建立的工作表中（如 <code>尺寸參數</code>、<code>單位資料</code>、<code>職稱</code> 與 <code>人員名冊</code>）。</li>
+                </ol>
+
+                <h3>3. 部署 Google Apps Script (GAS API)</h3>
+                <ol>
+                    <li>在剛剛建立的試算表中，點選上方選單 <strong>「擴充功能」 &gt; 「Apps Script」</strong>。</li>
+                    <li>將專案中的 <code>google_apps_script.js</code> 程式碼完整複製，並貼上覆蓋 GAS 編輯器中的所有內容。</li>
+                    <li><strong>修改關鍵參數 (GAS 程式碼內)</strong>：
+                        <ul>
+                            <li>尋找 <code>Utilities.newBlob</code> 附近（大約第 837 行），找到以下設定並換成您在步驟 1 取得的<strong>資料夾 ID</strong>：
+                                <pre><code>var folderId = "【請替換為您新建的照片資料夾ID】";</code></pre>
+                            </li>
+                            <li>尋找 <code>cfUrl</code> 相關變數（大約在第 787, 895, 913, 1001, 1084 行），將這些網址暫時留空，或在您完成 <strong>「階段三：Cloudflare 後端部署」</strong> 取得 Cloudflare Worker 網址後，再回來替換為您的 Cloudflare API 網址：
+                                <pre><code>var cfUrl = "https://【您的Cloudflare-Worker網址】/api/";</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>儲存專案 (Ctrl + S)。</li>
+                    <li>點選右上角 <strong>「部署」 &gt; 「新增部署作業」</strong>：
+                        <ul>
+                            <li>點擊左側齒輪，選擇類型為：<strong>網頁應用程式 (Web App)</strong>。</li>
+                            <li>說明：輸入部署註記（例如：<code>Firescue API V1</code>）。</li>
+                            <li>執行身分：選擇 <strong>我 (您的 Google 帳號)</strong>。</li>
+                            <li>誰可以存取：選擇 <strong>所有人 (Anyone)</strong>。</li>
+                            <div class="callout callout-warning">
+                                <div class="callout-header">🚨 安全警告</div>
+                                <p>「誰可以存取」必須選擇「所有人」，否則 Cloudflare Worker 無法透過網路與您的 Apps Script 進行同步。</p>
+                            </div>
+                        </ul>
+                    </li>
+                    <li>點擊「部署」，系統會要求授權，請點擊「核准存取權」，並選擇您的 Google 帳號。若出現「Google 尚未驗證此應用程式」警告提示，請點選 <strong>「進階」 &gt; 「前往不安全的頁面（點擊允許）」</strong> 完成授權。</li>
+                    <li>部署完成後，系統會產生 <strong>網頁應用程式網址 (Web App URL)</strong>，格式如：<code>https://script.google.com/macros/s/AKfycb.../exec</code>。
+                        <ul>
+                            <li><strong>請務必複製並記下此網址</strong>，這就是您的 <strong>Google Apps Script API 網址</strong>。</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>4. 設定可安裝的活動觸發器 (雙向同步關鍵)</h3>
+                <p>由於 Google 的安全機制，簡單的 <code>onEdit</code> 函式無法發送網絡請求。我們必須手動建立「可安裝的觸發器 (Installable Triggers)」才能將試算表的變動即時推送到 Cloudflare D1。</p>
+                <ol>
+                    <li>在 Apps Script 編輯器左側選單中，點選 ⏰ <strong>「觸發器」</strong> (Triggers) 圖示。</li>
+                    <li>點選右下角 <strong>「新增觸發器」</strong>。</li>
+                    <li>建立 <strong>編輯時同步觸發器</strong>：
+                        <ul>
+                            <li>選擇要執行的功能：<code>onEditTrigger</code></li>
+                            <li>選擇要部署的項目：<code>主要</code></li>
+                            <li>選擇活動來源：<code>來自試算表</code></li>
+                            <li>選擇活動類型：<code>編輯時</code> (On edit)</li>
+                            <li>錯誤通知設定：<code>每天通知我`，點擊儲存。</li>
+                        </ul>
+                    </li>
+                    <li>建立 <strong>變動時同步觸發器 (處理整列刪除)</strong>：
+                        <ul>
+                            <li>點擊新增觸發器。</li>
+                            <li>選擇要執行的功能：<code>onChangeTrigger</code></li>
+                            <li>選擇要部署的項目：<code>主要</code></li>
+                            <li>選擇活動來源：<code>來自試算表</code></li>
+                            <li>選擇活動類型：<code>變動時</code> (On change)，點擊儲存。</li>
+                        </ul>
+                    </li>
+                    <li>建立 <strong>表單提交觸發器 (若有使用表單)</strong>：
+                        <ul>
+                            <li>點擊新增觸發器。</li>
+                            <li>選擇要執行的功能：<code>onFormSubmitTrigger</code></li>
+                            <li>選擇要部署的項目：<code>主要</code></li>
+                            <li>選擇活動來源：<code>來自試算表</code></li>
+                            <li>選擇活動類型：<code>提交表單時</code> (On form submit)，點擊儲存。</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>5. 執行首次全量同步 (一次性初始化)</h3>
+                <p>當您在 <strong>「階段三：Cloudflare Worker & D1 資料庫部署」</strong> 最後取得 Cloudflare Worker 網址並回填至 GAS 代碼中的 <code>cfUrl</code> 變數後，必須手動執行一次同步將現有試算表資料上傳至 D1 資料庫。我們提供兩種同步方式：</p>
+                <ul>
+                    <li>
+                        <strong>方式一：極速同步基礎資料 (建議，名冊進度無資料時首選)</strong>
+                        <ul>
+                            <li>在 Apps Script 編輯器上方工具列的函式下拉選單中，選擇 <strong><code>syncStaticTablesToD1</code></strong> 函式。</li>
+                            <li>點擊 <strong>「執行」</strong> 按鈕。</li>
+                            <li>這將會僅同步「單位資料」、「人員名冊」、「職稱清單」、「服裝尺碼」與「級距」，因為排除了大量歷史量測紀錄，只需 2-3 秒即可極速同步完成，立即修復「名冊進度」沒有顯示資料的問題。</li>
+                        </ul>
+                    </li>
+                    <li style="margin-top: 10px;">
+                        <strong>方式二：全量同步 (包含所有量測歷史紀錄)</strong>
+                        <ul>
+                            <li>在 Apps Script 編輯器上方工具列的函式下拉選單中，選擇 <strong><code>exportAllSheetsToD1</code></strong> 函式。</li>
+                            <li>點擊 <strong>「執行」</strong> 按鈕。</li>
+                            <li>這將會同步包含「歷史測量紀錄」在內的所有工作表。因歷史紀錄筆數較多 (可能達數千筆)，同步會花費較長的時間 (約 20~30 秒)。</li>
+                        </ul>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- 階段二 -->
+            <section id="step2" class="page-break">
+                <h2>階段二：Google 表單設定 (選用 - 透過表單收集測量紀錄)</h2>
+                <p>若您希望透過公開的 Google 表單讓人員自行填寫身材尺寸，並同步回系統，請依照以下步驟設定：</p>
+                <ol>
+                    <li><strong>建立/關聯 Google 表單</strong>：
+                        <ul>
+                            <li>在您的 Google 試算表中，點選選單 <strong>「工具」 &gt; 「建立新表單」</strong>。</li>
+                            <li>這會在試算表中產生一個新的工作表（通常名為 <code>表單回覆 1</code>），且會自動將表單關聯到試算表中。</li>
+                        </ul>
+                    </li>
+                    <li><strong>對齊欄位標頭 (極重要)</strong>：
+                        <ul>
+                            <li>請點選該工作表，將其重新命名為 <strong><code>測量紀錄</code></strong>（若原先已有 <code>測量紀錄</code>，請先將舊的重新命名或移除，確保表單關聯的那個工作表名稱完全為 <code>測量紀錄</code>）。</li>
+                            <li>請確保表單所產生的各個欄位名稱，與我們系統所需的標題完全一致。系統匯入與同步時，是透過欄位名稱來識別資料的。必要的欄位標題包括：
+                                <pre><code>系統建檔時間, 登記日期, 機關名稱, 大隊/分類, 單位名稱, 人員識別碼, 裝袋序號, 姓名, 性別, 年齡, 職稱, 量測方式, 照片檔名, 照片連結, 身高, 肩寬, 胸圍, 腰圍, 臀圍, 褲內長, 配發系列, 長袖, 短袖, 長袖操作服, 短袖操作服, 背心, 外套, 救護外套內件, 戰術外套, 戰術褲, 褲帶, 戰術帽, 消防靴, 狀態, 現場備註, 後台備註</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li><strong>開啟自動同步觸發器</strong>：
+                        <ul>
+                            <li>確保您在 <strong>「階段一、步驟 4」</strong> 中，已經建立了對應 <code>onFormSubmitTrigger</code> 函式的 <strong>「提交表單時」</strong> 觸發器。</li>
+                            <li>當使用者送出表單時，Google Sheets 寫入新資料的同時會啟動該觸發器，並透過 POST 請求將新增的資料推送至 Cloudflare Worker 寫入 D1 資料庫，確保前台後台資料完全同步。</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- 階段三 -->
+            <section id="step3" class="page-break">
+                <h2>階段三：Cloudflare Worker & D1 資料庫部署</h2>
+                <p>後端 API 伺服器與主資料庫部署於 Cloudflare 的無伺服器環境中。</p>
+
+                <h3>1. 準備本地環境</h3>
+                <ol>
+                    <li>請確保您的電腦上已安裝 <a href="https://nodejs.org/" target="_blank">Node.js</a>。</li>
+                    <li>開啟終端機（CMD 或 PowerShell），切換至專案底下的後端資料夾：
+                        <pre><code>cd cf-backend</code></pre>
+                    </li>
+                    <li>安裝所需依賴套件：
+                        <pre><code>npm install</code></pre>
+                    </li>
+                </ol>
+
+                <h3>2. 登入 Cloudflare 並建立 D1 資料庫</h3>
+                <ol>
+                    <li>在終端機中執行登入指令，瀏覽器會自動彈出，請登入您的 Cloudflare 帳號並授權：
+                        <pre><code>npx wrangler login</code></pre>
+                    </li>
+                    <li>建立名為 <code>firescue-db</code> 的 D1 資料庫：
+                        <pre><code>npx wrangler d1 create firescue-db</code></pre>
+                    </li>
+                    <li>建立成功後，終端機會輸出資料庫資訊，格式如下：
+                        <pre><code>[[d1_databases]]
+binding = "DB"
+database_name = "firescue-db"
+database_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # 這段就是您的 database_id</code></pre>
+                        <strong>請複製這段輸出內容</strong>。
+                    </li>
+                </ol>
+
+                <h3>3. 修改設定檔 wrangler.toml</h3>
+                <ol>
+                    <li>用文字編輯器打開 <code>cf-backend/wrangler.toml</code>。</li>
+                    <li>替換 D1 資料庫資訊：
+                        <ul>
+                            <li>將檔案中的 <code>database_id</code> 修改為您剛剛產生的資料庫 ID。</li>
+                        </ul>
+                    </li>
+                    <li>修改環境變數：
+                        <ul>
+                            <li>在 <code>[vars]</code> 區塊下，將 <code>APPS_SCRIPT_URL</code> 修改為您在 <strong>「階段一、步驟 3」</strong> 取得的 <strong>Google Apps Script API 網址</strong>：
+                                <pre><code>[vars]
+APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycb.../exec"</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>4. 初始化 D1 資料庫結構 (Schema)</h3>
+                <ol>
+                    <li>在 <code>cf-backend</code> 目錄下執行以下指令，在 Cloudflare 雲端初始化您的資料表結構（讀取並執行 <code>db/schema.sql</code>）：
+                        <pre><code># 初始化線上生產環境資料庫
+npx wrangler d1 execute firescue-db --remote --file=db/schema.sql</code></pre>
+                        <span style="font-size: 0.9em; color: var(--text-muted);">（選用）如果您要在本機進行開發與測試，請執行本機初始化指令：</span>
+                        <pre><code># 初始化本機測試環境資料庫
+npx wrangler d1 execute firescue-db --local --file=db/schema.sql</code></pre>
+                    </li>
+                </ol>
+
+                <h3>5. 部署 Worker</h3>
+                <ol>
+                    <li>在終端機執行部署指令：
+                        <pre><code>npx wrangler deploy</code></pre>
+                    </li>
+                    <li>部署成功後，終端機最後會顯示部署完成的對外 URL，例如：
+                        <code>https://firescue-cf-backend.&lt;你的子網域&gt;.workers.dev</code>
+                        <br><strong>請將這個網址複製下來</strong>。
+                    </li>
+                </ol>
+
+                <div class="callout callout-important">
+                    <div class="callout-header">⚠️ 重要提示</div>
+                    <p><strong>現在請回到「階段一、步驟 3」</strong>：<br>
+                    打開 Google Apps Script 編輯器，將程式碼中所有的 <code>cfUrl</code> 變數修改為您的 Cloudflare Worker 網址（網址結尾必須加上 <code>/api/</code> 或是對應路徑，例如：<code>https://firescue-cf-backend.xxxx.workers.dev/api/</code>）。<br>
+                    修改完畢後，點選 Apps Script 右上角的 <strong>「部署」 &gt; 「管理部署作業」</strong>，點選筆按鈕編輯，並將版本切換為 <strong>「新版本」</strong> 進行更新發布。</p>
+                </div>
+            </section>
+
+            <!-- 階段四 -->
+            <section id="step4" class="page-break">
+                <h2>階段四：設定與發布前端網頁 (靜態部署)</h2>
+                <p>前端網頁為純靜態 HTML，可以放置在 GitHub Pages、Cloudflare Pages、Vercel 等任何靜態網頁代管空間。</p>
+
+                <h3>1. 修改前端設定檔中的 API 網址</h3>
+                <ol>
+                    <li>使用文字編輯器（如 VS Code）打開前端核心檔案 <code>index.html</code>。</li>
+                    <li>尋找大約第 2102 行的 <code>DEFAULT_API_URL</code> 設定：
+                        <pre><code>const DEFAULT_API_URL = "https://【請替換為您的 Cloudflare Worker 對外網址】/";</code></pre>
+                        <span style="font-size: 0.95em; color: var(--primary);">*注意：網址最後要加上斜線 <code>/</code>。*</span>
+                    </li>
+                    <li>同理，開啟 <code>AutoUnitUpdater.html</code>（單位資料自動更新工具），尋找大約第 207 行的 <code>APPS_SCRIPT_URL</code>：
+                        <ul>
+                            <li>這裡可以直接填入您的 <strong>Cloudflare Worker 網址</strong>（會自動轉發），或是直接填入 <strong>Google Apps Script API 網址</strong>。建議改為 Cloudflare Worker 網址以確保走同一通道：
+                                <pre><code>const APPS_SCRIPT_URL = "https://【請替換為您的 Cloudflare Worker 對外網址】/";</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>若有 <code>index_cf_test.html</code> 或 <code>index_backup.html</code> 等備用網頁，也請一併修改對應行數的 API 網址。</li>
+                </ol>
+
+                <h3>2. 部署至靜態空間 (以 GitHub Pages 為例)</h3>
+                <ol>
+                    <li>將專案的所有檔案（<code>index.html</code>、<code>AutoUnitUpdater.html</code>、<code>CsvStickerGenerator.html</code> 等）上傳至您的 GitHub 儲存庫 (Repository)。</li>
+                    <li>進入該儲存庫的 <strong>Settings &gt; Pages</strong>。</li>
+                    <li>在 <strong>Build and deployment</strong> 下，將 Source 設為 <code>Deploy from a branch</code>，Branch 選擇 <code>main</code> (或 <code>master</code>) 的 <code>/root`，點擊 Save。</li>
+                    <li>稍等 1-2 分鐘後，即可取得您的前端發布網址（例如：<code>https://&lt;您的GitHub帳號&gt;.github.io/&lt;儲存庫名稱&gt;/</code>）。</li>
+                </ol>
+
+                <h3>3. 設定後台對外網址 (關鍵步驟)</h3>
+                <div class="callout callout-important">
+                    <div class="callout-header">⚠️ 重要提示</div>
+                    <p>本步驟非常關鍵，否則列印標籤上的 QR Code 將會指向舊的網址，導致掃描標籤時無法正常開啟後台更新狀態！</p>
+                </div>
+                <ol>
+                    <li>用瀏覽器打開您剛剛部署好的<strong>前端網址</strong>。</li>
+                    <li>點選選單或左下角進入 <strong>「後台管理」</strong>（系統預設的管理員密碼為 <code>admin123</code>）。</li>
+                    <li>進入後台後，切換至 <strong>「系統設定」</strong> 頁籤。</li>
+                    <li>修改以下欄位：
+                        <ul>
+                            <li><strong>系統對外網址 (Base URL)</strong>：修改為您目前的「前端網頁發布網址」（例如：<code>https://kevinhuang305.github.io/Oqliq-/</code>，注意結尾要帶有 <code>/</code>）。</li>
+                            <li><strong>管理員密碼</strong>：若要保障安全，請在此處將 <code>admin123</code> 修改為您自訂的強密碼。</li>
+                        </ul>
+                    </li>
+                    <li>點擊 <strong>「儲存設定」</strong>。
+                        <ul>
+                            <li>系統會自動將此設定同時寫入 Cloudflare D1 與同步至 Google Sheets 的 <code>系統設定</code> 工作表中。</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+            <!-- 驗證測試 -->
+            <section id="verify" class="page-break">
+                <h2>🛠️ 部署完成驗證測試</h2>
+                <p>部署完成後，請務必依序進行以下測試，確保系統雙向同步鏈運作正常：</p>
+                <ol>
+                    <li>
+                        <strong>前端測量測試</strong>：
+                        <ul>
+                            <li>開啟前端網頁，填寫一份新的測量紀錄，上傳一張測試照片，並點選送出。</li>
+                            <li>確認前端是否提示「⏳ 上傳雲端中」並成功提示完成。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Cloudflare D1 資料庫檢查</strong>：
+                        <ul>
+                            <li>在 <code>cf-backend</code> 目錄下執行查詢指令，確認 D1 中已存入剛才測試的人員紀錄：
+                                <pre><code>npx wrangler d1 execute firescue-db --remote --command="SELECT * FROM records LIMIT 1;"</code></pre>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Google Sheets 寫入檢查</strong>：
+                        <ul>
+                            <li>開啟您的 Google 試算表，檢查 <code>測量紀錄</code> 工作表最下方是否已自動新增該筆測試資料。</li>
+                            <li>檢查 <code>照片連結</code> 欄位，點擊網址確認是否能正常開啟在雲端硬碟中儲存的照片。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>試算表反向編輯測試</strong>：
+                        <ul>
+                            <li>在 Google 試算表上直接修改剛才測試資料的「姓名」或「後台備註」。</li>
+                            <li>等待約 2 秒鐘，至前端後台重新整理，或使用 D1 指令查詢，確認資料已被同步修改。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>試算表反向刪除測試</strong>：
+                        <ul>
+                            <li>在 Google 試算表上選取該列，右鍵選「刪除資料列」。</li>
+                            <li>確認 D1 資料庫中的對應袋號紀錄已被自動同步清除（此為 <code>onChangeTrigger</code> 作用）。</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>QR Code 掃描測試</strong>：
+                        <ul>
+                            <li>在前端列印一張測試標籤，掃描上面的 QR Code，確認網址指向您的新前端網址並能順利進入該袋號的掃描更新畫面。</li>
+                        </ul>
+                    </li>
+                </ol>
+            </section>
+
+        </article>
+    </main>
+
+    <!-- 動態選單高亮指令，僅在網頁模式下有效 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const links = document.querySelectorAll('.nav-link');
+            const sections = document.querySelectorAll('section, header');
+
+            const makeActive = () => {
+                let index = sections.length;
+                while(--index && window.scrollY + 100 < sections[index].offsetTop) {}
+                
+                links.forEach((link) => link.classList.remove('active'));
+                
+                // 找到對應的連結並高亮
+                const id = sections[index].getAttribute('id');
+                if (id) {
+                    const activeLink = document.querySelector(`.nav-link[href="#${id}"]`);
+                    if (activeLink) activeLink.classList.add('active');
+                }
+            };
+
+            makeActive();
+            window.addEventListener('scroll', makeActive);
+        });
+    </script>
+</body>
+</html>

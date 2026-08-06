@@ -72,7 +72,15 @@ export default {
       // [GET] getSizesConfig - 獲取尺寸對照參數
       // ==========================================
       if (action === 'getSizesConfig') {
-        const config = await getStaticSizesFromGAS(env, ctx);
+        const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'sizes_config'").first();
+        let config = {};
+        if (row && row.value) {
+          try {
+            config = JSON.parse(row.value);
+          } catch(e) {
+            console.error("解析 D1 中的 sizes_config 失敗:", e);
+          }
+        }
         return jsonResponse({ status: "success", data: config });
       }
 
@@ -80,14 +88,15 @@ export default {
       // [GET] getUnits - 獲取單位與名冊資料
       // ==========================================
       if (action === 'getUnits') {
-        const measuredPromise = env.DB.prepare(
-          "SELECT agency, brigade, unit, name, bag_no, person_id FROM records"
-        ).all();
+        // 並行查詢 D1 中的所有相關資料表，提升效能
+        const [measuredRes, unitsRes, rosterRes, jobsRes] = await Promise.all([
+          env.DB.prepare("SELECT agency, brigade, unit, name, bag_no, person_id FROM records").all(),
+          env.DB.prepare("SELECT * FROM units").all(),
+          env.DB.prepare("SELECT * FROM roster").all(),
+          env.DB.prepare("SELECT * FROM jobs").all()
+        ]);
 
-        const staticData = await getStaticUnitsFromGAS(env, ctx);
-        const d1Result = await measuredPromise;
-        const d1Rows = d1Result.results || [];
-
+        const d1Rows = measuredRes.results || [];
         const measured = d1Rows.map(r => `${r.agency}_${r.brigade}_${r.unit}_${r.name}`);
         const existingIds = [];
         d1Rows.forEach(r => {
@@ -95,13 +104,44 @@ export default {
           if (r.bag_no) existingIds.push(r.bag_no.trim());
         });
 
+        // 建立機關/單位階層與代碼對照表
+        const hierarchy = {};
+        const systemCodes = {};
+        (unitsRes.results || []).forEach(r => {
+          const agency = r.agency;
+          const brigade = r.brigade;
+          const unit = r.unit;
+          const sysCode = r.sys_code;
+          if (agency && brigade && unit) {
+            if (!hierarchy[agency]) hierarchy[agency] = {};
+            if (!hierarchy[agency][brigade]) hierarchy[agency][brigade] = [];
+            if (!hierarchy[agency][brigade].includes(unit)) hierarchy[agency][brigade].push(unit);
+            systemCodes[`${agency}_${brigade}_${unit}`] = sysCode;
+          }
+        });
+
+        // 格式化名冊欄位名稱以符合前端預期 (與試算表欄位一致)
+        const roster = (rosterRes.results || []).map(r => ({
+          "機關名稱": r.agency,
+          "大隊": r.brigade,
+          "分隊": r.unit,
+          "姓名": r.name,
+          "性別": r.gender,
+          "人員識別碼": r.person_id,
+          "年齡": r.age,
+          "職稱": r.job
+        }));
+
+        // 提取職稱選項
+        const jobs = (jobsRes.results || []).map(r => r.job);
+
         const mergedResult = {
-          hierarchy: staticData.hierarchy || {},
-          systemCodes: staticData.systemCodes || {},
-          roster: staticData.roster || [],
-          jobs: staticData.jobs || [],
-          measured: measured,
-          existingIds: existingIds
+          hierarchy,
+          systemCodes,
+          roster,
+          jobs,
+          measured,
+          existingIds
         };
 
         return jsonResponse(mergedResult);
@@ -142,15 +182,15 @@ export default {
         const box = url.searchParams.get('box');
         if (!box) return errorResponse("缺少箱號", 400);
 
-        const staticData = await getStaticUnitsFromGAS(env, ctx);
-        const systemCodes = staticData.systemCodes || {};
-
+        const unitsRes = await env.DB.prepare("SELECT * FROM units").all();
+        const unitsRows = unitsRes.results || [];
         const matchingUnits = [];
-        for (const [key, code] of Object.entries(systemCodes)) {
-          if (code === box || key === box) {
+        unitsRows.forEach(r => {
+          const key = `${r.agency}_${r.brigade}_${r.unit}`;
+          if (r.sys_code === box || key === box) {
             matchingUnits.push(key);
           }
-        }
+        });
 
         const result = await env.DB.prepare("SELECT * FROM records").all();
         const allRows = result.results || [];
@@ -213,8 +253,15 @@ export default {
         const boxData = await env.DB.prepare("SELECT * FROM box_status").all();
         const { boxStatuses, boxTrackingNos, boxUpdateTimes } = formatBoxStatuses(boxData.results || []);
 
-        // 尺碼表選項
-        const clothingSizes = staticUnitsCache?.clothingSizes || {};
+        // 從 D1 整理尺碼表選項
+        const sizesRes = await env.DB.prepare("SELECT * FROM clothing_sizes").all();
+        const clothingSizes = {};
+        (sizesRes.results || []).forEach(r => {
+          if (!clothingSizes[r.item_name]) {
+            clothingSizes[r.item_name] = [];
+          }
+          clothingSizes[r.item_name].push(r.size_value);
+        });
 
         return jsonResponse({
           records: records,
@@ -380,94 +427,99 @@ export default {
         
         if (records.length === 0) return jsonResponse({ success: true, count: 0 });
         
-        const statements = [];
-        const stmt = env.DB.prepare(`
-          INSERT INTO records (
-            system_time, reg_date, agency, brigade, unit, person_id, bag_no, name, gender, age, job,
-            source, filename, file_url, height, shoulder, chest, waist, hip, inseam, series,
-            sz_long, sz_short, sz_op_long, sz_op_short, sz_vest, sz_jacket, sz_ems_inner, sz_tac_jacket,
-            sz_pant, sz_belt, sz_cap, sz_shoe, status, note, admin_note
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          ON CONFLICT(bag_no) DO UPDATE SET
-            system_time = excluded.system_time,
-            reg_date = excluded.reg_date,
-            agency = excluded.agency,
-            brigade = excluded.brigade,
-            unit = excluded.unit,
-            person_id = excluded.person_id,
-            name = excluded.name,
-            gender = excluded.gender,
-            age = excluded.age,
-            job = excluded.job,
-            source = excluded.source,
-            filename = excluded.filename,
-            file_url = excluded.file_url,
-            height = excluded.height,
-            shoulder = excluded.shoulder,
-            chest = excluded.chest,
-            waist = excluded.waist,
-            hip = excluded.hip,
-            inseam = excluded.inseam,
-            series = excluded.series,
-            sz_long = excluded.sz_long,
-            sz_short = excluded.sz_short,
-            sz_op_long = excluded.sz_op_long,
-            sz_op_short = excluded.sz_op_short,
-            sz_vest = excluded.sz_vest,
-            sz_jacket = excluded.sz_jacket,
-            sz_ems_inner = excluded.sz_ems_inner,
-            sz_tac_jacket = excluded.sz_tac_jacket,
-            sz_pant = excluded.sz_pant,
-            sz_belt = excluded.sz_belt,
-            sz_cap = excluded.sz_cap,
-            sz_shoe = excluded.sz_shoe,
-            status = excluded.status,
-            note = excluded.note,
-            admin_note = excluded.admin_note
-        `);
-        
-        for (const r of records) {
-          statements.push(stmt.bind(
-            r.system_time || r['系統建檔時間'] || null,
-            r.reg_date || r['登記日期'] || '',
-            r.agency || r['機關名稱'] || '',
-            r.brigade || r['大隊/分類'] || '',
-            r.unit || r['單位名稱'] || '',
-            r.person_id || r['人員識別碼'] || '',
-            r.bag_no || r['裝袋序號'] || '',
-            r.name || r['姓名'] || '',
-            r.gender || r['性別'] || '',
-            parseInt(r.age || r['年齡'] || '0', 10),
-            r.job || r['職稱'] || '',
-            r.source || r['量測方式'] || r['量測方式/來源'] || '',
-            r.filename || r['照片檔名'] || '',
-            r.file_url || r['照片連結'] || '',
-            parseFloat(r.height || r['身高'] || '0'),
-            parseFloat(r.shoulder || r['肩寬'] || '0'),
-            parseFloat(r.chest || r['胸圍'] || '0'),
-            parseFloat(r.waist || r['腰圍'] || '0'),
-            parseFloat(r.hip || r['臀圍'] || '0'),
-            parseFloat(r.inseam || r['褲內長'] || '0'),
-            r.series || r['配發系列'] || '',
-            r.sz_long || r['長袖'] || '',
-            r.sz_short || r['短袖'] || '',
-            r.sz_op_long || r['長袖操作服'] || '',
-            r.sz_op_short || r['短袖操作服'] || '',
-            r.sz_vest || r['背心'] || '',
-            r.sz_jacket || r['外套'] || '',
-            r.sz_ems_inner || r['救護外套內件'] || '',
-            r.sz_tac_jacket || r['戰術外套'] || '',
-            r.sz_pant || r['戰術褲'] || '',
-            r.sz_belt || r['褲帶'] || '',
-            r.sz_cap || r['戰術帽'] || '',
-            r.sz_shoe || r['消防靴'] || '',
-            r.status || r['狀態'] || '待確認',
-            r.note || r['現場備註'] || '',
-            r.admin_note || r['後台備註'] || ''
-          ));
+        const chunkSize = 2;
+        for (let i = 0; i < records.length; i += chunkSize) {
+          const chunk = records.slice(i, i + chunkSize);
+          const placeholders = [];
+          const values = [];
+          for (const r of chunk) {
+            placeholders.push("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            values.push(
+              r.system_time || r['系統建檔時間'] || null,
+              r.reg_date || r['登記日期'] || '',
+              r.agency || r['機關名稱'] || '',
+              r.brigade || r['大隊/分類'] || '',
+              r.unit || r['單位名稱'] || '',
+              r.person_id || r['人員識別碼'] || '',
+              r.bag_no || r['裝袋序號'] || '',
+              r.name || r['姓名'] || '',
+              r.gender || r['性別'] || '',
+              parseInt(r.age || r['年齡'] || '0', 10),
+              r.job || r['職稱'] || '',
+              r.source || r['量測方式'] || r['量測方式/來源'] || '',
+              r.filename || r['照片檔名'] || '',
+              r.file_url || r['照片連結'] || '',
+              parseFloat(r.height || r['身高'] || '0'),
+              parseFloat(r.shoulder || r['肩寬'] || '0'),
+              parseFloat(r.chest || r['胸圍'] || '0'),
+              parseFloat(r.waist || r['腰圍'] || '0'),
+              parseFloat(r.hip || r['臀圍'] || '0'),
+              parseFloat(r.inseam || r['褲內長'] || '0'),
+              r.series || r['配發系列'] || '',
+              r.sz_long || r['長袖'] || '',
+              r.sz_short || r['短袖'] || '',
+              r.sz_op_long || r['長袖操作服'] || '',
+              r.sz_op_short || r['短袖操作服'] || '',
+              r.sz_vest || r['背心'] || '',
+              r.sz_jacket || r['外套'] || '',
+              r.sz_ems_inner || r['救護外套內件'] || '',
+              r.sz_tac_jacket || r['戰術外套'] || '',
+              r.sz_pant || r['戰術褲'] || '',
+              r.sz_belt || r['褲帶'] || '',
+              r.sz_cap || r['戰術帽'] || '',
+              r.sz_shoe || r['消防靴'] || '',
+              r.status || r['狀態'] || '待確認',
+              r.note || r['現場備註'] || '',
+              r.admin_note || r['後台備註'] || ''
+            );
+          }
+          const sql = `
+            INSERT INTO records (
+              system_time, reg_date, agency, brigade, unit, person_id, bag_no, name, gender, age, job,
+              source, filename, file_url, height, shoulder, chest, waist, hip, inseam, series,
+              sz_long, sz_short, sz_op_long, sz_op_short, sz_vest, sz_jacket, sz_ems_inner, sz_tac_jacket,
+              sz_pant, sz_belt, sz_cap, sz_shoe, status, note, admin_note
+            ) VALUES ${placeholders.join(', ')}
+            ON CONFLICT(bag_no) DO UPDATE SET
+              system_time = excluded.system_time,
+              reg_date = excluded.reg_date,
+              agency = excluded.agency,
+              brigade = excluded.brigade,
+              unit = excluded.unit,
+              person_id = excluded.person_id,
+              name = excluded.name,
+              gender = excluded.gender,
+              age = excluded.age,
+              job = excluded.job,
+              source = excluded.source,
+              filename = excluded.filename,
+              file_url = excluded.file_url,
+              height = excluded.height,
+              shoulder = excluded.shoulder,
+              chest = excluded.chest,
+              waist = excluded.waist,
+              hip = excluded.hip,
+              inseam = excluded.inseam,
+              series = excluded.series,
+              sz_long = excluded.sz_long,
+              sz_short = excluded.sz_short,
+              sz_op_long = excluded.sz_op_long,
+              sz_op_short = excluded.sz_op_short,
+              sz_vest = excluded.sz_vest,
+              sz_jacket = excluded.sz_jacket,
+              sz_ems_inner = excluded.sz_ems_inner,
+              sz_tac_jacket = excluded.sz_tac_jacket,
+              sz_pant = excluded.sz_pant,
+              sz_belt = excluded.sz_belt,
+              sz_cap = excluded.sz_cap,
+              sz_shoe = excluded.sz_shoe,
+              status = excluded.status,
+              note = excluded.note,
+              admin_note = excluded.admin_note
+          `;
+          await env.DB.prepare(sql).bind(...values).run();
         }
         
-        await env.DB.batch(statements);
         return jsonResponse({ success: true, count: records.length });
       }
 
@@ -480,27 +532,176 @@ export default {
         
         if (boxes.length === 0) return jsonResponse({ success: true, count: 0 });
         
-        const statements = [];
-        const stmt = env.DB.prepare(`
-          INSERT INTO box_status (box_id, status, tracking_no, last_update)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(box_id) DO UPDATE SET
-            status = excluded.status,
-            tracking_no = excluded.tracking_no,
-            last_update = excluded.last_update
-        `);
-        
-        for (const b of boxes) {
-          statements.push(stmt.bind(
-            b.box_id || b['箱號'] || '',
-            b.status || b['狀態'] || '',
-            b.tracking_no || b['貨運單號'] || '',
-            b.last_update || b['最後更新時間'] || ''
-          ));
+        const chunkSize = 20;
+        for (let i = 0; i < boxes.length; i += chunkSize) {
+          const chunk = boxes.slice(i, i + chunkSize);
+          const placeholders = [];
+          const values = [];
+          for (const b of chunk) {
+            placeholders.push("(?, ?, ?, ?)");
+            values.push(
+              b.box_id || b['箱號'] || '',
+              b.status || b['狀態'] || '',
+              b.tracking_no || b['貨運單號'] || '',
+              b.last_update || b['最後更新時間'] || ''
+            );
+          }
+          const sql = `
+            INSERT INTO box_status (box_id, status, tracking_no, last_update)
+            VALUES ${placeholders.join(', ')}
+            ON CONFLICT(box_id) DO UPDATE SET
+              status = excluded.status,
+              tracking_no = excluded.tracking_no,
+              last_update = excluded.last_update
+          `;
+          await env.DB.prepare(sql).bind(...values).run();
         }
         
-        await env.DB.batch(statements);
         return jsonResponse({ success: true, count: boxes.length });
+      }
+
+      // ==========================================
+      // [POST] importUnits - 批次匯入單位資料
+      // ==========================================
+      if (action === 'importUnits' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const units = payload.units || [];
+        const isIncremental = payload.incremental === true;
+
+        if (!isIncremental) {
+          await env.DB.prepare("DELETE FROM units").run();
+        }
+
+        if (units.length > 0) {
+          const chunkSize = 20;
+          for (let i = 0; i < units.length; i += chunkSize) {
+            const chunk = units.slice(i, i + chunkSize);
+            const placeholders = [];
+            const values = [];
+            for (const u of chunk) {
+              placeholders.push("(?, ?, ?, ?)");
+              values.push(
+                u['機關名稱'] || u.agency || '',
+                u['所屬大隊/分類'] || u.brigade || '',
+                u['單位名稱'] || u.unit || '',
+                u['系統代碼'] || u.sys_code || ''
+              );
+            }
+            const sql = `INSERT OR REPLACE INTO units (agency, brigade, unit, sys_code) VALUES ${placeholders.join(', ')}`;
+            await env.DB.prepare(sql).bind(...values).run();
+          }
+        }
+        return jsonResponse({ success: true, count: units.length });
+      }
+
+      // ==========================================
+      // [POST] importRoster - 批次匯入人員名冊
+      // ==========================================
+      if (action === 'importRoster' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const roster = payload.roster || [];
+        const isIncremental = payload.incremental === true;
+
+        if (!isIncremental) {
+          await env.DB.prepare("DELETE FROM roster").run();
+        }
+
+        if (roster.length > 0) {
+          const chunkSize = 10;
+          for (let i = 0; i < roster.length; i += chunkSize) {
+            const chunk = roster.slice(i, i + chunkSize);
+            const placeholders = [];
+            const values = [];
+            for (const p of chunk) {
+              placeholders.push("(?, ?, ?, ?, ?, ?, ?, ?)");
+              values.push(
+                p['機關名稱'] || p.agency || '',
+                p['大隊'] || p['所屬大隊/分類'] || p.brigade || '',
+                p['分隊'] || p['單位名稱'] || p.unit || '',
+                p['姓名'] || p.name || '',
+                p['性別'] || p.gender || '',
+                p['人員識別碼'] || p.person_id || '',
+                parseInt(p['年齡'] || p.age || '0', 10),
+                p['職稱'] || p.job || ''
+              );
+            }
+            const sql = `INSERT OR REPLACE INTO roster (agency, brigade, unit, name, gender, person_id, age, job) VALUES ${placeholders.join(', ')}`;
+            await env.DB.prepare(sql).bind(...values).run();
+          }
+        }
+        return jsonResponse({ success: true, count: roster.length });
+      }
+
+      // ==========================================
+      // [POST] importJobs - 批次匯入職稱表
+      // ==========================================
+      if (action === 'importJobs' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const jobs = payload.jobs || [];
+
+        await env.DB.prepare("DELETE FROM jobs").run();
+
+        if (jobs.length > 0) {
+          const chunkSize = 80;
+          for (let i = 0; i < jobs.length; i += chunkSize) {
+            const chunk = jobs.slice(i, i + chunkSize);
+            const placeholders = [];
+            const values = [];
+            for (const j of chunk) {
+              if (j) {
+                placeholders.push("(?)");
+                values.push(j.trim());
+              }
+            }
+            if (values.length > 0) {
+              const sql = `INSERT OR IGNORE INTO jobs (job) VALUES ${placeholders.join(', ')}`;
+              await env.DB.prepare(sql).bind(...values).run();
+            }
+          }
+        }
+        return jsonResponse({ success: true, count: jobs.length });
+      }
+
+      // ==========================================
+      // [POST] importClothingSizes - 批次匯入服裝尺碼選項
+      // ==========================================
+      if (action === 'importClothingSizes' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const sizes = payload.sizes || [];
+
+        await env.DB.prepare("DELETE FROM clothing_sizes").run();
+
+        if (sizes.length > 0) {
+          const chunkSize = 40;
+          for (let i = 0; i < sizes.length; i += chunkSize) {
+            const chunk = sizes.slice(i, i + chunkSize);
+            const placeholders = [];
+            const values = [];
+            for (const s of chunk) {
+              placeholders.push("(?, ?)");
+              values.push(
+                s.item_name || s['服裝品項'] || s['品項'] || '',
+                s.size_value || s['尺碼'] || s['尺寸'] || ''
+              );
+            }
+            const sql = `INSERT OR IGNORE INTO clothing_sizes (item_name, size_value) VALUES ${placeholders.join(', ')}`;
+            await env.DB.prepare(sql).bind(...values).run();
+          }
+        }
+        return jsonResponse({ success: true, count: sizes.length });
+      }
+
+      // ==========================================
+      // [POST] importSizesConfig - 批次匯入尺寸對照參數 JSON
+      // ==========================================
+      if (action === 'importSizesConfig' && request.method === 'POST') {
+        const payload = JSON.parse(bodyText);
+        const config = payload.config || {};
+        
+        await env.DB.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('sizes_config', ?)")
+          .bind(JSON.stringify(config)).run();
+          
+        return jsonResponse({ success: true });
       }
 
       // ==========================================
@@ -529,10 +730,32 @@ export default {
       }
 
       // ==========================================
-      // [POST] updateSizesConfig / appendUnits / 其他轉發至 GAS
+      // [POST] updateSizesConfig - 修改尺寸對照參數
+      // ==========================================
+      if (action === 'updateSizesConfig' && request.method === 'POST') {
+        let payloadObj = null;
+        try {
+          payloadObj = JSON.parse(params.get('payload'));
+        } catch(e) {}
+
+        if (payloadObj && payloadObj.data) {
+          const pwd = payloadObj.password;
+          await verifyAdminPassword(env, pwd);
+
+          // 同步寫入 D1 settings
+          await env.DB.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('sizes_config', ?)")
+            .bind(JSON.stringify(payloadObj.data)).run();
+        }
+
+        // 同時背景轉發給 GAS
+        ctx.waitUntil(syncToGoogleSheets(env, bodyText));
+        return jsonResponse({ success: true, status: "success" });
+      }
+
+      // ==========================================
+      // [POST] appendUnits 或其他轉發至 GAS
       // ==========================================
       if (request.method === 'POST') {
-        // 其他如更新尺寸表、更新單位表等動作，直接於背景轉發給 GAS 處理
         ctx.waitUntil(syncToGoogleSheets(env, bodyText));
         return jsonResponse({ success: true, status: "success", message: "動作已轉發至 Google Sheets" });
       }
