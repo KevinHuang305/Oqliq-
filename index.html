@@ -2191,6 +2191,15 @@
             return Array.from(map.values());
         }
 
+        function getCountyFromBagNo(bagNo) {
+            if (!bagNo) return '';
+            const clean = String(bagNo).trim().toUpperCase();
+            if (clean.startsWith('TN')) return '臺南市';
+            if (clean.startsWith('CY')) return '嘉義市';
+            if (clean.startsWith('KH')) return '高雄市';
+            return '';
+        }
+
 
         function renderRosterGrid() {
             const grid = document.getElementById('rosterGrid');
@@ -3695,6 +3704,7 @@
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                                         <div style="flex:1;">
                                             <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${pName}</div>
+                                            <div>CITY: ${getCountyFromBagNo(bagNo) || '-'}</div>
                                             <div>UNIT: ${agency}</div>
                                             <div>SQUAD: ${brigade} - ${unit}</div>
                                             <div>SERIES: ${dispSeries.join(", ") || '-'}</div>
@@ -4843,6 +4853,7 @@
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                         <div style="flex:1;">
                             <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${r['姓名']}</div>
+                            <div>CITY: ${getCountyFromBagNo(r['裝袋序號']) || '-'}</div>
                             <div>UNIT: ${r['機關名稱']}</div>
                             <div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div>
                             <div>SERIES: ${r['配發系列'] || '-'}</div>

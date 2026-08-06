@@ -921,6 +921,15 @@
         let excludedItemSet = new Set(); // 使用者排除的配件名稱
         let qrCodes = [];         // 暫存 QR Code 的物件清單，便於列印時重繪或延遲載入
 
+        function getCountyFromBagNo(bagNo) {
+            if (!bagNo) return '';
+            const clean = String(bagNo).trim().toUpperCase();
+            if (clean.startsWith('TN')) return '臺南市';
+            if (clean.startsWith('CY')) return '嘉義市';
+            if (clean.startsWith('KH')) return '高雄市';
+            return '';
+        }
+
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             initDragAndDrop();
@@ -1280,6 +1289,7 @@
                                 <div class="label-main">
                                     <div class="label-info">
                                         <div class="label-name">${s.name}</div>
+                                        <div>CITY: ${getCountyFromBagNo(s.bagNo) || '-'}</div>
                                         <div>UNIT: ${s.unit || '-'}</div>
                                         <div>SERIES: ${s.series || '-'}</div>
                                     </div>
