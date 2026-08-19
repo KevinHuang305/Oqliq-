@@ -1425,11 +1425,11 @@
             <div class="step-content" id="step2">
                 <div class="section-title">配發系列</div>
                 <div style="display:flex; gap:10px;">
-                    <input type="checkbox" id="chk-TAC" class="series-chk" checked>
+                    <input type="checkbox" id="chk-TAC" class="series-chk" checked onchange="window.updateSleeveModVisibility && window.updateSleeveModVisibility()">
                     <label for="chk-TAC" class="series-btn">戰術</label>
-                    <input type="checkbox" id="chk-OPS" class="series-chk">
+                    <input type="checkbox" id="chk-OPS" class="series-chk" onchange="window.updateSleeveModVisibility && window.updateSleeveModVisibility()">
                     <label for="chk-OPS" class="series-btn">操作</label>
-                    <input type="checkbox" id="chk-EMS" class="series-chk">
+                    <input type="checkbox" id="chk-EMS" class="series-chk" onchange="window.updateSleeveModVisibility && window.updateSleeveModVisibility()">
                     <label for="chk-EMS" class="series-btn">救護</label>
                 </div>
 
@@ -1445,45 +1445,96 @@
                     <div class="form-group"><label>臀圍</label><input type="number" id="val-hip"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>褲內長</label><input type="number" id="val-inseam" placeholder="選填">
-                    </div>
-                    <div class="form-group"><label>腳掌長</label><input type="number" id="val-foot" placeholder="cm"></div>
-                </div>
-                <div class="form-group" style="margin-top:10px;">
-                    <label>量測方式</label>
-                    <select id="measureSource">
-                        <option>AI 自動量測</option>
-                        <option>照片比例量測</option>
-                        <option>人工皮尺</option>
-                        <option>舊尺寸名冊</option>
-                    </select>
-                </div>
-                <div class="nav-btns">
-                    <button class="btn btn-ghost" onclick="goToStep(1)">上一步</button>
-                    <button class="btn btn-primary" onclick="goToStep(3)">計算建議尺碼</button>
-                </div>
-            </div>
-
-            <!-- Step 3 -->
-            <div class="step-content" id="step3">
-                <div class="section-title">尺碼確認與覆核</div>
-                <div class="status-box highlight" style="margin-bottom:15px;">已自動推算出最適尺碼。<br>若需調整，請直接修改下方選單。</div>
-                <div id="sizing-fields" style="display:flex; flex-direction:column; gap:10px;"></div>
-                <div class="form-group" style="margin-top:15px;">
-                    <label>袖長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※長袖上衣/外套適用</span></label>
-                    <style>#val-sleeve-mod-num::-webkit-outer-spin-button, #val-sleeve-mod-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; } #val-sleeve-mod-num { -moz-appearance: textfield; }</style>
-                    <div style="display:flex; gap:10px; align-items:center;">
-                        <select id="val-sleeve-mod-type" style="padding:10px; border-radius:6px; border:1px solid var(--border); width:120px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-num-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-unit').style.display = show ? 'inline' : 'none';">
-                            <option value="">無修改</option>
-                            <option value="加長">加長</option>
-                            <option value="縮短">縮短</option>
-                        </select>
-                        <div id="val-sleeve-mod-num-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
-                            <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
-                            <input type="number" id="val-sleeve-mod-num" value="1" min="1" max="10" style="width:50px; border:none; text-align:center; padding:10px 0; outline:none; font-size:16px;">
-                            <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:10px 15px; cursor:pointer; font-size:18px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                    <div class="form-group"><label>褲內長</label><input type="number" id="val-inseam"                <div class="form-group" id="sleeve-mod-container" style="margin-top:15px;">
+                    <label style="font-weight:bold;">袖長修改 <span style="font-size:12px; font-weight:normal; color:#666;">※長袖上衣/外套適用</span></label>
+                    <style>
+                        .sleeve-mod-num::-webkit-outer-spin-button, .sleeve-mod-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+                        .sleeve-mod-num { -moz-appearance: textfield; }
+                    </style>
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-top:8px;">
+                        <!-- 1. 長袖戰術服 -->
+                        <div id="row-sleeve-mod-tl" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--bg-surface); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+                            <span style="font-size:13px; font-weight:600; min-width:90px;">1. 長袖戰術服</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="val-sleeve-mod-tl-type" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); width:95px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-tl-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-tl-unit').style.display = show ? 'inline' : 'none';">
+                                    <option value="">無修改</option>
+                                    <option value="加長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-tl-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-tl-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-tl-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-tl-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-tl-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
                         </div>
-                        <span id="val-sleeve-mod-unit" style="display:none; color:var(--text-muted); font-weight:bold;">cm</span>
+
+                        <!-- 2. 戰術外套 -->
+                        <div id="row-sleeve-mod-tj" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--bg-surface); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+                            <span style="font-size:13px; font-weight:600; min-width:90px;">2. 戰術外套</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="val-sleeve-mod-tj-type" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); width:95px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-tj-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-tj-unit').style.display = show ? 'inline' : 'none';">
+                                    <option value="">無修改</option>
+                                    <option value="加長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-tj-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-tj-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-tj-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-tj-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-tj-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. 長袖操作服 -->
+                        <div id="row-sleeve-mod-opl" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--bg-surface); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+                            <span style="font-size:13px; font-weight:600; min-width:90px;">3. 長袖操作服</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="val-sleeve-mod-opl-type" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); width:95px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-opl-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-opl-unit').style.display = show ? 'inline' : 'none';">
+                                    <option value="">無修改</option>
+                                    <option value="加長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-opl-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-opl-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-opl-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-opl-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-opl-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
+                        </div>
+
+                        <!-- 4. 救護外套 -->
+                        <div id="row-sleeve-mod-ej" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--bg-surface); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+                            <span style="font-size:13px; font-weight:600; min-width:90px;">4. 救護外套</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="val-sleeve-mod-ej-type" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); width:95px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-ej-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-ej-unit').style.display = show ? 'inline' : 'none';">
+                                    <option value="">無修改</option>
+                                    <option value="加長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-ej-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-ej-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-ej-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-ej-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-ej-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>��長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-ej-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-ej-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-ej-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-ej-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-ej-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
@@ -3659,6 +3710,43 @@
             return '29.0 (日本號 43)';
         }
 
+        window.updateSleeveModVisibility = function () {
+            const selTAC = document.getElementById('chk-TAC')?.checked ?? true;
+            const selOPS = document.getElementById('chk-OPS')?.checked ?? false;
+            const selEMS = document.getElementById('chk-EMS')?.checked ?? false;
+
+            const items = [
+                { id: 'tl', show: selTAC },
+                { id: 'tj', show: selTAC },
+                { id: 'opl', show: selOPS },
+                { id: 'ej', show: selEMS }
+            ];
+
+            let anyVisible = false;
+            items.forEach(item => {
+                const row = document.getElementById(`row-sleeve-mod-${item.id}`);
+                if (row) {
+                    row.style.display = item.show ? 'flex' : 'none';
+                    if (item.show) anyVisible = true;
+                }
+                if (!item.show) {
+                    const sType = document.getElementById(`val-sleeve-mod-${item.id}-type`);
+                    const sNum = document.getElementById(`val-sleeve-mod-${item.id}-num`);
+                    const sWrap = document.getElementById(`val-sleeve-mod-${item.id}-wrap`);
+                    const sUnit = document.getElementById(`val-sleeve-mod-${item.id}-unit`);
+                    if (sType) sType.value = '';
+                    if (sNum) sNum.value = '1';
+                    if (sWrap) sWrap.style.display = 'none';
+                    if (sUnit) sUnit.style.display = 'none';
+                }
+            });
+
+            const container = document.getElementById('sleeve-mod-container');
+            if (container) {
+                container.style.display = anyVisible ? 'block' : 'none';
+            }
+        };
+
         // ✅ 防呆版本的步驟切換邏輯
         window.goToStep = function (stepNum) {
             updatePersistentName();
@@ -3725,6 +3813,7 @@
                     addField('消防靴', 'SHOE', shoeOpts, calcShoe(foot));
 
                     document.getElementById('sizing-fields').innerHTML = html;
+                    window.updateSleeveModVisibility();
                 }
 
                 if (stepNum === 4) {
@@ -3748,7 +3837,6 @@
 
                     let step4Note = document.getElementById('val-note').value.trim();
                     const pantModType = document.getElementById('val-pant-mod-type').value;
-                    const sleeveModType = document.getElementById('val-sleeve-mod-type')?.value;
                     let isCustomMade = window.CURRENT_CUSTOM_FLAGS?.top || window.CURRENT_CUSTOM_FLAGS?.jacket || window.CURRENT_CUSTOM_FLAGS?.pant || false;
                     let hasMod = false;
 
@@ -3759,13 +3847,24 @@
                         hasMod = true;
                         if (pantModVal > (window.SIZE_CONFIG?.customRules?.pantMaxMod || 8)) isCustomMade = true;
                     }
-                    if (sleeveModType) {
-                        const sleeveModVal = parseInt(document.getElementById('val-sleeve-mod-num').value || 1);
-                        const sleeveMod = sleeveModType + sleeveModVal + "cm";
-                        step4Note = (step4Note ? step4Note + " / " : "") + `袖長修改:${sleeveMod}`;
-                        hasMod = true;
-                        if (sleeveModVal > (window.SIZE_CONFIG?.customRules?.sleeveMaxMod || 5)) isCustomMade = true;
-                    }
+
+                    const sleeveModItems = [
+                        { id: 'tl', name: '長袖戰術服' },
+                        { id: 'tj', name: '戰術外套' },
+                        { id: 'opl', name: '長袖操作服' },
+                        { id: 'ej', name: '救護外套' }
+                    ];
+
+                    sleeveModItems.forEach(item => {
+                        const sType = document.getElementById(`val-sleeve-mod-${item.id}-type`)?.value;
+                        if (sType) {
+                            const sVal = parseInt(document.getElementById(`val-sleeve-mod-${item.id}-num`)?.value || 1);
+                            const sleeveModStr = `${item.name}袖長修改:${sType}${sVal}cm`;
+                            step4Note = (step4Note ? step4Note + " / " : "") + sleeveModStr;
+                            hasMod = true;
+                            if (sVal > (window.SIZE_CONFIG?.customRules?.sleeveMaxMod || 5)) isCustomMade = true;
+                        }
+                    });
 
                     let statusText = isCustomMade ? "特殊訂製" : (hasMod ? "標準尺寸+局部修改" : "標準尺寸");
                     const statusHtml = `<div style="margin-top:10px; color:${isCustomMade?'#e11d48':'#16a34a'}; font-weight:bold; font-size:14px;">狀態：${statusText}</div>`;
@@ -3874,11 +3973,19 @@
                 const pantMod = modType + (document.getElementById('val-pant-mod-num').value || 1) + "cm";
                 finalNote = (finalNote ? finalNote + " / " : "") + `褲長修改:${pantMod}`;
             }
-            const sleeveModType = document.getElementById('val-sleeve-mod-type')?.value;
-            if (sleeveModType) {
-                const sleeveMod = sleeveModType + (document.getElementById('val-sleeve-mod-num').value || 1) + "cm";
-                finalNote = (finalNote ? finalNote + " / " : "") + `袖長修改:${sleeveMod}`;
-            }
+            const sleeveModItems = [
+                { id: 'tl', name: '長袖戰術服' },
+                { id: 'tj', name: '戰術外套' },
+                { id: 'opl', name: '長袖操作服' },
+                { id: 'ej', name: '救護外套' }
+            ];
+            sleeveModItems.forEach(item => {
+                const sType = document.getElementById(`val-sleeve-mod-${item.id}-type`)?.value;
+                if (sType) {
+                    const sVal = parseInt(document.getElementById(`val-sleeve-mod-${item.id}-num`)?.value || 1);
+                    finalNote = (finalNote ? finalNote + " / " : "") + `${item.name}袖長修改:${sType}${sVal}cm`;
+                }
+            });
             formData.append("note", finalNote);
 
             let finalDataURL = "";
@@ -3978,6 +4085,16 @@
             document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = ''; 
             document.getElementById('val-pant-mod-type').value = ''; document.getElementById('val-pant-mod-num').value = '1';
             document.getElementById('val-pant-mod-num-wrap').style.display = 'none'; document.getElementById('val-pant-mod-unit').style.display = 'none';
+            ['tl', 'tj', 'opl', 'ej'].forEach(id => {
+                const sType = document.getElementById(`val-sleeve-mod-${id}-type`);
+                const sNum = document.getElementById(`val-sleeve-mod-${id}-num`);
+                const sWrap = document.getElementById(`val-sleeve-mod-${id}-wrap`);
+                const sUnit = document.getElementById(`val-sleeve-mod-${id}-unit`);
+                if (sType) sType.value = '';
+                if (sNum) sNum.value = '1';
+                if (sWrap) sWrap.style.display = 'none';
+                if (sUnit) sUnit.style.display = 'none';
+            });
 
             document.getElementById('submitStatus').style.display = 'none';
             document.getElementById('submitBtns').style.display = 'flex';
