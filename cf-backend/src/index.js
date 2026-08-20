@@ -427,59 +427,15 @@ export default {
         
         if (records.length === 0) return jsonResponse({ success: true, count: 0 });
         
-        const chunkSize = 2;
-        for (let i = 0; i < records.length; i += chunkSize) {
-          const chunk = records.slice(i, i + chunkSize);
-          const placeholders = [];
-          const values = [];
-          for (const r of chunk) {
-            placeholders.push("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            values.push(
-              r.system_time || r['系統建檔時間'] || null,
-              r.reg_date || r['登記日期'] || '',
-              r.agency || r['機關名稱'] || '',
-              r.brigade || r['大隊/分類'] || '',
-              r.unit || r['單位名稱'] || '',
-              r.person_id || r['人員識別碼'] || '',
-              r.bag_no || r['裝袋序號'] || '',
-              r.name || r['姓名'] || '',
-              r.gender || r['性別'] || '',
-              parseInt(r.age || r['年齡'] || '0', 10),
-              r.job || r['職稱'] || '',
-              r.source || r['量測方式'] || r['量測方式/來源'] || '',
-              r.filename || r['照片檔名'] || '',
-              r.file_url || r['照片連結'] || '',
-              parseFloat(r.height || r['身高'] || '0'),
-              parseFloat(r.shoulder || r['肩寬'] || '0'),
-              parseFloat(r.chest || r['胸圍'] || '0'),
-              parseFloat(r.waist || r['腰圍'] || '0'),
-              parseFloat(r.hip || r['臀圍'] || '0'),
-              parseFloat(r.inseam || r['褲內長'] || '0'),
-              r.series || r['配發系列'] || '',
-              r.sz_long || r['長袖'] || '',
-              r.sz_short || r['短袖'] || '',
-              r.sz_op_long || r['長袖操作服'] || '',
-              r.sz_op_short || r['短袖操作服'] || '',
-              r.sz_vest || r['背心'] || '',
-              r.sz_jacket || r['外套'] || '',
-              r.sz_ems_inner || r['救護外套內件'] || '',
-              r.sz_tac_jacket || r['戰術外套'] || '',
-              r.sz_pant || r['戰術褲'] || '',
-              r.sz_belt || r['褲帶'] || '',
-              r.sz_cap || r['戰術帽'] || '',
-              r.sz_shoe || r['消防靴'] || '',
-              r.status || r['狀態'] || '待確認',
-              r.note || r['現場備註'] || '',
-              r.admin_note || r['後台備註'] || ''
-            );
-          }
+        const batchStmts = [];
+        for (const r of records) {
           const sql = `
             INSERT INTO records (
               system_time, reg_date, agency, brigade, unit, person_id, bag_no, name, gender, age, job,
               source, filename, file_url, height, shoulder, chest, waist, hip, inseam, series,
               sz_long, sz_short, sz_op_long, sz_op_short, sz_vest, sz_jacket, sz_ems_inner, sz_tac_jacket,
               sz_pant, sz_belt, sz_cap, sz_shoe, status, note, admin_note
-            ) VALUES ${placeholders.join(', ')}
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(bag_no) DO UPDATE SET
               system_time = excluded.system_time,
               reg_date = excluded.reg_date,
@@ -517,7 +473,51 @@ export default {
               note = excluded.note,
               admin_note = excluded.admin_note
           `;
-          await env.DB.prepare(sql).bind(...values).run();
+          const values = [
+            r.system_time || r['系統建檔時間'] || null,
+            r.reg_date || r['登記日期'] || '',
+            r.agency || r['機關名稱'] || '',
+            r.brigade || r['大隊/分類'] || '',
+            r.unit || r['單位名稱'] || '',
+            r.person_id || r['人員識別碼'] || '',
+            r.bag_no || r['裝袋序號'] || '',
+            r.name || r['姓名'] || '',
+            r.gender || r['性別'] || '',
+            parseInt(r.age || r['年齡'] || '0', 10),
+            r.job || r['職稱'] || '',
+            r.source || r['量測方式'] || r['量測方式/來源'] || '',
+            r.filename || r['照片檔名'] || '',
+            r.file_url || r['照片連結'] || '',
+            parseFloat(r.height || r['身高'] || '0'),
+            parseFloat(r.shoulder || r['肩寬'] || '0'),
+            parseFloat(r.chest || r['胸圍'] || '0'),
+            parseFloat(r.waist || r['腰圍'] || '0'),
+            parseFloat(r.hip || r['臀圍'] || '0'),
+            parseFloat(r.inseam || r['褲內長'] || '0'),
+            r.series || r['配發系列'] || '',
+            r.sz_long || r['長袖'] || r['戰術服長袖'] || r['長袖戰術服'] || r['戰術服(長袖)'] || '',
+            r.sz_short || r['短袖'] || r['戰術服短袖'] || r['短袖戰術服'] || r['戰術服(短袖)'] || '',
+            r.sz_op_long || r['長袖操作服'] || r['操作服長袖'] || '',
+            r.sz_op_short || r['短袖操作服'] || r['操作服短袖'] || '',
+            r.sz_vest || r['背心'] || r['戰術背心'] || r['救護背心'] || r['戰術/救護背心'] || r['戰術背心尺寸'] || '',
+            r.sz_jacket || r['外套'] || r['救護外套'] || '',
+            r.sz_ems_inner || r['救護外套內件'] || r['救護內件'] || r['外套內件'] || '',
+            r.sz_tac_jacket || r['戰術外套'] || r['戰術外套尺寸'] || '',
+            r.sz_pant || r['戰術褲'] || r['褲子'] || '',
+            r.sz_belt || r['褲帶'] || r['腰帶'] || r['戰術腰帶'] || '',
+            r.sz_cap || r['戰術帽'] || r['戰術帽尺寸'] || '',
+            r.sz_shoe || r['消防靴'] || r['鞋子'] || '',
+            r.status || r['狀態'] || '待確認',
+            r.note || r['現場備註'] || '',
+            r.admin_note || r['後台備註'] || ''
+          ];
+          batchStmts.push(env.DB.prepare(sql).bind(...values));
+        }
+
+        const batchChunkSize = 50;
+        for (let i = 0; i < batchStmts.length; i += batchChunkSize) {
+          const sub = batchStmts.slice(i, i + batchChunkSize);
+          await env.DB.batch(sub);
         }
         
         return jsonResponse({ success: true, count: records.length });
@@ -819,11 +819,16 @@ function formatRecordSizes(r) {
     "褲內長": r.inseam,
     "配發系列": r.series,
     "長袖": r.sz_long,
+    "戰術服長袖": r.sz_long,
     "短袖": r.sz_short,
+    "戰術服短袖": r.sz_short,
     "長袖操作服": r.sz_op_long,
     "短袖操作服": r.sz_op_short,
     "背心": r.sz_vest,
+    "戰術背心": r.sz_vest,
+    "救護背心": r.sz_vest,
     "外套": r.sz_jacket,
+    "救護外套": r.sz_jacket,
     "救護外套內件": r.sz_ems_inner,
     "戰術外套": r.sz_tac_jacket,
     "戰術褲": r.sz_pant,

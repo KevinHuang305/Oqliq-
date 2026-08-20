@@ -7,6 +7,60 @@ function setupAuth() {
   Logger.log("✅ 授權成功！");
 }
 
+function populateHeaderAliases(obj) {
+  if (!obj) return obj;
+
+  var valLong = obj['長袖'] || obj['戰術服長袖'] || obj['長袖戰術服'] || obj['戰術服(長袖)'] || obj['長袖 '];
+  if (valLong) {
+    obj['長袖'] = valLong;
+    obj['戰術服長袖'] = valLong;
+    obj['長袖戰術服'] = valLong;
+  }
+  
+  var valShort = obj['短袖'] || obj['戰術服短袖'] || obj['短袖戰術服'] || obj['戰術服(短袖)'] || obj['短袖 '];
+  if (valShort) {
+    obj['短袖'] = valShort;
+    obj['戰術服短袖'] = valShort;
+    obj['短袖戰術服'] = valShort;
+  }
+  
+  var valVest = obj['背心'] || obj['戰術背心'] || obj['救護背心'] || obj['戰術/救護背心'] || obj['戰術背心尺寸'] || obj['背心 '];
+  if (valVest) {
+    obj['背心'] = valVest;
+    obj['戰術背心'] = valVest;
+    obj['救護背心'] = valVest;
+  }
+  
+  var valJacket = obj['外套'] || obj['救護外套'] || obj['外套 '];
+  if (valJacket) {
+    obj['外套'] = valJacket;
+    obj['救護外套'] = valJacket;
+  }
+  
+  var valEmsInner = obj['救護外套內件'] || obj['救護內件'] || obj['外套內件'];
+  if (valEmsInner) {
+    obj['救護外套內件'] = valEmsInner;
+    obj['救護內件'] = valEmsInner;
+  }
+
+  var valTacJacket = obj['戰術外套'] || obj['戰術外套尺寸'];
+  if (valTacJacket) {
+    obj['戰術外套'] = valTacJacket;
+  }
+
+  var valCap = obj['戰術帽'] || obj['戰術帽尺寸'];
+  if (valCap) {
+    obj['戰術帽'] = valCap;
+  }
+
+  var valBelt = obj['褲帶'] || obj['腰帶'] || obj['戰術腰帶'];
+  if (valBelt) {
+    obj['褲帶'] = valBelt;
+  }
+
+  return obj;
+}
+
 // ==========================================
 // 🌟 雲端系統設定管理 (新增標籤設定儲存)
 // ==========================================
@@ -373,6 +427,7 @@ function doGet(e) {
     for (var j = 0; j < headers.length; j++) {
       obj[headers[j]] = rowValues[j];
     }
+    populateHeaderAliases(obj);
     obj.sizes = {
       'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
       'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
@@ -463,6 +518,7 @@ function doGet(e) {
       if (matchingUnits.indexOf(key) !== -1 || key === box) {
         var obj = {};
         for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+        populateHeaderAliases(obj);
         obj.sizes = {
           'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
           'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
@@ -523,6 +579,7 @@ function doGet(e) {
       if (data[i][agencyIdx] === unitName) {
         var obj = {};
         for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+        populateHeaderAliases(obj);
         obj.sizes = {
           'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
           'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
@@ -579,6 +636,7 @@ function doGet(e) {
     for (var i = 1; i < data.length; i++) {
       var obj = {};
       for (var j = 0; j < headers.length; j++) obj[headers[j]] = data[i][j];
+      populateHeaderAliases(obj);
       obj.sizes = {
         'TL': obj['長袖'], 'OPL': obj['長袖操作服'],
         'TS': obj['短袖'], 'OPS': obj['短袖操作服'],
@@ -732,6 +790,7 @@ function doPost(e) {
           if (val instanceof Date) val = val.toISOString();
           record[headers[col]] = val;
         }
+        populateHeaderAliases(record);
         pushRecordToD1(record);
         
         return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
@@ -908,6 +967,65 @@ function pushRecordToD1(record) {
 }
 
 // ==========================================
+// 🌟 極速單獨同步「測量紀錄」至 Cloudflare D1 (防範 6 分鐘超時)
+// ==========================================
+function exportMeasureSheetOnlyToD1() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/";
+  
+  var measureSheet = ss.getSheetByName("測量紀錄");
+  if (measureSheet) {
+    var data = measureSheet.getDataRange().getValues();
+    if (data.length > 1) {
+      var headers = data[0];
+      var records = [];
+      for (var i = 1; i < data.length; i++) {
+        var obj = {};
+        for (var j = 0; j < headers.length; j++) {
+          var val = data[i][j];
+          if (val instanceof Date) {
+            val = val.toISOString();
+          }
+          obj[headers[j]] = val;
+        }
+        populateHeaderAliases(obj);
+        obj.sz_long = obj['長袖'] || obj['戰術服長袖'] || obj['長袖戰術服'] || '';
+        obj.sz_short = obj['短袖'] || obj['戰術服短袖'] || obj['短袖戰術服'] || '';
+        obj.sz_op_long = obj['長袖操作服'] || '';
+        obj.sz_op_short = obj['短袖操作服'] || '';
+        obj.sz_vest = obj['背心'] || obj['戰術背心'] || obj['救護背心'] || '';
+        obj.sz_jacket = obj['外套'] || obj['救護外套'] || '';
+        obj.sz_ems_inner = obj['救護外套內件'] || obj['救護內件'] || '';
+        obj.sz_tac_jacket = obj['戰術外套'] || '';
+        obj.sz_pant = obj['戰術褲'] || '';
+        obj.sz_belt = obj['褲帶'] || obj['腰帶'] || '';
+        obj.sz_cap = obj['戰術帽'] || '';
+        obj.sz_shoe = obj['消防靴'] || '';
+        records.push(obj);
+      }
+      
+      // 每 200 筆為一個 chunk 極速發送
+      var chunk = 200;
+      for (var k = 0; k < records.length; k += chunk) {
+        var sub = records.slice(k, k + chunk);
+        var options = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify({ records: sub })
+        };
+        try {
+          var res = UrlFetchApp.fetch(cfUrl + "importRecords", options);
+          Logger.log("批次測量紀錄寫入成功: " + (k + sub.length) + "/" + records.length);
+        } catch(err) {
+          Logger.log("批次測量紀錄寫入失敗 (索引 " + k + "): " + err.toString());
+        }
+      }
+      Logger.log("✅ 測量紀錄單獨極速同步完成，共 " + records.length + " 筆。");
+    }
+  }
+}
+
+// ==========================================
 // 🌟 歷史資料批次同步至 Cloudflare D1
 // ==========================================
 function exportAllSheetsToD1() {
@@ -930,11 +1048,24 @@ function exportAllSheetsToD1() {
           }
           obj[headers[j]] = val;
         }
+        populateHeaderAliases(obj);
+        obj.sz_long = obj['長袖'] || obj['戰術服長袖'] || obj['長袖戰術服'] || '';
+        obj.sz_short = obj['短袖'] || obj['戰術服短袖'] || obj['短袖戰術服'] || '';
+        obj.sz_op_long = obj['長袖操作服'] || '';
+        obj.sz_op_short = obj['短袖操作服'] || '';
+        obj.sz_vest = obj['背心'] || obj['戰術背心'] || obj['救護背心'] || '';
+        obj.sz_jacket = obj['外套'] || obj['救護外套'] || '';
+        obj.sz_ems_inner = obj['救護外套內件'] || obj['救護內件'] || '';
+        obj.sz_tac_jacket = obj['戰術外套'] || '';
+        obj.sz_pant = obj['戰術褲'] || '';
+        obj.sz_belt = obj['褲帶'] || obj['腰帶'] || '';
+        obj.sz_cap = obj['戰術帽'] || '';
+        obj.sz_shoe = obj['消防靴'] || '';
         records.push(obj);
       }
       
-      // 每 100 筆為一個 chunk 分批發送，防範 payload 過大
-      var chunk = 100;
+      // 每 500 筆為一個 chunk 分批發送，防範 payload 過大
+      var chunk = 500;
       for (var k = 0; k < records.length; k += chunk) {
         var sub = records.slice(k, k + chunk);
         var options = {
@@ -1426,6 +1557,22 @@ function onFormSubmitTrigger(e) {
     }
     record[headers[j]] = val;
   }
+  
+  populateHeaderAliases(record);
+
+  // Set explicit sz_ fields for backend API
+  record.sz_long = record['長袖'] || record['戰術服長袖'] || record['長袖戰術服'] || '';
+  record.sz_short = record['短袖'] || record['戰術服短袖'] || record['短袖戰術服'] || '';
+  record.sz_op_long = record['長袖操作服'] || '';
+  record.sz_op_short = record['短袖操作服'] || '';
+  record.sz_vest = record['背心'] || record['戰術背心'] || record['救護背心'] || '';
+  record.sz_jacket = record['外套'] || record['救護外套'] || '';
+  record.sz_ems_inner = record['救護外套內件'] || record['救護內件'] || '';
+  record.sz_tac_jacket = record['戰術外套'] || '';
+  record.sz_pant = record['戰術褲'] || '';
+  record.sz_belt = record['褲帶'] || record['腰帶'] || '';
+  record.sz_cap = record['戰術帽'] || '';
+  record.sz_shoe = record['消防靴'] || '';
   
   var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/importRecords";
   var options = {

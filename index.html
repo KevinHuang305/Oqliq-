@@ -1547,6 +1547,24 @@
                                 <span id="val-sleeve-mod-ej-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
                             </div>
                         </div>
+
+                        <!-- 5. 救護外套內件 -->
+                        <div id="row-sleeve-mod-eji" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:var(--bg-surface); padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+                            <span style="font-size:13px; font-weight:600; min-width:90px;">5. 救護外套內件</span>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <select id="val-sleeve-mod-eji-type" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); width:95px;" onchange="const show = this.value !== ''; document.getElementById('val-sleeve-mod-eji-wrap').style.display = show ? 'flex' : 'none'; document.getElementById('val-sleeve-mod-eji-unit').style.display = show ? 'inline' : 'none';">
+                                    <option value="">無修改</option>
+                                    <option value="加長">加長</option>
+                                    <option value="縮短">縮短</option>
+                                </select>
+                                <div id="val-sleeve-mod-eji-wrap" style="display:none; align-items:center; border:1px solid var(--border); border-radius:6px; background:#fff; overflow:hidden;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-right:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-eji-num'); inp.value = Math.max(1, (parseInt(inp.value)||1)-1);">-</button>
+                                    <input type="number" id="val-sleeve-mod-eji-num" class="sleeve-mod-num" value="1" min="1" max="10" style="width:40px; border:none; text-align:center; padding:6px 0; outline:none; font-size:14px;">
+                                    <button type="button" style="background:#f4f4f5; border:none; border-left:1px solid var(--border); padding:6px 12px; cursor:pointer; font-size:16px; line-height:1;" onclick="const inp=document.getElementById('val-sleeve-mod-eji-num'); inp.value = (parseInt(inp.value)||1)+1;">+</button>
+                                </div>
+                                <span id="val-sleeve-mod-eji-unit" style="display:none; color:var(--text-muted); font-size:13px; font-weight:bold;">cm</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group" style="margin-top:15px;">
@@ -2258,6 +2276,64 @@
             return Array.from(map.values());
         }
 
+        window.getRecordVal = function(r, headerName) {
+            if (!r) return '';
+            let val = r[headerName];
+            if (val === undefined) val = r[headerName + ' '];
+
+            // Parse sleeve & pant modifications from note if requested
+            if (['戰術服長袖袖長修改', '長袖戰術服袖長修改', '戰術外套袖長修改', '長袖操作服袖長修改', '救護外套袖長修改', '救護外套內件袖長修改', '褲長修改'].includes(headerName)) {
+                if (val !== undefined && val !== null && val !== '') return val;
+                const note = r['現場備註'] || r['備註'] || r['note'] || '';
+                if (!note) return '';
+                const parts = note.split(/[\/\;\n]/);
+                for (let part of parts) {
+                    const p = part.trim();
+                    if (p.includes(':') || p.includes('：')) {
+                        const kv = p.replace('：', ':').split(':', 2);
+                        const k = kv[0].trim();
+                        const v = kv[1].trim();
+                        if (headerName === '褲長修改' && k.includes('褲長修改')) return v;
+                        if ((headerName === '戰術服長袖袖長修改' || headerName === '長袖戰術服袖長修改') && (k.includes('長袖戰術服') || k.includes('戰術服長袖')) && k.includes('袖長修改')) return v;
+                        if (headerName === '戰術外套袖長修改' && k.includes('戰術外套') && k.includes('袖長修改')) return v;
+                        if (headerName === '長袖操作服袖長修改' && k.includes('長袖操作服') && k.includes('袖長修改')) return v;
+                        if (headerName === '救護外套內件袖長修改' && k.includes('救護外套內件') && k.includes('袖長修改')) return v;
+                        if (headerName === '救護外套袖長修改' && k.includes('救護外套') && !k.includes('內件') && k.includes('袖長修改')) return v;
+                    }
+                }
+                return '';
+            }
+            
+            if (val === undefined || val === null || val === '') {
+                if (headerName === '戰術服長袖' || headerName === '長袖') {
+                    val = r['長袖'] || r['戰術服長袖'] || r['長袖戰術服'] || r['戰術服(長袖)'] || r['長袖 '] || r['戰術服長袖 '] || r['sz_long'];
+                } else if (headerName === '戰術服短袖' || headerName === '短袖') {
+                    val = r['短袖'] || r['戰術服短袖'] || r['短袖戰術服'] || r['戰術服(短袖)'] || r['短袖 '] || r['戰術服短袖 '] || r['sz_short'];
+                } else if (headerName === '長袖操作服') {
+                    val = r['長袖操作服'] || r['操作服長袖'] || r['長袖操作服 '] || r['sz_op_long'];
+                } else if (headerName === '短袖操作服') {
+                    val = r['短袖操作服'] || r['操作服短袖'] || r['短袖操作服 '] || r['sz_op_short'];
+                } else if (headerName === '戰術背心' || headerName === '背心' || headerName === '救護背心') {
+                    val = r['背心'] || r['戰術背心'] || r['救護背心'] || r['戰術/救護背心'] || r['戰術背心尺寸'] || r['背心 '] || r['sz_vest'];
+                } else if (headerName === '救護外套' || headerName === '外套') {
+                    val = r['外套'] || r['救護外套'] || r['外套 '] || r['救護外套 '] || r['sz_jacket'];
+                } else if (headerName === '救護外套內件' || headerName === '救護內件') {
+                    val = r['救護外套內件'] || r['救護內件'] || r['外套內件'] || r['sz_ems_inner'];
+                } else if (headerName === '戰術外套') {
+                    val = r['戰術外套'] || r['戰術外套尺寸'] || r['sz_tac_jacket'];
+                } else if (headerName === '戰術褲') {
+                    val = r['戰術褲'] || r['褲子'] || r['sz_pant'];
+                } else if (headerName === '褲帶') {
+                    val = r['褲帶'] || r['腰帶'] || r['戰術腰帶'] || r['sz_belt'];
+                } else if (headerName === '戰術帽') {
+                    val = r['戰術帽'] || r['戰術帽尺寸'] || r['sz_cap'];
+                } else if (headerName === '消防靴') {
+                    val = r['消防靴'] || r['鞋子'] || r['sz_shoe'];
+                }
+            }
+            return val !== undefined && val !== null ? val : '';
+        };
+
         function getCountyFromBagNo(bagNo) {
             if (!bagNo) return '';
             const clean = String(bagNo).trim().toUpperCase();
@@ -2463,9 +2539,9 @@
         };
 
         window.exportRsMeasured = function () {
-            const aSel = document.getElementById('rsAgencySelect').value;
-            const bSel = document.getElementById('rsBrigadeSelect').value;
-            const uSel = document.getElementById('rsUnitSelect').value;
+            const aSel = (document.getElementById('rsAgencySelect').value || '').trim();
+            const bSel = (document.getElementById('rsBrigadeSelect').value || '').trim();
+            const uSel = (document.getElementById('rsUnitSelect').value || '').trim();
 
             if (!aSel) {
                 alert("請先選擇機關名稱再進行匯出！");
@@ -2478,43 +2554,24 @@
                 return;
             }
 
-            const filteredRoster = dbRoster.filter(r => {
-                if (aSel && r['機關名稱'] !== aSel) return false;
-                if (bSel && r['大隊'] !== bSel) return false;
-                if (uSel && r['分隊'] !== uSel) return false;
-                return true;
-            });
+            const exportRecords = allRecords.filter(r => {
+                const rAgency = (r['機關名稱'] || '').trim();
+                const rBrigade = (r['大隊/分類'] || r['大隊'] || '').trim();
+                const rUnit = (r['單位名稱'] || r['分隊'] || '').trim();
 
-            const exportRecords = [];
-            filteredRoster.forEach(p => {
-                const personMeasuredKey = `${p['機關名稱']}_${p['大隊']}_${p['分隊']}_${p['姓名']}`;
-                const isMeasured = window.dbMeasured && window.dbMeasured.includes(personMeasuredKey);
-                
-                if (isMeasured) {
-                    let record = null;
-                    for (let i = allRecords.length - 1; i >= 0; i--) {
-                        const r = allRecords[i];
-                        if (r['機關名稱'] === p['機關名稱'] && 
-                            (r['大隊/分類'] === p['大隊'] || r['大隊'] === p['大隊']) && 
-                            (r['單位名稱'] === p['分隊'] || r['分隊'] === p['分隊']) && 
-                            r['姓名'] === p['姓名']) {
-                            record = r;
-                            break;
-                        }
-                    }
-                    if (record) {
-                        exportRecords.push(record);
-                    }
-                }
+                if (aSel && rAgency && rAgency !== aSel) return false;
+                if (bSel && rBrigade && rBrigade !== bSel) return false;
+                if (uSel && rUnit && rUnit !== uSel) return false;
+                return true;
             });
 
             // Deduplicate to ensure each person only has the latest record exported
             const dedupedExportMap = new Map();
             exportRecords.forEach(r => {
-                const agency = r['機關名稱'] || '';
-                const brigade = r['大隊/分類'] || r['大隊'] || '';
-                const unit = r['單位名稱'] || r['分隊'] || '';
-                const name = r['姓名'] || '';
+                const agency = (r['機關名稱'] || '').trim();
+                const brigade = (r['大隊/分類'] || r['大隊'] || '').trim();
+                const unit = (r['單位名稱'] || r['分隊'] || '').trim();
+                const name = (r['姓名'] || '').trim();
                 const key = `${agency}_${brigade}_${unit}_${name}`;
                 
                 const existing = dedupedExportMap.get(key);
@@ -2537,13 +2594,13 @@
             }
 
             let csvContent = "\uFEFF";
-            const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "戰術服短袖", "長袖操作服", "短袖操作服", "戰術背心", "救護外套", "救護外套內件", "戰術外套", "戰術褲", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
+            const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "長袖戰術服袖長修改", "戰術服短袖", "長袖操作服", "長袖操作服袖長修改", "短袖操作服", "戰術背心", "救護外套", "救護外套袖長修改", "救護外套內件", "救護外套內件袖長修改", "戰術外套", "戰術外套袖長修改", "戰術褲", "褲長修改", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
             csvContent += headers.join(",") + "\r\n";
             
             finalExportRecords.forEach(r => {
                 let row = headers.map(h => {
-                    let val = r[h] !== undefined ? r[h] : r[h + ' '];
-                    let cell = val === undefined ? "" : val.toString();
+                    let val = window.getRecordVal(r, h);
+                    let cell = val === undefined || val === null ? "" : val.toString();
                     cell = cell.replace(/"/g, '""');
                     return `"${cell}"`;
                 });
@@ -2636,21 +2693,56 @@
                 return;
             }
 
-            const aSel = document.getElementById('rsAgencySelect').value;
-            const bSel = document.getElementById('rsBrigadeSelect').value;
-            const uSel = document.getElementById('rsUnitSelect').value;
+            const aSel = (document.getElementById('rsAgencySelect').value || '').trim();
+            const bSel = (document.getElementById('rsBrigadeSelect').value || '').trim();
+            const uSel = (document.getElementById('rsUnitSelect').value || '').trim();
+            const pName = (p['姓名'] || '').trim();
+            const pAgency = (p['機關名稱'] || aSel || '').trim();
+            const pBrigade = (p['大隊/分類'] || p['大隊'] || bSel || '').trim();
+            const pUnit = (p['單位名稱'] || p['分隊'] || uSel || '').trim();
             
-            const record = allRecords.find(r => r['機關名稱'] === aSel && (r['大隊/分類'] === bSel || r['大隊'] === bSel) && (r['單位名稱'] === uSel || r['分隊'] === uSel) && r['姓名'] === p['姓名']);
+            const record = allRecords.find(r => {
+                const rName = (r['姓名'] || '').trim();
+                if (rName !== pName) return false;
+                
+                const rAgency = (r['機關名稱'] || '').trim();
+                const rBrigade = (r['大隊/分類'] || r['大隊'] || '').trim();
+                const rUnit = (r['單位名稱'] || r['分隊'] || '').trim();
+                
+                const matchAgency = !pAgency || !rAgency || rAgency === pAgency;
+                const matchBrigade = !pBrigade || !rBrigade || rBrigade === pBrigade;
+                const matchUnit = !pUnit || !rUnit || rUnit === pUnit;
+                
+                return matchAgency && (matchUnit || matchBrigade || (!pBrigade && !pUnit));
+            }) || allRecords.find(r => (r['姓名'] || '').trim() === pName);
 
             if (!record) {
                 alert('⚠️ 在建檔資料中找不到該員數據，可能尚未同步或已遭刪除。');
                 return;
             }
 
-            document.getElementById('pModalTitle').innerText = `${record['單位名稱'] || uSel} - ${record['姓名']}`;
-            const showTac = (record['配發系列'] || '').includes('TAC');
-            const showOps = (record['配發系列'] || '').includes('OPS');
-            const showEms = (record['配發系列'] || '').includes('EMS');
+            document.getElementById('pModalTitle').innerText = `${record['單位名稱'] || pUnit || uSel} - ${record['姓名']}`;
+            
+            const seriesVal = (record['配發系列'] || '').toUpperCase();
+            const hasExplicitSeries = seriesVal.includes('TAC') || seriesVal.includes('OPS') || seriesVal.includes('EMS') || seriesVal.includes('戰術') || seriesVal.includes('操作') || seriesVal.includes('救護');
+            
+            const showTac = !hasExplicitSeries || seriesVal.includes('TAC') || seriesVal.includes('戰術');
+            const showOps = !hasExplicitSeries || seriesVal.includes('OPS') || seriesVal.includes('操作');
+            const showEms = !hasExplicitSeries || seriesVal.includes('EMS') || seriesVal.includes('救護');
+            
+            const valTL = getRecordVal(record, '戰術服長袖');
+            const valTS = getRecordVal(record, '戰術服短袖');
+            const valOPL = getRecordVal(record, '長袖操作服');
+            const valOPS = getRecordVal(record, '短袖操作服');
+            const valTV = getRecordVal(record, '戰術背心');
+            const valEJ = getRecordVal(record, '救護外套');
+            const valEJI = getRecordVal(record, '救護外套內件');
+            const valTJ = getRecordVal(record, '戰術外套');
+            const valTP = getRecordVal(record, '戰術褲');
+            const valBELT = getRecordVal(record, '褲帶');
+            const valCAP = getRecordVal(record, '戰術帽');
+            const valSHOE = getRecordVal(record, '消防靴');
+
             const siteNote = record['現場備註'] || record['備註'] || '';
             const adminNote = record['後台備註'] || '';
             let content = `
@@ -2667,21 +2759,21 @@
                 <hr style="border:0; border-top:1px solid var(--border); margin:15px 0;">
                 <div style="text-align:center; font-size:16px; margin-bottom: 10px;"><b>服裝配發尺碼 (${record['配發系列'] || '-'})</b></div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; background:var(--bg-hover); padding:15px; border-radius:8px; font-size: 14px; text-align: center;">
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服長袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服長袖'] || '-'}</span></div>` : ''}
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服短袖</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術服短袖'] || '-'}</span></div>` : ''}
-                    ${showOps ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>長袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['長袖操作服'] || record['長袖操作服 '] || '-'}</span></div>` : ''}
-                    ${showOps ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>短袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${record['短袖操作服'] || '-'}</span></div>` : ''}
-                    ${(showTac || showEms) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>${
+                    ${(showTac || (valTL && valTL !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服長袖</b><br><span style="color:var(--primary); font-weight:bold;">${valTL || '-'}</span></div>` : ''}
+                    ${(showTac || (valTS && valTS !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術服短袖</b><br><span style="color:var(--primary); font-weight:bold;">${valTS || '-'}</span></div>` : ''}
+                    ${(showOps || (valOPL && valOPL !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>長袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${valOPL || '-'}</span></div>` : ''}
+                    ${(showOps || (valOPS && valOPS !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>短袖操作服</b><br><span style="color:var(--primary); font-weight:bold;">${valOPS || '-'}</span></div>` : ''}
+                    ${(showTac || showEms || (valTV && valTV !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>${
                         showTac && showEms ? '戰術/救護背心' :
                         showEms ? '救護背心' : '戰術背心'
-                    }</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術背心'] || '-'}</span></div>` : ''}
-                    ${showEms ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套'] || '-'}</span></div>` : ''}
-                    ${showEms ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護內件</b><br><span style="color:var(--primary); font-weight:bold;">${record['救護外套內件'] || '-'}</span></div>` : ''}
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術外套</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術外套'] || '-'}</span></div>` : ''}
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術褲</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術褲'] || '-'}</span></div>` : ''}
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>褲帶</b><br><span style="color:var(--primary); font-weight:bold;">${record['褲帶'] || '-'}</span></div>` : ''}
-                    ${showTac ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術帽</b><br><span style="color:var(--primary); font-weight:bold;">${record['戰術帽'] || '-'}</span></div>` : ''}
-                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>消防靴</b><br><span style="color:var(--primary); font-weight:bold;">${record['消防靴'] || '-'}</span></div>
+                    }</b><br><span style="color:var(--primary); font-weight:bold;">${valTV || '-'}</span></div>` : ''}
+                    ${(showEms || (valEJ && valEJ !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護外套</b><br><span style="color:var(--primary); font-weight:bold;">${valEJ || '-'}</span></div>` : ''}
+                    ${(showEms || (valEJI && valEJI !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>救護內件</b><br><span style="color:var(--primary); font-weight:bold;">${valEJI || '-'}</span></div>` : ''}
+                    ${(showTac || (valTJ && valTJ !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術外套</b><br><span style="color:var(--primary); font-weight:bold;">${valTJ || '-'}</span></div>` : ''}
+                    ${(showTac || (valTP && valTP !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術褲</b><br><span style="color:var(--primary); font-weight:bold;">${valTP || '-'}</span></div>` : ''}
+                    ${(showTac || (valBELT && valBELT !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>褲帶</b><br><span style="color:var(--primary); font-weight:bold;">${valBELT || '-'}</span></div>` : ''}
+                    ${(showTac || (valCAP && valCAP !== '-')) ? `<div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>戰術帽</b><br><span style="color:var(--primary); font-weight:bold;">${valCAP || '-'}</span></div>` : ''}
+                    <div style="border:1px solid var(--border); padding:5px; border-radius:4px;"><b>消防靴</b><br><span style="color:var(--primary); font-weight:bold;">${valSHOE || '-'}</span></div>
                 </div>
                 ${siteNote ? `<div style="margin-top:12px; font-size:14px; color:#ef4444; font-weight:bold; background:rgba(239, 68, 68, 0.08); padding:8px 12px; border-radius:6px; border-left:3px solid #ef4444; word-break:break-all;"><b>現場備註：</b>${siteNote}</div>` : ''}
                 ${adminNote ? `<div style="margin-top:8px; font-size:14px; color:var(--primary); background:rgba(59, 130, 246, 0.08); padding:8px 12px; border-radius:6px; border-left:3px solid var(--primary); word-break:break-all;"><b>後台備註：</b>${adminNote}</div>` : ''}
@@ -3739,7 +3831,8 @@
                 { id: 'tl', show: selTAC },
                 { id: 'tj', show: selTAC },
                 { id: 'opl', show: selOPS },
-                { id: 'ej', show: selEMS }
+                { id: 'ej', show: selEMS },
+                { id: 'eji', show: selEMS }
             ];
 
             let anyVisible = false;
@@ -3847,7 +3940,11 @@
                     let kitHtml = "";
                     ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => {
                         const el = document.getElementById(`sz_${k}`);
-                        if (el) { let finalVal = el.value || currentRecordSizes[k]; if (finalVal) kitHtml += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${finalVal}</div>`; }
+                        let finalVal = el ? (el.value || '').trim() : '';
+                        if (!finalVal && currentRecordSizes && currentRecordSizes[k]) finalVal = (currentRecordSizes[k] || '').trim();
+                        if (finalVal && finalVal !== '-') {
+                            kitHtml += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k]}(${k}) : ${finalVal}</div>`;
+                        }
                     });
 
                     let dispSeries = [];
@@ -3872,7 +3969,8 @@
                         { id: 'tl', name: '長袖戰術服' },
                         { id: 'tj', name: '戰術外套' },
                         { id: 'opl', name: '長袖操作服' },
-                        { id: 'ej', name: '救護外套' }
+                        { id: 'ej', name: '救護外套' },
+                        { id: 'eji', name: '救護外套內件' }
                     ];
 
                     sleeveModItems.forEach(item => {
@@ -3997,7 +4095,8 @@
                 { id: 'tl', name: '長袖戰術服' },
                 { id: 'tj', name: '戰術外套' },
                 { id: 'opl', name: '長袖操作服' },
-                { id: 'ej', name: '救護外套' }
+                { id: 'ej', name: '救護外套' },
+                { id: 'eji', name: '救護外套內件' }
             ];
             sleeveModItems.forEach(item => {
                 const sType = document.getElementById(`val-sleeve-mod-${item.id}-type`)?.value;
@@ -4105,7 +4204,7 @@
             document.getElementById('val-foot').value = ''; document.getElementById('val-note').value = ''; 
             document.getElementById('val-pant-mod-type').value = ''; document.getElementById('val-pant-mod-num').value = '1';
             document.getElementById('val-pant-mod-num-wrap').style.display = 'none'; document.getElementById('val-pant-mod-unit').style.display = 'none';
-            ['tl', 'tj', 'opl', 'ej'].forEach(id => {
+            ['tl', 'tj', 'opl', 'ej', 'eji'].forEach(id => {
                 const sType = document.getElementById(`val-sleeve-mod-${id}-type`);
                 const sNum = document.getElementById(`val-sleeve-mod-${id}-num`);
                 const sWrap = document.getElementById(`val-sleeve-mod-${id}-wrap`);
@@ -4781,7 +4880,7 @@
 
             let szHtml = '';
             szFields.forEach(f => {
-                const val = r[f.col] || r[f.col + ' '] || '';
+                const val = getRecordVal(r, f.col);
                 let options = clothesSizes;
                 if (f.k === 'SHOE') options = shoeSizes;
                 else if (f.k === 'CAP') options = hatSizes;
@@ -4864,7 +4963,7 @@
                 const el = document.getElementById(szMap[param].el);
                 if (el) {
                     const newSz = el.value;
-                    const oldSz = orig[szMap[param].col] || orig[szMap[param].col + ' '] || '';
+                    const oldSz = getRecordVal(orig, szMap[param].col);
                     if (newSz !== oldSz) formData.append(param, newSz);
                 }
             }
@@ -5050,17 +5149,15 @@
                 const excludedItems = Array.from(document.querySelectorAll('.exclude-item-chk:checked')).map(cb => cb.value);
                 targetRecords.forEach((r, idx) => {
                     let kit = '';
-                    const series = r['配發系列'] || '';
+                    const seriesUpper = (r['配發系列'] || '').toUpperCase();
+                    const hasExplicitSeries = seriesUpper.includes('TAC') || seriesUpper.includes('OPS') || seriesUpper.includes('EMS') || seriesUpper.includes('戰術') || seriesUpper.includes('操作') || seriesUpper.includes('救護');
+
                     ['TL', 'TS', 'TV', 'TJ', 'OPL', 'OPS', 'EJ', 'EJI', 'EV', 'TP', 'BELT', 'CAP', 'SHOE'].forEach(k => { 
                         if (excludedItems.includes(k)) return;
-                        if (['TL', 'TS', 'TV', 'TJ', 'TP', 'BELT', 'CAP'].includes(k) && !series.includes('TAC')) return;
-                        if (['OPL', 'OPS'].includes(k) && !series.includes('OPS')) return;
-                        if (['EJ', 'EJI', 'EV'].includes(k) && !series.includes('EMS')) return;
+                        const val = (getRecordVal(r, colNames[k]) || '').trim();
+                        if (!val || val === '-') return;
 
-                        const val = r[colNames[k]] || r[colNames[k] + ' '];
-                        if (val && val !== '-') {
-                            kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k] || k}(${k}) : ${val}</div>`; 
-                        }
+                        kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k] || k}(${k}) : ${val}</div>`; 
                     });
                     const qrId = `qr_inner_${idx}`;
                     const innerNoteHtml = r['現場備註'] ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${r['現場備註']}</div>` : "";
@@ -5277,13 +5374,34 @@
 
         window.exportCSV = function () {
             if (allRecords.length === 0) return alert("目前沒有資料可匯出！");
+
+            const aSel = (document.getElementById('filterAgency')?.value || document.getElementById('rsAgencySelect')?.value || '').trim();
+            const bSel = (document.getElementById('filterBrigade')?.value || document.getElementById('rsBrigadeSelect')?.value || '').trim();
+            const uSel = (document.getElementById('filterUnit')?.value || document.getElementById('rsUnitSelect')?.value || '').trim();
+
+            let targetRecords = allRecords;
+            if (aSel || bSel || uSel) {
+                targetRecords = allRecords.filter(r => {
+                    const rAgency = (r['機關名稱'] || '').trim();
+                    const rBrigade = (r['大隊/分類'] || r['大隊'] || '').trim();
+                    const rUnit = (r['單位名稱'] || r['分隊'] || '').trim();
+
+                    if (aSel && rAgency && rAgency !== aSel) return false;
+                    if (bSel && rBrigade && rBrigade !== bSel) return false;
+                    if (uSel && rUnit && rUnit !== uSel) return false;
+                    return true;
+                });
+            }
+
+            if (targetRecords.length === 0) return alert("目前選取條件下，無可匯出資料！");
+
             let csvContent = "\uFEFF";
-            const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "戰術服短袖", "長袖操作服", "短袖操作服", "戰術背心", "救護外套", "救護外套內件", "戰術外套", "戰術褲", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
+            const headers = ["裝袋序號", "系統建檔時間", "機關名稱", "大隊/分類", "單位名稱", "人員識別碼", "姓名", "性別", "身高", "肩寬", "胸圍", "腰圍", "臀圍", "褲內長", "配發系列", "戰術服長袖", "長袖戰術服袖長修改", "戰術服短袖", "長袖操作服", "長袖操作服袖長修改", "短袖操作服", "戰術背心", "救護外套", "救護外套袖長修改", "救護外套內件", "救護外套內件袖長修改", "戰術外套", "戰術外套袖長修改", "戰術褲", "褲長修改", "褲帶", "戰術帽", "消防靴", "狀態", "現場備註", "後台備註"];
             csvContent += headers.join(",") + "\r\n";
-            allRecords.forEach(r => { let row = headers.map(h => { let val = r[h] !== undefined ? r[h] : r[h + ' ']; let cell = val === undefined ? "" : val.toString(); cell = cell.replace(/"/g, '""'); return `"${cell}"`; }); csvContent += row.join(",") + "\r\n"; });
+            targetRecords.forEach(r => { let row = headers.map(h => { let val = getRecordVal(r, h); let cell = val === undefined || val === null ? "" : val.toString(); cell = cell.replace(/"/g, '""'); return `"${cell}"`; }); csvContent += row.join(",") + "\r\n"; });
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement("a"); link.setAttribute("href", URL.createObjectURL(blob));
-            link.setAttribute("download", `FIRESCUE_資料匯出_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.setAttribute("download", `FIRESCUE_資料匯出_${aSel || '全區'}_${new Date().toISOString().slice(0, 10)}.csv`);
             link.style.visibility = 'hidden'; document.body.appendChild(link); link.click(); document.body.removeChild(link);
         };
 
