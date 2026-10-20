@@ -1790,8 +1790,9 @@
                 <select id="filterUnit">
                     <option value="">所有單位</option>
                 </select>
-                <input type="text" id="filterSearch" placeholder="搜尋姓名或序號..." style="min-width:180px;">
+                <input type="text" id="filterSearch" placeholder="搜尋姓名、識別碼或序號..." style="min-width:180px;" onkeydown="if(event.key==='Enter') queryAdminTable()">
                 <button class="btn btn-primary" onclick="queryAdminTable()">查詢</button>
+                <button class="btn btn-outline" style="border-color:var(--primary); color:var(--primary);" onclick="queryAdminTable(true)">顯示全部名單</button>
             </div>
         </div>
         <div class="sticky-action-bar" style="flex-direction: column; align-items: stretch; gap: 12px; padding: 15px;">
@@ -1812,6 +1813,7 @@
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content;" onclick="refreshAdminData()">重新整理</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="openPrintChoice(() => printSelectedAdminLabels())">列印勾選標籤</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="exportCSV()">匯出 CSV</button>
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap; color: #ef4444; border-color: #ef4444;" onclick="deleteSelectedAdminRows()">🗑️ 批次刪除選取</button>
             </div>
         </div>
 
@@ -1822,6 +1824,7 @@
                         <th style="width: 40px; text-align: center; cursor: pointer;" onclick="const cb = this.querySelector('input'); if(event.target !== cb) { cb.checked = !cb.checked; toggleAllAdminRows(cb); }">
                             <input type="checkbox" id="selectAllAdmin" style="pointer-events: none;">
                         </th>
+                        <th style="min-width: 130px; text-align: center;">操作</th>
                         <th>狀態</th>
                         <th>裝袋序號</th>
                         <th>單位</th>
@@ -2049,9 +2052,10 @@
             </div>
             <div class="modal-info">
                 <div
-                    style="display:flex; justify-content:space-between; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom: 5px;">
+                    style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:15px; margin-bottom: 5px; flex-wrap: wrap; gap: 10px;">
                     <h2 style="margin:0; font-size:20px; color:var(--primary);">審查與編輯</h2>
                     <div style="display:flex; gap:8px;">
+                        <button class="btn btn-outline" id="btnDeleteInModal" style="padding:6px 12px; font-size:12px; color:var(--danger); border-color:var(--danger);" onclick="deleteCurrentModalRecord()">🗑️ 刪除紀錄</button>
                         <button class="btn btn-outline" id="btnToggleEdit" style="padding:6px 12px; font-size:12px;"
                             onclick="toggleEditMode(true)">修改</button>
                         <button class="btn btn-success" id="btnSaveEdit"
@@ -2064,13 +2068,43 @@
                 </div>
 
                 <div class="info-grid">
-                    <div class="info-item full"><span>裝袋序號 (Bag No)</span><strong id="mBagNo"
-                            style="color:var(--primary);"></strong></div>
-                    <div class="info-item"><span>識別碼</span><strong id="mPersonId"></strong></div>
-                    <div class="info-item"><span>單位</span><strong id="mUnit"></strong></div>
-                    <div class="info-item"><span>姓名</span><strong><span id="mName"></span></strong></div>
-                    <div class="info-item"><span>登記日期</span><strong id="mDate"></strong></div>
-                    <div class="info-item"><span>配發系列</span>
+                    <div class="info-item full">
+                        <span>裝袋序號 (Bag No)</span>
+                        <strong id="mBagNo" style="color:var(--primary); font-family:monospace; font-size:16px;"></strong>
+                    </div>
+                    <div class="info-item">
+                        <span>人員姓名</span>
+                        <strong id="mName_txt" class="edit-txt"></strong>
+                        <input type="text" id="mName_inp" class="edit-inp" style="display:none; padding:6px; font-size:13px; border:1px solid var(--border); border-radius:4px; width:100%; background:var(--bg-base); color:var(--text-main);">
+                    </div>
+                    <div class="info-item">
+                        <span>識別碼 (身分證/員號)</span>
+                        <strong id="mPersonId_txt" class="edit-txt"></strong>
+                        <input type="text" id="mPersonId_inp" class="edit-inp" style="display:none; padding:6px; font-size:13px; border:1px solid var(--border); border-radius:4px; width:100%; background:var(--bg-base); color:var(--text-main);">
+                    </div>
+                    <div class="info-item">
+                        <span>性別</span>
+                        <strong id="mGender_txt" class="edit-txt"></strong>
+                        <select id="mGender_inp" class="edit-inp" style="display:none; padding:6px; font-size:13px; border:1px solid var(--border); border-radius:4px; width:100%; background:var(--bg-base); color:var(--text-main);">
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                        </select>
+                    </div>
+                    <div class="info-item">
+                        <span>登記日期</span>
+                        <strong id="mDate"></strong>
+                    </div>
+                    <div class="info-item full">
+                        <span>所屬單位 (機關 / 大隊 / 分隊)</span>
+                        <strong id="mUnit_txt" class="edit-txt"></strong>
+                        <div id="mUnit_inp" class="edit-inp" style="display:none; display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">
+                            <input type="text" id="mAgency_inp" placeholder="機關名稱" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                            <input type="text" id="mBrigade_inp" placeholder="大隊/分類" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                            <input type="text" id="mUnitName_inp" placeholder="單位名稱" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <span>配發系列</span>
                         <strong id="mSeries_txt" class="edit-txt" style="color:var(--primary);"></strong>
                         <div id="mSeries_inp" class="edit-inp" style="display:none; padding-top:4px;">
                             <label style="font-size:13px; margin-right:8px; cursor:pointer;"><input type="checkbox" value="TAC" class="mSeries-chk"> TAC</label>
@@ -2078,8 +2112,22 @@
                             <label style="font-size:13px; cursor:pointer;"><input type="checkbox" value="EMS" class="mSeries-chk"> EMS</label>
                         </div>
                     </div>
-                    <div class="info-item"><span>量測方式</span><strong id="mSource"></strong></div>
-                    <div class="info-item full"><span>身體量測 (高/肩/胸/腰/臀)</span><strong id="mBodySize"></strong></div>
+                    <div class="info-item">
+                        <span>量測方式</span>
+                        <strong id="mSource"></strong>
+                    </div>
+                    <div class="info-item full">
+                        <span>身體量測 (高/肩/胸/腰/臀/褲內長)</span>
+                        <strong id="mBodySize_txt" class="edit-txt"></strong>
+                        <div id="mBodySize_inp" class="edit-inp" style="display:none; display:grid; grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)); gap:6px; margin-top:5px;">
+                            <label style="font-size:11px; color:var(--text-muted);">身高 <input type="number" step="0.1" id="mHeight_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                            <label style="font-size:11px; color:var(--text-muted);">肩寬 <input type="number" step="0.1" id="mShoulder_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                            <label style="font-size:11px; color:var(--text-muted);">胸圍 <input type="number" step="0.1" id="mChest_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                            <label style="font-size:11px; color:var(--text-muted);">腰圍 <input type="number" step="0.1" id="mWaist_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                            <label style="font-size:11px; color:var(--text-muted);">臀圍 <input type="number" step="0.1" id="mHip_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                            <label style="font-size:11px; color:var(--text-muted);">褲內長 <input type="number" step="0.1" id="mInseam_inp" style="width:100%; padding:4px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);"></label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="info-grid" style="margin-top:10px;">
@@ -2103,7 +2151,8 @@
                     </div>
                     <div class="info-item full">
                         <span>現場備註 (現場測量與修改紀錄)</span>
-                        <strong id="mSiteNote_txt" style="color:#ef4444; word-break:break-all; white-space:pre-wrap; font-weight:bold;"></strong>
+                        <strong id="mSiteNote_txt" class="edit-txt" style="color:#ef4444; word-break:break-all; white-space:pre-wrap; font-weight:bold;"></strong>
+                        <textarea id="mSiteNote_inp" class="edit-inp" style="display:none; width:100%; height:60px; padding:6px; border:1px solid var(--border); border-radius:4px; resize:vertical; font-family:inherit; background:var(--bg-base); color:var(--text-main);"></textarea>
                     </div>
                 </div>
 
@@ -4473,7 +4522,7 @@
                     window.renderStaticChart(); // Re-render to show edit button
                     
                     if (document.getElementById('view-admin').classList.contains('active')) {
-                        document.getElementById('tableBody').innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">讀取資料中，請稍候...</td></tr>';
+                        document.getElementById('tableBody').innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">讀取資料中，請稍候...</td></tr>';
                     }
                     if (document.getElementById('view-box-admin').classList.contains('active')) {
                         document.getElementById('boxCardsContainer').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted); grid-column: 1 / -1;">讀取資料中，請稍候...</div>';
@@ -4546,7 +4595,11 @@
                 document.getElementById('dashNotBoxed').innerText = allRecords.length - (boxedCount + sentCount);
 
                 const tbody = document.getElementById('tableBody'); 
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">請選擇上方的過濾條件並點選「查詢」才會顯示相關資料。</td></tr>';
+                if (window._lastAdminQueryShowAll || (document.getElementById('filterAgency').value || document.getElementById('filterBrigade').value || document.getElementById('filterUnit').value || document.getElementById('filterSearch').value.trim())) {
+                    window.queryAdminTable(window._lastAdminQueryShowAll);
+                } else if (!tbody.innerHTML || tbody.innerHTML.includes('請選擇上方')) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">請選擇上方的過濾條件並點選「查詢」，或點擊「顯示全部名單」。</td></tr>';
+                }
             }
         }
 
@@ -4760,10 +4813,12 @@
             if (trackInp) trackInp.disabled = false;
         };
 
-        window.queryAdminTable = function() {
+        window._lastAdminQueryShowAll = false;
+        window.queryAdminTable = function(showAll = false) {
+            window._lastAdminQueryShowAll = showAll;
             const vA = document.getElementById('filterAgency').value, vB = document.getElementById('filterBrigade').value, vU = document.getElementById('filterUnit').value, vS = document.getElementById('filterSearch').value.trim().toLowerCase();
-            if (!vA && !vB && !vU && !vS) {
-                alert("請至少選擇一個機關、大隊、單位，或輸入搜尋條件。");
+            if (!showAll && !vA && !vB && !vU && !vS) {
+                alert("請至少選擇一個機關、大隊、單位，或輸入搜尋條件。若想瀏覽全部名單請點擊「顯示全部名單」。");
                 return;
             }
             
@@ -4782,19 +4837,30 @@
                         }
                     }
                 }
-                if (vA && r['機關名稱'] !== vA) return false; 
-                if (vB && r['大隊/分類'] !== vB) return false;
-                if (vU && r['單位名稱'] !== vU) return false;
-                if (vS && !(r['姓名'].toLowerCase().includes(vS) || r['人員識別碼'].toLowerCase().includes(vS) || r['裝袋序號'].toLowerCase().includes(vS))) return false;
+                if (!showAll) {
+                    if (vA && r['機關名稱'] !== vA) return false; 
+                    if (vB && r['大隊/分類'] !== vB) return false;
+                    if (vU && r['單位名稱'] !== vU) return false;
+                }
+                if (vS && !(
+                    (r['姓名'] && r['姓名'].toLowerCase().includes(vS)) || 
+                    (r['人員識別碼'] && r['人員識別碼'].toLowerCase().includes(vS)) || 
+                    (r['裝袋序號'] && r['裝袋序號'].toLowerCase().includes(vS)) ||
+                    (r['單位名稱'] && r['單位名稱'].toLowerCase().includes(vS))
+                )) return false;
                 return true;
             });
             const tbody = document.getElementById('tableBody'); tbody.innerHTML = '';
             filtered.forEach(r => {
-                const st = r['狀態'] || '待確認'; const sizes = `高:${r['身高']} 肩:${r['肩寬']} 胸:${r['胸圍']} 腰:${r['腰圍']} 臀:${r['臀圍']}`;
+                const st = r['狀態'] || '待確認'; const sizes = `高:${r['身高']||'-'} 肩:${r['肩寬']||'-'} 胸:${r['胸圍']||'-'} 腰:${r['腰圍']||'-'} 臀:${r['臀圍']||'-'}`;
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="text-align: center; width: 40px; cursor: pointer;" onclick="event.stopPropagation(); const cb = this.querySelector('input'); if(event.target !== cb) cb.checked = !cb.checked;">
                         <input type="checkbox" class="admin-row-chk" value="${r['裝袋序號']}" style="pointer-events: none;">
+                    </td>
+                    <td onclick="event.stopPropagation();" style="white-space: nowrap; text-align: center;">
+                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px; margin-right: 4px;" onclick="showModalByBagNo('${r['裝袋序號']}')">✏️ 編輯</button>
+                        <button class="btn btn-outline" style="padding: 4px 8px; font-size: 12px; color: #ef4444; border-color: rgba(239, 68, 68, 0.4);" onclick="deleteSingleAdminRecord('${r['裝袋序號']}', '${r['姓名']}')">🗑️ 刪除</button>
                     </td>
                     <td onclick="event.stopPropagation();">
                         <select class="quick-status-sel st-${st}" onchange="quickUpdateStatus(this, '${r['裝袋序號']}')" style="padding: 6px; border-radius: 4px; font-size: 13px; font-weight: 700; border-width: 1px; border-style: solid; min-width: 90px; outline: none; -webkit-appearance: none; appearance: none; text-align: center;">
@@ -4811,19 +4877,89 @@
                         ${r['裝袋序號']}
                         <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-left:10px;" onclick="event.stopPropagation(); openPrintChoice(() => printSpecificLabels(['${r['裝袋序號']}']))">列印標籤</button>
                     </td>
-                    <td>${r['單位名稱']}</td>
-                    <td><strong>${r['姓名']}</strong></td>
-                    <td>${r['性別']}</td>
-                    <td>${r['登記日期']}</td>
+                    <td>${r['單位名稱'] || '-'}</td>
+                    <td><strong>${r['姓名'] || '-'}</strong></td>
+                    <td>${r['性別'] || '-'}</td>
+                    <td>${r['登記日期'] || '-'}</td>
                     <td style="color:var(--text-muted); font-size:12px;">${sizes}</td>
                 `;
-                tr.onclick = (e) => { if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') showModal(r); }; 
+                tr.onclick = (e) => { if(e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') showModal(r); }; 
                 tbody.appendChild(tr);
             });
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">查無符合條件的資料。</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:30px; color:var(--text-muted); width: 100% !important; justify-content: center !important;">查無符合條件的資料。</td></tr>';
             }
-        }
+        };
+
+        window.showModalByBagNo = function(bagNo) {
+            const r = allRecords.find(x => String(x['裝袋序號']).trim() === String(bagNo).trim());
+            if (r) {
+                showModal(r);
+                toggleEditMode(true);
+            }
+        };
+
+        window.deleteSingleAdminRecord = async function(bagNo, name) {
+            if (!confirm(`確定要刪除「${name || bagNo}」的測量紀錄嗎？\n\n裝袋序號：${bagNo}\n⚠️ 刪除後將同步從雲端資料庫與試算表中移除，無法復原。`)) {
+                return;
+            }
+            try {
+                const formData = new URLSearchParams();
+                formData.append("action", "deleteRecords");
+                formData.append("bagNos", bagNo);
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    allRecords = allRecords.filter(r => String(r['裝袋序號']).trim() !== String(bagNo).trim());
+                    renderAdminBoard();
+                    populateLabelFilters();
+                    window.queryAdminTable(window._lastAdminQueryShowAll);
+                    if (document.getElementById('detailModal').classList.contains('active')) closeModal();
+                    alert(`已成功刪除「${name || bagNo}」的紀錄！`);
+                } else {
+                    alert("刪除失敗：" + (result.error || "未知錯誤"));
+                }
+            } catch(e) {
+                alert("刪除連線失敗，請檢查網路。");
+            }
+        };
+
+        window.deleteCurrentModalRecord = function() {
+            if (!window._currentAdminRecord) return;
+            const bagNo = document.getElementById('mBagNo').innerText;
+            const name = (window._currentAdminRecord && window._currentAdminRecord['姓名']) || '';
+            deleteSingleAdminRecord(bagNo, name);
+        };
+
+        window.deleteSelectedAdminRows = async function() {
+            const chks = document.querySelectorAll('.admin-row-chk:checked');
+            const bagNos = Array.from(chks).map(c => c.value);
+            if (bagNos.length === 0) {
+                alert("請先勾選要刪除的紀錄！");
+                return;
+            }
+            if (!confirm(`確定要批次刪除已勾選的 ${bagNos.length} 筆紀錄嗎？\n\n⚠️ 刪除後將同步從雲端資料庫與試算表中移除，無法復原。`)) {
+                return;
+            }
+            try {
+                const formData = new URLSearchParams();
+                formData.append("action", "deleteRecords");
+                formData.append("bagNos", bagNos.join(','));
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    allRecords = allRecords.filter(r => !bagNos.includes(String(r['裝袋序號']).trim()));
+                    renderAdminBoard();
+                    populateLabelFilters();
+                    window.queryAdminTable(window._lastAdminQueryShowAll);
+                    alert(`已成功刪除 ${bagNos.length} 筆紀錄！`);
+                } else {
+                    alert("批次刪除失敗：" + (result.error || "未知錯誤"));
+                }
+            } catch(e) {
+                alert("批次刪除連線失敗，請檢查網路。");
+            }
+        };
 
         function getDriveThumbnailUrl(url) {
             if (!url || !url.includes('drive.google.com/file/d/')) return '';
@@ -4834,10 +4970,34 @@
             window._currentAdminRecord = r;
             document.getElementById('detailModal').classList.add('active'); window.toggleEditMode(false);
 
-            document.getElementById('mBagNo').innerText = r['裝袋序號']; document.getElementById('mPersonId').innerText = r['人員識別碼'];
-            document.getElementById('mName').innerText = r['姓名']; document.getElementById('mUnit').innerText = r['單位名稱'];
-            document.getElementById('mBodySize').innerText = `${r['身高']} / ${r['肩寬']} / ${r['胸圍']} / ${r['腰圍']} / ${r['臀圍']}`;
-            document.getElementById('mDate').innerText = r['登記日期'];
+            document.getElementById('mBagNo').innerText = r['裝袋序號'] || ''; 
+            
+            if (document.getElementById('mName_txt')) document.getElementById('mName_txt').innerText = r['姓名'] || '-';
+            if (document.getElementById('mName_inp')) document.getElementById('mName_inp').value = r['姓名'] || '';
+            
+            if (document.getElementById('mPersonId_txt')) document.getElementById('mPersonId_txt').innerText = r['人員識別碼'] || '-';
+            if (document.getElementById('mPersonId_inp')) document.getElementById('mPersonId_inp').value = r['人員識別碼'] || '';
+            
+            if (document.getElementById('mGender_txt')) document.getElementById('mGender_txt').innerText = r['性別'] || '-';
+            if (document.getElementById('mGender_inp')) document.getElementById('mGender_inp').value = r['性別'] || '男';
+            
+            document.getElementById('mDate').innerText = r['登記日期'] || '-';
+            
+            if (document.getElementById('mUnit_txt')) document.getElementById('mUnit_txt').innerText = `${r['機關名稱'] || ''} - ${r['大隊/分類'] || ''} - ${r['單位名稱'] || ''}`;
+            if (document.getElementById('mAgency_inp')) document.getElementById('mAgency_inp').value = r['機關名稱'] || '';
+            if (document.getElementById('mBrigade_inp')) document.getElementById('mBrigade_inp').value = r['大隊/分類'] || '';
+            if (document.getElementById('mUnitName_inp')) document.getElementById('mUnitName_inp').value = r['單位名稱'] || '';
+
+            if (document.getElementById('mBodySize_txt')) {
+                document.getElementById('mBodySize_txt').innerText = `高:${r['身高']||'-'} / 肩:${r['肩寬']||'-'} / 胸:${r['胸圍']||'-'} / 腰:${r['腰圍']||'-'} / 臀:${r['臀圍']||'-'} / 內長:${r['褲內長']||'-'}`;
+            }
+            if (document.getElementById('mHeight_inp')) document.getElementById('mHeight_inp').value = r['身高'] || '';
+            if (document.getElementById('mShoulder_inp')) document.getElementById('mShoulder_inp').value = r['肩寬'] || '';
+            if (document.getElementById('mChest_inp')) document.getElementById('mChest_inp').value = r['胸圍'] || '';
+            if (document.getElementById('mWaist_inp')) document.getElementById('mWaist_inp').value = r['腰圍'] || '';
+            if (document.getElementById('mHip_inp')) document.getElementById('mHip_inp').value = r['臀圍'] || '';
+            if (document.getElementById('mInseam_inp')) document.getElementById('mInseam_inp').value = r['褲內長'] || '';
+
             if (document.getElementById('mSeries_txt')) {
                 const seriesVal = r['配發系列'] || '';
                 document.getElementById('mSeries_txt').innerText = seriesVal || '-';
@@ -4848,10 +5008,15 @@
             }
             if (document.getElementById('mSource')) document.getElementById('mSource').innerText = r['量測方式'] || '-';
 
-            document.getElementById('mStatus_txt').innerText = r['狀態']; document.getElementById('mStatus_txt').className = `edit-txt tag-status st-${r['狀態']}`;
-            document.getElementById('mStatus_inp').value = r['狀態'];
+            document.getElementById('mStatus_txt').innerText = r['狀態'] || '待確認'; 
+            document.getElementById('mStatus_txt').className = `edit-txt tag-status st-${r['狀態'] || '待確認'}`;
+            document.getElementById('mStatus_inp').value = r['狀態'] || '待確認';
+            
             if (document.getElementById('mSiteNote_txt')) document.getElementById('mSiteNote_txt').innerText = r['現場備註'] || r['備註'] || '無';
-            document.getElementById('mAdminNote_txt').innerText = r['後台備註'] || '無'; document.getElementById('mAdminNote_inp').value = r['後台備註'] || '';
+            if (document.getElementById('mSiteNote_inp')) document.getElementById('mSiteNote_inp').value = r['現場備註'] || r['備註'] || '';
+            
+            document.getElementById('mAdminNote_txt').innerText = r['後台備註'] || '無'; 
+            document.getElementById('mAdminNote_inp').value = r['後台備註'] || '';
 
             const vestLabel = (r['配發系列'] || '').includes('TAC') && (r['配發系列'] || '').includes('EMS') ? '戰術/救護背心' :
                               (r['配發系列'] || '').includes('EMS') ? '救護背心' : '戰術背心';
@@ -4924,52 +5089,138 @@
         window.toggleEditMode = function (isEdit) {
             const txts = document.querySelectorAll('.edit-txt'), inps = document.querySelectorAll('.edit-inp');
             if (isEdit) {
-                txts.forEach(t => t.style.display = 'none'); inps.forEach(i => i.style.display = 'block');
-                document.getElementById('btnToggleEdit').style.display = 'none'; document.getElementById('btnSaveEdit').style.display = 'inline-block'; document.getElementById('btnCancelEdit').style.display = 'inline-block';
+                txts.forEach(t => t.style.display = 'none'); 
+                inps.forEach(i => {
+                    if (i.id === 'mBodySize_inp' || i.id === 'mUnit_inp') {
+                        i.style.display = 'grid';
+                    } else {
+                        i.style.display = 'block';
+                    }
+                });
+                document.getElementById('btnToggleEdit').style.display = 'none'; 
+                document.getElementById('btnSaveEdit').style.display = 'inline-block'; 
+                document.getElementById('btnCancelEdit').style.display = 'inline-block';
             } else {
-                txts.forEach(t => t.style.display = 'block'); inps.forEach(i => i.style.display = 'none');
-                document.getElementById('btnToggleEdit').style.display = 'inline-block'; document.getElementById('btnSaveEdit').style.display = 'none'; document.getElementById('btnCancelEdit').style.display = 'none';
+                txts.forEach(t => t.style.display = 'block'); 
+                inps.forEach(i => i.style.display = 'none');
+                document.getElementById('btnToggleEdit').style.display = 'inline-block'; 
+                document.getElementById('btnSaveEdit').style.display = 'none'; 
+                document.getElementById('btnCancelEdit').style.display = 'none';
             }
         };
 
         window.saveEditInfo = async function () {
             const btnSave = document.getElementById('btnSaveEdit'); btnSave.innerText = "儲存中..."; btnSave.disabled = true;
             const formData = new URLSearchParams();
-            formData.append("action", "updateRecord"); formData.append("bagNo", document.getElementById('mBagNo').innerText);
+            const bagNo = document.getElementById('mBagNo').innerText;
+            formData.append("action", "updateRecord"); 
+            formData.append("bagNo", bagNo);
             
             const orig = window._currentAdminRecord || {};
 
+            const newName = document.getElementById('mName_inp') ? document.getElementById('mName_inp').value.trim() : '';
+            if (newName) formData.append("name", newName);
+            
+            const newPersonId = document.getElementById('mPersonId_inp') ? document.getElementById('mPersonId_inp').value.trim() : '';
+            if (newPersonId) formData.append("personId", newPersonId);
+            
+            const newGender = document.getElementById('mGender_inp') ? document.getElementById('mGender_inp').value : '';
+            if (newGender) formData.append("gender", newGender);
+            
+            const newAgency = document.getElementById('mAgency_inp') ? document.getElementById('mAgency_inp').value.trim() : '';
+            if (newAgency) formData.append("agency", newAgency);
+            
+            const newBrigade = document.getElementById('mBrigade_inp') ? document.getElementById('mBrigade_inp').value.trim() : '';
+            if (newBrigade) formData.append("brigade", newBrigade);
+            
+            const newUnit = document.getElementById('mUnitName_inp') ? document.getElementById('mUnitName_inp').value.trim() : '';
+            if (newUnit) formData.append("unit", newUnit);
+            
+            const newHeight = document.getElementById('mHeight_inp') ? document.getElementById('mHeight_inp').value.trim() : '';
+            formData.append("height", newHeight);
+            
+            const newShoulder = document.getElementById('mShoulder_inp') ? document.getElementById('mShoulder_inp').value.trim() : '';
+            formData.append("shoulder", newShoulder);
+            
+            const newChest = document.getElementById('mChest_inp') ? document.getElementById('mChest_inp').value.trim() : '';
+            formData.append("chest", newChest);
+            
+            const newWaist = document.getElementById('mWaist_inp') ? document.getElementById('mWaist_inp').value.trim() : '';
+            formData.append("waist", newWaist);
+            
+            const newHip = document.getElementById('mHip_inp') ? document.getElementById('mHip_inp').value.trim() : '';
+            formData.append("hip", newHip);
+            
+            const newInseam = document.getElementById('mInseam_inp') ? document.getElementById('mInseam_inp').value.trim() : '';
+            formData.append("inseam", newInseam);
+            
+            const newSiteNote = document.getElementById('mSiteNote_inp') ? document.getElementById('mSiteNote_inp').value.trim() : '';
+            formData.append("note", newSiteNote);
+
             const selectedSeries = Array.from(document.querySelectorAll('.mSeries-chk:checked')).map(c => c.value).join(', ');
-            if (document.getElementById('mSeries_inp') && selectedSeries !== (orig['配發系列'] || '')) {
-                formData.append("series", selectedSeries);
-            }
+            formData.append("series", selectedSeries);
             
             const newStatus = document.getElementById('mStatus_inp').value;
-            if (newStatus !== orig['狀態']) formData.append("status", newStatus);
+            formData.append("status", newStatus);
             
-            const newAdminNote = document.getElementById('mAdminNote_inp').value;
-            if (newAdminNote !== (orig['後台備註'] || '')) formData.append("adminNote", newAdminNote);
+            const newAdminNote = document.getElementById('mAdminNote_inp').value.trim();
+            formData.append("adminNote", newAdminNote);
             
             const szMap = {
-                "sz_long": { el: 'mSz_TL', col: '戰術服長袖', l: '戰術服長袖' }, "sz_short": { el: 'mSz_TS', col: '戰術服短袖', l: '戰術服短袖' }, 
-                "sz_op_long": { el: 'mSz_OPL', col: '長袖操作服', l: '長袖操作服' }, "sz_op_short": { el: 'mSz_OPS', col: '短袖操作服', l: '短袖操作服' },
-                "sz_vest": { el: 'mSz_TV', col: '戰術背心', l: '戰術背心' },
-                "sz_jacket": { el: 'mSz_EJ', col: '救護外套', l: '救護外套' }, "sz_tac_jacket": { el: 'mSz_TJ', col: '戰術外套', l: '戰術外套' }, "sz_ems_inner": { el: 'mSz_EJI', col: '救護外套內件', l: '救護外套內件' },
-                "sz_pant": { el: 'mSz_TP', col: '戰術褲', l: '戰術褲' }, "sz_belt": { el: 'mSz_BELT', col: '褲帶', l: '褲帶' },
-                "sz_cap": { el: 'mSz_CAP', col: '戰術帽', l: '戰術帽' }, "sz_shoe": { el: 'mSz_SHOE', col: '消防靴', l: '消防靴' }
+                "sz_long": { el: 'mSz_TL', col: '戰術服長袖' }, "sz_short": { el: 'mSz_TS', col: '戰術服短袖' }, 
+                "sz_op_long": { el: 'mSz_OPL', col: '長袖操作服' }, "sz_op_short": { el: 'mSz_OPS', col: '短袖操作服' },
+                "sz_vest": { el: 'mSz_TV', col: '戰術背心' },
+                "sz_jacket": { el: 'mSz_EJ', col: '救護外套' }, "sz_tac_jacket": { el: 'mSz_TJ', col: '戰術外套' }, "sz_ems_inner": { el: 'mSz_EJI', col: '救護外套內件' },
+                "sz_pant": { el: 'mSz_TP', col: '戰術褲' }, "sz_belt": { el: 'mSz_BELT', col: '褲帶' },
+                "sz_cap": { el: 'mSz_CAP', col: '戰術帽' }, "sz_shoe": { el: 'mSz_SHOE', col: '消防靴' }
             };
 
             for (let param in szMap) {
                 const el = document.getElementById(szMap[param].el);
                 if (el) {
-                    const newSz = el.value;
-                    const oldSz = getRecordVal(orig, szMap[param].col);
-                    if (newSz !== oldSz) formData.append(param, newSz);
+                    formData.append(param, el.value);
                 }
             }
             try {
-                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); const result = await res.json();
-                if (result.success) { alert("修改成功！"); window.toggleEditMode(false); window.refreshAdminData(true); } else alert("修改失敗：" + (result.error || "未知錯誤"));
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData }); 
+                const result = await res.json();
+                if (result.success) { 
+                    // Update in-memory record
+                    const target = allRecords.find(x => String(x['裝袋序號']).trim() === String(bagNo).trim());
+                    if (target) {
+                        if (newName) target['姓名'] = newName;
+                        if (newPersonId) target['人員識別碼'] = newPersonId;
+                        if (newGender) target['性別'] = newGender;
+                        if (newAgency) target['機關名稱'] = newAgency;
+                        if (newBrigade) target['大隊/分類'] = newBrigade;
+                        if (newUnit) target['單位名稱'] = newUnit;
+                        target['身高'] = newHeight;
+                        target['肩寬'] = newShoulder;
+                        target['胸圍'] = newChest;
+                        target['腰圍'] = newWaist;
+                        target['臀圍'] = newHip;
+                        target['褲內長'] = newInseam;
+                        target['現場備註'] = newSiteNote;
+                        target['備註'] = newSiteNote;
+                        target['配發系列'] = selectedSeries;
+                        target['狀態'] = newStatus;
+                        target['後台備註'] = newAdminNote;
+                        for (let param in szMap) {
+                            const el = document.getElementById(szMap[param].el);
+                            if (el) {
+                                target[szMap[param].col] = el.value;
+                            }
+                        }
+                        window._currentAdminRecord = target;
+                        showModal(target);
+                    }
+                    window.toggleEditMode(false); 
+                    window.queryAdminTable(window._lastAdminQueryShowAll);
+                    renderAdminBoard();
+                    alert("修改已成功儲存並同步至資料庫！"); 
+                } else {
+                    alert("修改失敗：" + (result.error || "未知錯誤"));
+                }
             } catch (e) { alert("儲存失敗，請檢查網路。"); }
             btnSave.innerText = "儲存"; btnSave.disabled = false;
         };

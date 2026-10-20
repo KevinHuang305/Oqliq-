@@ -760,6 +760,31 @@ function doPost(e) {
   var sheet = ss.getSheetByName("測量紀錄");
   if (!sheet) sheet = ss.insertSheet("測量紀錄");
   
+  if (e.parameter.action === "deleteRecords") {
+    var bagNosStr = e.parameter.bagNos || "";
+    if (e.parameter.payload) {
+      try {
+        var pObj = JSON.parse(e.parameter.payload);
+        if (pObj.bagNos) bagNosStr = pObj.bagNos.join(",");
+      } catch(err){}
+    }
+    var bagNos = bagNosStr.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+    if (bagNos.length > 0) {
+      var dData = sheet.getDataRange().getValues();
+      var dHeaders = dData[0];
+      var dColBagNo = dHeaders.indexOf("裝袋序號");
+      var delCount = 0;
+      for (var dIdx = dData.length - 1; dIdx >= 1; dIdx--) {
+        if (bagNos.indexOf(String(dData[dIdx][dColBagNo]).trim()) !== -1) {
+          sheet.deleteRow(dIdx + 1);
+          delCount++;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({success: true, deleted: delCount})).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({success: true, deleted: 0})).setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (e.parameter.action === "updateRecord") {
     var data = sheet.getDataRange().getValues();
     var headers = data[0];
@@ -767,20 +792,41 @@ function doPost(e) {
     var targetBagNo = e.parameter.bagNo;
     for (var i = 1; i < data.length; i++) {
       if (data[i][colBagNo] === targetBagNo) {
-        if (e.parameter.status) sheet.getRange(i + 1, headers.indexOf("狀態") + 1).setValue(e.parameter.status);
-        if (e.parameter.adminNote !== undefined) sheet.getRange(i + 1, headers.indexOf("後台備註") + 1).setValue(e.parameter.adminNote);
-        if (e.parameter.sz_long) sheet.getRange(i + 1, headers.indexOf("長袖") + 1).setValue(e.parameter.sz_long);
-        if (e.parameter.sz_short) sheet.getRange(i + 1, headers.indexOf("短袖") + 1).setValue(e.parameter.sz_short);
-        if (e.parameter.sz_op_long) sheet.getRange(i + 1, headers.indexOf("長袖操作服") + 1).setValue(e.parameter.sz_op_long);
-        if (e.parameter.sz_op_short) sheet.getRange(i + 1, headers.indexOf("短袖操作服") + 1).setValue(e.parameter.sz_op_short);
-        if (e.parameter.sz_vest) sheet.getRange(i + 1, headers.indexOf("背心") + 1).setValue(e.parameter.sz_vest);
-        if (e.parameter.sz_jacket) sheet.getRange(i + 1, headers.indexOf("外套") + 1).setValue(e.parameter.sz_jacket);
-        if (e.parameter.sz_ems_inner) sheet.getRange(i + 1, headers.indexOf("救護外套內件") + 1).setValue(e.parameter.sz_ems_inner);
-        if (e.parameter.sz_tac_jacket) sheet.getRange(i + 1, headers.indexOf("戰術外套") + 1).setValue(e.parameter.sz_tac_jacket);
-        if (e.parameter.sz_pant) sheet.getRange(i + 1, headers.indexOf("戰術褲") + 1).setValue(e.parameter.sz_pant);
-        if (e.parameter.sz_belt) sheet.getRange(i + 1, headers.indexOf("褲帶") + 1).setValue(e.parameter.sz_belt);
-        if (e.parameter.sz_cap) sheet.getRange(i + 1, headers.indexOf("戰術帽") + 1).setValue(e.parameter.sz_cap);
-        if (e.parameter.sz_shoe) sheet.getRange(i + 1, headers.indexOf("消防靴") + 1).setValue(e.parameter.sz_shoe);
+        function setCell(hName, v) {
+          if (v !== undefined && v !== null && v !== "") {
+            var cIdx = headers.indexOf(hName);
+            if (cIdx !== -1) sheet.getRange(i + 1, cIdx + 1).setValue(v);
+          }
+        }
+        if (e.parameter.status) setCell("狀態", e.parameter.status);
+        if (e.parameter.adminNote !== undefined) setCell("後台備註", e.parameter.adminNote);
+        if (e.parameter.note !== undefined) setCell("現場備註", e.parameter.note);
+        if (e.parameter.name) setCell("姓名", e.parameter.name);
+        if (e.parameter.gender) setCell("性別", e.parameter.gender);
+        if (e.parameter.personId) setCell("人員識別碼", e.parameter.personId);
+        if (e.parameter.agency) setCell("機關名稱", e.parameter.agency);
+        if (e.parameter.brigade) setCell("大隊/分類", e.parameter.brigade);
+        if (e.parameter.unit) setCell("單位名稱", e.parameter.unit);
+        if (e.parameter.height) setCell("身高", e.parameter.height);
+        if (e.parameter.shoulder) setCell("肩寬", e.parameter.shoulder);
+        if (e.parameter.chest) setCell("胸圍", e.parameter.chest);
+        if (e.parameter.waist) setCell("腰圍", e.parameter.waist);
+        if (e.parameter.hip) setCell("臀圍", e.parameter.hip);
+        if (e.parameter.inseam) setCell("褲內長", e.parameter.inseam);
+        if (e.parameter.series) setCell("配發系列", e.parameter.series);
+
+        if (e.parameter.sz_long) setCell("長袖", e.parameter.sz_long);
+        if (e.parameter.sz_short) setCell("短袖", e.parameter.sz_short);
+        if (e.parameter.sz_op_long) setCell("長袖操作服", e.parameter.sz_op_long);
+        if (e.parameter.sz_op_short) setCell("短袖操作服", e.parameter.sz_op_short);
+        if (e.parameter.sz_vest) setCell("背心", e.parameter.sz_vest);
+        if (e.parameter.sz_jacket) setCell("外套", e.parameter.sz_jacket);
+        if (e.parameter.sz_ems_inner) setCell("救護外套內件", e.parameter.sz_ems_inner);
+        if (e.parameter.sz_tac_jacket) setCell("戰術外套", e.parameter.sz_tac_jacket);
+        if (e.parameter.sz_pant) setCell("戰術褲", e.parameter.sz_pant);
+        if (e.parameter.sz_belt) setCell("褲帶", e.parameter.sz_belt);
+        if (e.parameter.sz_cap) setCell("戰術帽", e.parameter.sz_cap);
+        if (e.parameter.sz_shoe) setCell("消防靴", e.parameter.sz_shoe);
         
         // 主動推送更新至 D1
         var updatedRowValues = sheet.getRange(i + 1, 1, 1, headers.length).getValues()[0];

@@ -322,6 +322,20 @@ export default {
 
         await env.DB.prepare(`
           UPDATE records SET
+            name = COALESCE(?, name),
+            gender = COALESCE(?, gender),
+            agency = COALESCE(?, agency),
+            brigade = COALESCE(?, brigade),
+            unit = COALESCE(?, unit),
+            person_id = COALESCE(?, person_id),
+            height = COALESCE(?, height),
+            shoulder = COALESCE(?, shoulder),
+            chest = COALESCE(?, chest),
+            waist = COALESCE(?, waist),
+            hip = COALESCE(?, hip),
+            inseam = COALESCE(?, inseam),
+            series = COALESCE(?, series),
+            note = COALESCE(?, note),
             status = COALESCE(?, status),
             admin_note = COALESCE(?, admin_note),
             sz_long = COALESCE(?, sz_long),
@@ -338,6 +352,16 @@ export default {
             sz_shoe = COALESCE(?, sz_shoe)
           WHERE bag_no = ?
         `).bind(
+          params.get('name'), params.get('gender'),
+          params.get('agency'), params.get('brigade'), params.get('unit'),
+          params.get('personId'),
+          params.get('height') !== null && params.get('height') !== undefined && params.get('height') !== '' ? parseFloat(params.get('height')) : null,
+          params.get('shoulder') !== null && params.get('shoulder') !== undefined && params.get('shoulder') !== '' ? parseFloat(params.get('shoulder')) : null,
+          params.get('chest') !== null && params.get('chest') !== undefined && params.get('chest') !== '' ? parseFloat(params.get('chest')) : null,
+          params.get('waist') !== null && params.get('waist') !== undefined && params.get('waist') !== '' ? parseFloat(params.get('waist')) : null,
+          params.get('hip') !== null && params.get('hip') !== undefined && params.get('hip') !== '' ? parseFloat(params.get('hip')) : null,
+          params.get('inseam') !== null && params.get('inseam') !== undefined && params.get('inseam') !== '' ? parseFloat(params.get('inseam')) : null,
+          params.get('series'), params.get('note'),
           params.get('status'), params.get('adminNote'),
           params.get('sz_long'), params.get('sz_short'), params.get('sz_op_long'), params.get('sz_op_short'),
           params.get('sz_vest'), params.get('sz_jacket'), params.get('sz_ems_inner'), params.get('sz_tac_jacket'),
@@ -717,15 +741,32 @@ export default {
       // [POST] deleteRecords - 批次刪除紀錄
       // ==========================================
       if (action === 'deleteRecords' && request.method === 'POST') {
-        const payload = JSON.parse(bodyText);
-        const bagNos = payload.bagNos || [];
+        let bagNos = [];
+        try {
+          const payload = JSON.parse(bodyText);
+          bagNos = payload.bagNos || [];
+        } catch(e) {
+          if (params.get('bagNos')) {
+            bagNos = params.get('bagNos').split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
         
         if (bagNos.length === 0) return jsonResponse({ success: true, count: 0 });
         
         const stmt = env.DB.prepare("DELETE FROM records WHERE bag_no = ?");
-        const statements = bagNos.map(b => stmt.bind(b));
-        
-        await env.DB.batch(statements);
+        const chunkSize = 50;
+        for (let i = 0; i < bagNos.length; i += chunkSize) {
+          const chunk = bagNos.slice(i, i + chunkSize);
+          const statements = chunk.map(b => stmt.bind(b));
+          await env.DB.batch(statements);
+        }
+
+        // ⚡ 背景非同步同步刪除回 Google Sheets
+        const formParams = new URLSearchParams();
+        formParams.append("action", "deleteRecords");
+        formParams.append("bagNos", bagNos.join(","));
+        ctx.waitUntil(syncToGoogleSheets(env, formParams.toString()));
+
         return jsonResponse({ success: true, count: bagNos.length });
       }
 
