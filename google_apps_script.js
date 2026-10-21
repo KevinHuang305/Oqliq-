@@ -7,6 +7,20 @@ function setupAuth() {
   Logger.log("✅ 授權成功！");
 }
 
+// ==========================================
+// 🌟 試算表自訂功能選單 (開啟試算表時自動建立)
+// ==========================================
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('⚡ D1 資料庫同步')
+    .addItem('🚀 全部同步至 D1 (全部工作表)', 'exportAllSheetsToD1')
+    .addItem('📋 僅同步「測量紀錄」', 'exportMeasureSheetOnlyToD1')
+    .addItem('🏢 僅同步「單位資料」與靜態名冊', 'syncStaticTablesToD1')
+    .addSeparator()
+    .addItem('🗑️ 比對並清理已刪除的紀錄', 'syncDeletionsToD1')
+    .addToUi();
+}
+
 function populateHeaderAliases(obj) {
   if (!obj) return obj;
 
@@ -791,7 +805,7 @@ function doPost(e) {
     var colBagNo = headers.indexOf("裝袋序號");
     var targetBagNo = e.parameter.bagNo;
     for (var i = 1; i < data.length; i++) {
-      if (data[i][colBagNo] === targetBagNo) {
+      if (String(data[i][colBagNo]).trim() === String(targetBagNo).trim()) {
         function setCell(hName, v) {
           if (v !== undefined && v !== null && v !== "") {
             var cIdx = headers.indexOf(hName);
@@ -804,9 +818,23 @@ function doPost(e) {
         if (e.parameter.name) setCell("姓名", e.parameter.name);
         if (e.parameter.gender) setCell("性別", e.parameter.gender);
         if (e.parameter.personId) setCell("人員識別碼", e.parameter.personId);
-        if (e.parameter.agency) setCell("機關名稱", e.parameter.agency);
-        if (e.parameter.brigade) setCell("大隊/分類", e.parameter.brigade);
-        if (e.parameter.unit) setCell("單位名稱", e.parameter.unit);
+
+        // 單位更新 - 相容多種欄位標題名稱
+        if (e.parameter.agency) {
+          setCell("機關名稱", e.parameter.agency);
+          setCell("機關", e.parameter.agency);
+        }
+        if (e.parameter.brigade) {
+          setCell("大隊/分類", e.parameter.brigade);
+          setCell("大隊", e.parameter.brigade);
+          setCell("所屬大隊/分類", e.parameter.brigade);
+        }
+        if (e.parameter.unit) {
+          setCell("單位名稱", e.parameter.unit);
+          setCell("分隊", e.parameter.unit);
+          setCell("單位", e.parameter.unit);
+        }
+
         if (e.parameter.height) setCell("身高", e.parameter.height);
         if (e.parameter.shoulder) setCell("肩寬", e.parameter.shoulder);
         if (e.parameter.chest) setCell("胸圍", e.parameter.chest);
@@ -827,6 +855,50 @@ function doPost(e) {
         if (e.parameter.sz_belt) setCell("褲帶", e.parameter.sz_belt);
         if (e.parameter.sz_cap) setCell("戰術帽", e.parameter.sz_cap);
         if (e.parameter.sz_shoe) setCell("消防靴", e.parameter.sz_shoe);
+
+        // 同步更新「人員名冊」工作表 (若有新單位資料)
+        if (e.parameter.agency || e.parameter.brigade || e.parameter.unit) {
+          try {
+            var rosterSheet = ss.getSheetByName("人員名冊");
+            if (rosterSheet) {
+              var rData = rosterSheet.getDataRange().getValues();
+              if (rData.length > 1) {
+                var rHeaders = rData[0];
+                var rColAgency = rHeaders.indexOf("機關名稱");
+                if (rColAgency === -1) rColAgency = rHeaders.indexOf("機關");
+                var rColBrigade = rHeaders.indexOf("大隊");
+                if (rColBrigade === -1) rColBrigade = rHeaders.indexOf("所屬大隊/分類");
+                if (rColBrigade === -1) rColBrigade = rHeaders.indexOf("大隊/分類");
+                var rColUnit = rHeaders.indexOf("分隊");
+                if (rColUnit === -1) rColUnit = rHeaders.indexOf("單位名稱");
+                if (rColUnit === -1) rColUnit = rHeaders.indexOf("單位");
+                var rColName = rHeaders.indexOf("姓名");
+                var rColId = rHeaders.indexOf("人員識別碼");
+
+                var targetPersonId = e.parameter.personId || (headers.indexOf("人員識別碼") !== -1 ? String(data[i][headers.indexOf("人員識別碼")] || '') : '');
+                var targetName = e.parameter.name || (headers.indexOf("姓名") !== -1 ? String(data[i][headers.indexOf("姓名")] || '') : '');
+
+                for (var ri = 1; ri < rData.length; ri++) {
+                  var match = false;
+                  if (targetPersonId && rColId !== -1 && String(rData[ri][rColId]).trim() === String(targetPersonId).trim()) {
+                    match = true;
+                  } else if (targetName && rColName !== -1 && String(rData[ri][rColName]).trim() === String(targetName).trim()) {
+                    match = true;
+                  }
+
+                  if (match) {
+                    if (e.parameter.agency && rColAgency !== -1) rosterSheet.getRange(ri + 1, rColAgency + 1).setValue(e.parameter.agency);
+                    if (e.parameter.brigade && rColBrigade !== -1) rosterSheet.getRange(ri + 1, rColBrigade + 1).setValue(e.parameter.brigade);
+                    if (e.parameter.unit && rColUnit !== -1) rosterSheet.getRange(ri + 1, rColUnit + 1).setValue(e.parameter.unit);
+                    break;
+                  }
+                }
+              }
+            }
+          } catch(rErr) {
+            Logger.log("同步更新人員名冊失敗: " + rErr.toString());
+          }
+        }
         
         // 主動推送更新至 D1
         var updatedRowValues = sheet.getRange(i + 1, 1, 1, headers.length).getValues()[0];
@@ -907,6 +979,102 @@ function doPost(e) {
     try { UrlFetchApp.fetch(cfUrl, options); } catch(err) {}
     
     return ContentService.createTextOutput(JSON.stringify({success: true, updatedCount: updatedCount})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (e.parameter.action === "bulkUpdateUnit") {
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    var colBagNo = headers.indexOf("裝袋序號");
+    var colAgency = headers.indexOf("機關名稱");
+    if (colAgency === -1) colAgency = headers.indexOf("機關");
+    var colBrigade = headers.indexOf("大隊/分類");
+    if (colBrigade === -1) colBrigade = headers.indexOf("大隊");
+    if (colBrigade === -1) colBrigade = headers.indexOf("所屬大隊/分類");
+    var colUnit = headers.indexOf("單位名稱");
+    if (colUnit === -1) colUnit = headers.indexOf("分隊");
+    if (colUnit === -1) colUnit = headers.indexOf("單位");
+
+    var bagNosStr = e.parameter.bagNos || "";
+    var bagNos = bagNosStr.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+    var newAgency = e.parameter.agency;
+    var newBrigade = e.parameter.brigade;
+    var newUnit = e.parameter.unit;
+    var updatedRecords = [];
+
+    if (bagNos.length > 0) {
+      for (var i = 1; i < data.length; i++) {
+        if (bagNos.indexOf(String(data[i][colBagNo]).trim()) !== -1) {
+          if (newAgency && colAgency !== -1) sheet.getRange(i + 1, colAgency + 1).setValue(newAgency);
+          if (newBrigade && colBrigade !== -1) sheet.getRange(i + 1, colBrigade + 1).setValue(newBrigade);
+          if (newUnit && colUnit !== -1) sheet.getRange(i + 1, colUnit + 1).setValue(newUnit);
+
+          var updatedRow = sheet.getRange(i + 1, 1, 1, headers.length).getValues()[0];
+          var rec = {};
+          for (var c = 0; c < headers.length; c++) {
+            var v = updatedRow[c];
+            if (v instanceof Date) v = v.toISOString();
+            rec[headers[c]] = v;
+          }
+          populateHeaderAliases(rec);
+          updatedRecords.push(rec);
+        }
+      }
+
+      // 同步人員名冊工作表
+      try {
+        var rosterSheet = ss.getSheetByName("人員名冊");
+        if (rosterSheet && updatedRecords.length > 0) {
+          var rData = rosterSheet.getDataRange().getValues();
+          if (rData.length > 1) {
+            var rHeaders = rData[0];
+            var rColAgency = rHeaders.indexOf("機關名稱");
+            if (rColAgency === -1) rColAgency = rHeaders.indexOf("機關");
+            var rColBrigade = rHeaders.indexOf("大隊");
+            if (rColBrigade === -1) rColBrigade = rHeaders.indexOf("所屬大隊/分類");
+            if (rColBrigade === -1) rColBrigade = rHeaders.indexOf("大隊/分類");
+            var rColUnit = rHeaders.indexOf("分隊");
+            if (rColUnit === -1) rColUnit = rHeaders.indexOf("單位名稱");
+            if (rColUnit === -1) rColUnit = rHeaders.indexOf("單位");
+            var rColName = rHeaders.indexOf("姓名");
+            var rColId = rHeaders.indexOf("人員識別碼");
+
+            for (var u = 0; u < updatedRecords.length; u++) {
+              var uRec = updatedRecords[u];
+              var pId = uRec['人員識別碼'];
+              var pName = uRec['姓名'];
+              for (var ri = 1; ri < rData.length; ri++) {
+                var match = false;
+                if (pId && rColId !== -1 && String(rData[ri][rColId]).trim() === String(pId).trim()) match = true;
+                else if (pName && rColName !== -1 && String(rData[ri][rColName]).trim() === String(pName).trim()) match = true;
+                if (match) {
+                  if (newAgency && rColAgency !== -1) rosterSheet.getRange(ri + 1, rColAgency + 1).setValue(newAgency);
+                  if (newBrigade && rColBrigade !== -1) rosterSheet.getRange(ri + 1, rColBrigade + 1).setValue(newBrigade);
+                  if (newUnit && rColUnit !== -1) rosterSheet.getRange(ri + 1, rColUnit + 1).setValue(newUnit);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch(rErr) {
+        Logger.log("批量同步人員名冊失敗: " + rErr.toString());
+      }
+
+      // 推送更新至 D1
+      if (updatedRecords.length > 0) {
+        var cfUrl = "https://firescue-cf-backend.donothing1030.workers.dev/api/importRecords";
+        try {
+          UrlFetchApp.fetch(cfUrl, {
+            method: 'post',
+            contentType: 'application/json',
+            payload: JSON.stringify({ records: updatedRecords })
+          });
+        } catch(err) {}
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({success: true, count: updatedRecords.length})).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({success: false, error: "未找到符合的資料"})).setMimeType(ContentService.MimeType.JSON);
   }
   
   // 增加"長袖操作服"與"短袖操作服"
@@ -1175,7 +1343,22 @@ function exportAllSheetsToD1() {
         for (var j = 0; j < uHeaders.length; j++) {
           uObj[uHeaders[j]] = uData[i][j];
         }
-        units.push(uObj);
+        var agency = String(uObj['機關名稱'] || uObj['機關'] || uData[i][0] || '').trim();
+        var brigade = String(uObj['所屬大隊/分類'] || uObj['大隊/分類'] || uObj['大隊'] || uData[i][1] || '').trim();
+        var unit = String(uObj['單位名稱'] || uObj['分隊'] || uData[i][2] || '').trim();
+        var sysCode = String(uObj['系統代碼'] || uObj['代碼'] || uData[i][3] || (agency + '_' + brigade + '_' + unit)).trim();
+        if (agency && brigade && unit) {
+          units.push({
+            '機關名稱': agency,
+            '所屬大隊/分類': brigade,
+            '單位名稱': unit,
+            '系統代碼': sysCode,
+            agency: agency,
+            brigade: brigade,
+            unit: unit,
+            sys_code: sysCode
+          });
+        }
       }
       
       // 每 200 筆為一個 chunk 分批發送，防範 payload 過大
@@ -1325,7 +1508,22 @@ function syncStaticTablesToD1() {
         for (var j = 0; j < uHeaders.length; j++) {
           uObj[uHeaders[j]] = uData[i][j];
         }
-        units.push(uObj);
+        var agency = String(uObj['機關名稱'] || uObj['機關'] || uData[i][0] || '').trim();
+        var brigade = String(uObj['所屬大隊/分類'] || uObj['大隊/分類'] || uObj['大隊'] || uData[i][1] || '').trim();
+        var unit = String(uObj['單位名稱'] || uObj['分隊'] || uData[i][2] || '').trim();
+        var sysCode = String(uObj['系統代碼'] || uObj['代碼'] || uData[i][3] || (agency + '_' + brigade + '_' + unit)).trim();
+        if (agency && brigade && unit) {
+          units.push({
+            '機關名稱': agency,
+            '所屬大隊/分類': brigade,
+            '單位名稱': unit,
+            '系統代碼': sysCode,
+            agency: agency,
+            brigade: brigade,
+            unit: unit,
+            sys_code: sysCode
+          });
+        }
       }
       var uChunk = 200;
       for (var ku = 0; ku < units.length; ku += uChunk) {

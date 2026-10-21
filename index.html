@@ -1738,6 +1738,40 @@
         </div>
     </div>
 
+    <!-- 批次修改單位彈窗 -->
+    <div class="login-overlay" id="bulkUnitModal" style="display:none; z-index:9999;">
+        <div class="login-box" style="max-width:460px; width:90%; padding: 25px; text-align: left;">
+            <h3 style="margin-top:0; color:var(--primary); font-weight:800; border-bottom: 2px solid var(--border); padding-bottom:10px;">🏢 批次修改所屬單位</h3>
+            <p style="color:var(--text-muted); font-size:13px; margin: 10px 0 15px 0;">已選取 <strong id="bulkUnitCount" style="color:var(--primary); font-size:16px;">0</strong> 位人員，請選擇欲變更的所屬單位：</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+                <div class="form-group">
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:4px; display:block;">機關名稱</label>
+                    <select id="bulkAgencySel" style="width:100%; padding:9px; border-radius:6px; border:1px solid var(--border); background:var(--bg-base); color:var(--text-main);">
+                        <option value="">選擇機關...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:4px; display:block;">大隊/分類</label>
+                    <select id="bulkBrigadeSel" style="width:100%; padding:9px; border-radius:6px; border:1px solid var(--border); background:var(--bg-base); color:var(--text-main);">
+                        <option value="">請先選擇機關</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:13px; font-weight:bold; margin-bottom:4px; display:block;">分隊/單位名稱</label>
+                    <select id="bulkUnitSel" style="width:100%; padding:9px; border-radius:6px; border:1px solid var(--border); background:var(--bg-base); color:var(--text-main);">
+                        <option value="">請先選擇大隊</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-ghost" style="flex: 1; border: 1px solid var(--border);" onclick="closeBulkUnitModal()">取消</button>
+                <button class="btn btn-primary" id="btnConfirmBulkUnit" style="flex: 1; background: #3b82f6; color: white;" onclick="confirmBulkUnitChange()">確認套用</button>
+            </div>
+        </div>
+    </div>
+
     <div id="view-admin" class="view-container scroll-view" style="position:relative;">
         <!-- 橫向數據統計 -->
         <div class="admin-stats-grid" id="adminStatsGrid">
@@ -1811,6 +1845,7 @@
             </div>
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content;" onclick="refreshAdminData()">重新整理</button>
+                <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap; color: #3b82f6; border-color: #3b82f6;" onclick="openBulkUnitModal()">🏢 批次修改單位</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="openPrintChoice(() => printSelectedAdminLabels())">列印勾選標籤</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap;" onclick="exportCSV()">匯出 CSV</button>
                 <button class="btn btn-outline" style="flex: 1; padding: 10px; font-size: 14px; text-align: center; min-width: max-content; white-space: nowrap; color: #ef4444; border-color: #ef4444;" onclick="deleteSelectedAdminRows()">🗑️ 批次刪除選取</button>
@@ -2095,12 +2130,28 @@
                         <strong id="mDate"></strong>
                     </div>
                     <div class="info-item full">
-                        <span>所屬單位 (機關 / 大隊 / 分隊)</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span>所屬單位 (機關 / 大隊 / 分隊)</span>
+                            <button type="button" id="btnToggleUnitManual" class="edit-inp" style="display:none; font-size: 11px; padding: 2px 8px; border-radius: 4px; background: transparent; border: 1px solid var(--border); color: var(--primary); cursor: pointer;" onclick="toggleUnitManualMode()">✏️ 手動填寫</button>
+                        </div>
                         <strong id="mUnit_txt" class="edit-txt"></strong>
-                        <div id="mUnit_inp" class="edit-inp" style="display:none; display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">
-                            <input type="text" id="mAgency_inp" placeholder="機關名稱" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
-                            <input type="text" id="mBrigade_inp" placeholder="大隊/分類" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
-                            <input type="text" id="mUnitName_inp" placeholder="單位名稱" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                        <!-- 下拉式選單模式 (預設，直覺且防呆) -->
+                        <div id="mUnit_dropdown_wrap" class="edit-inp" style="display:none; grid-template-columns: repeat(3, 1fr); gap:6px;">
+                            <select id="mAgency_sel" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                                <option value="">選擇機關...</option>
+                            </select>
+                            <select id="mBrigade_sel" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                                <option value="">選擇大隊...</option>
+                            </select>
+                            <select id="mUnitName_sel" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                                <option value="">選擇分隊...</option>
+                            </select>
+                        </div>
+                        <!-- 手動文字輸入模式 (備用，當單位不在選單中時可切換) -->
+                        <div id="mUnit_manual_wrap" class="edit-inp" style="display:none; grid-template-columns: repeat(3, 1fr); gap:6px;">
+                            <input type="text" id="mAgency_inp" placeholder="機關名稱 (例: 高雄市政府消防局)" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                            <input type="text" id="mBrigade_inp" placeholder="大隊/分類 (例: 第一大隊)" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
+                            <input type="text" id="mUnitName_inp" placeholder="單位名稱 (例: 新興分隊)" style="padding:6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg-base); color:var(--text-main);">
                         </div>
                     </div>
                     <div class="info-item">
@@ -2950,6 +3001,37 @@
         document.getElementById('registerDate').value = new Date().toISOString().split('T')[0];
 
         // ==========================================
+        //  🌟 機關/大隊/分隊 階層架構動態補全 (防呆回退機制)
+        // ==========================================
+        window.enrichHierarchyFromRosterAndRecords = function() {
+            if (!dbHierarchy) dbHierarchy = {};
+            if (Array.isArray(dbRoster)) {
+                dbRoster.forEach(p => {
+                    const a = (p['機關名稱'] || p.agency || '').trim();
+                    const b = (p['大隊'] || p.brigade || '').trim();
+                    const u = (p['分隊'] || p.unit || '').trim();
+                    if (a && b && u) {
+                        if (!dbHierarchy[a]) dbHierarchy[a] = {};
+                        if (!dbHierarchy[a][b]) dbHierarchy[a][b] = [];
+                        if (!dbHierarchy[a][b].includes(u)) dbHierarchy[a][b].push(u);
+                    }
+                });
+            }
+            if (Array.isArray(allRecords)) {
+                allRecords.forEach(r => {
+                    const a = (r['機關名稱'] || r.agency || '').trim();
+                    const b = (r['大隊/分類'] || r.brigade || '').trim();
+                    const u = (r['單位名稱'] || r.unit || '').trim();
+                    if (a && b && u) {
+                        if (!dbHierarchy[a]) dbHierarchy[a] = {};
+                        if (!dbHierarchy[a][b]) dbHierarchy[a][b] = [];
+                        if (!dbHierarchy[a][b].includes(u)) dbHierarchy[a][b].push(u);
+                    }
+                });
+            }
+        };
+
+        // ==========================================
         //  1. 下拉選單連動
         // ==========================================
         async function loadDropdowns() {
@@ -2961,10 +3043,11 @@
                 let data; try { data = JSON.parse(textData); } catch (err) { throw new Error("API網址錯誤或未發佈新版本"); }
                 if (data.error) throw new Error(data.error);
 
-                dbHierarchy = data.hierarchy; dbSystemCodes = data.systemCodes;
+                dbHierarchy = data.hierarchy || {}; dbSystemCodes = data.systemCodes || {};
                 dbRoster = data.roster || [];
                 window.dbMeasured = data.measured || [];
                 window.dbExistingIds = data.existingIds || [];
+                window.enrichHierarchyFromRosterAndRecords();
 
                 // ★ 動態載入職稱選單（若 API 回傳為空則保留 HTML 預設值作為備用）
                 if (data.jobs && data.jobs.length > 0) {
@@ -4877,7 +4960,10 @@
                         ${r['裝袋序號']}
                         <button class="btn btn-outline" style="padding:4px 8px; font-size:12px; margin-left:10px;" onclick="event.stopPropagation(); openPrintChoice(() => printSpecificLabels(['${r['裝袋序號']}']))">列印標籤</button>
                     </td>
-                    <td>${r['單位名稱'] || '-'}</td>
+                    <td>
+                        <div style="font-weight:700; color:var(--text-main); font-size:14px;">${r['單位名稱'] || '-'}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${r['機關名稱'] ? r['機關名稱'] + ' / ' : ''}${r['大隊/分類'] || ''}</div>
+                    </td>
                     <td><strong>${r['姓名'] || '-'}</strong></td>
                     <td>${r['性別'] || '-'}</td>
                     <td>${r['登記日期'] || '-'}</td>
@@ -4966,6 +5052,123 @@
             const match = url.match(/\/d\/(.*?)\//); return match ? `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000` : url;
         }
 
+        window._modalUnitManual = false;
+        window.populateModalUnitDropdowns = function(curAgency = '', curBrigade = '', curUnit = '') {
+            window._modalUnitManual = false;
+            if (typeof window.enrichHierarchyFromRosterAndRecords === 'function') {
+                window.enrichHierarchyFromRosterAndRecords();
+            }
+
+            curAgency = (curAgency || '').trim();
+            curBrigade = (curBrigade || '').trim();
+            curUnit = (curUnit || '').trim();
+
+            const btnTog = document.getElementById('btnToggleUnitManual');
+            if (btnTog) btnTog.innerText = '✏️ 手動填寫';
+            
+            const dropWrap = document.getElementById('mUnit_dropdown_wrap');
+            const manWrap = document.getElementById('mUnit_manual_wrap');
+            const isEdit = document.getElementById('btnSaveEdit') && document.getElementById('btnSaveEdit').style.display !== 'none';
+            if (dropWrap) dropWrap.style.display = isEdit ? 'grid' : 'none';
+            if (manWrap) manWrap.style.display = 'none';
+
+            const aSel = document.getElementById('mAgency_sel');
+            const bSel = document.getElementById('mBrigade_sel');
+            const uSel = document.getElementById('mUnitName_sel');
+            const aInp = document.getElementById('mAgency_inp');
+            const bInp = document.getElementById('mBrigade_inp');
+            const uInp = document.getElementById('mUnitName_inp');
+
+            if (aInp) aInp.value = curAgency || '';
+            if (bInp) bInp.value = curBrigade || '';
+            if (uInp) uInp.value = curUnit || '';
+
+            if (!aSel || !bSel || !uSel) return;
+
+            // 機關選項
+            aSel.innerHTML = '<option value="">請選擇機關...</option>';
+            const agencies = Object.keys(dbHierarchy || {});
+            if (curAgency && !agencies.includes(curAgency)) agencies.unshift(curAgency);
+            // 若當前無機關但系統中只有一個機關，預設選取
+            if (!curAgency && agencies.length === 1) {
+                curAgency = agencies[0];
+                if (aInp) aInp.value = curAgency;
+            }
+            agencies.forEach(a => {
+                aSel.innerHTML += `<option value="${a}" ${a === curAgency ? 'selected' : ''}>${a}</option>`;
+            });
+            aSel.value = curAgency || '';
+
+            // 更新大隊選項
+            function updateBrigades(selAgency, selBrigade = '') {
+                bSel.innerHTML = '<option value="">請選擇大隊...</option>';
+                uSel.innerHTML = '<option value="">請選擇分隊...</option>';
+                if (!selAgency) return;
+                const brigades = (dbHierarchy && dbHierarchy[selAgency] ? Object.keys(dbHierarchy[selAgency]) : []);
+                if (selBrigade && !brigades.includes(selBrigade)) brigades.unshift(selBrigade);
+                brigades.forEach(b => {
+                    bSel.innerHTML += `<option value="${b}" ${b === selBrigade ? 'selected' : ''}>${b}</option>`;
+                });
+                bSel.value = selBrigade || '';
+            }
+
+            // 更新分隊選項
+            function updateUnits(selAgency, selBrigade, selUnit = '') {
+                uSel.innerHTML = '<option value="">請選擇分隊...</option>';
+                if (!selAgency || !selBrigade) return;
+                const units = (dbHierarchy && dbHierarchy[selAgency] && dbHierarchy[selAgency][selBrigade]) ? [...dbHierarchy[selAgency][selBrigade]] : [];
+                if (selUnit && !units.includes(selUnit)) units.unshift(selUnit);
+                units.forEach(u => {
+                    uSel.innerHTML += `<option value="${u}" ${u === selUnit ? 'selected' : ''}>${u}</option>`;
+                });
+                uSel.value = selUnit || '';
+            }
+
+            updateBrigades(curAgency, curBrigade);
+            updateUnits(curAgency, curBrigade, curUnit);
+
+            aSel.onchange = function() {
+                updateBrigades(this.value);
+                updateUnits(this.value, bSel.value);
+                if (aInp) aInp.value = this.value;
+                if (bInp) bInp.value = bSel.value || '';
+                if (uInp) uInp.value = uSel.value || '';
+            };
+
+            bSel.onchange = function() {
+                updateUnits(aSel.value, this.value);
+                if (bInp) bInp.value = this.value;
+                if (uInp) uInp.value = uSel.value || '';
+            };
+
+            uSel.onchange = function() {
+                if (uInp) uInp.value = this.value;
+            };
+        };
+
+        window.toggleUnitManualMode = function() {
+            window._modalUnitManual = !window._modalUnitManual;
+            const dropWrap = document.getElementById('mUnit_dropdown_wrap');
+            const manWrap = document.getElementById('mUnit_manual_wrap');
+            const btnTog = document.getElementById('btnToggleUnitManual');
+            const aSel = document.getElementById('mAgency_sel'), bSel = document.getElementById('mBrigade_sel'), uSel = document.getElementById('mUnitName_sel');
+            const aInp = document.getElementById('mAgency_inp'), bInp = document.getElementById('mBrigade_inp'), uInp = document.getElementById('mUnitName_inp');
+
+            if (window._modalUnitManual) {
+                if (dropWrap) dropWrap.style.display = 'none';
+                if (manWrap) manWrap.style.display = 'grid';
+                if (btnTog) btnTog.innerText = '📋 下拉選擇';
+                if (aInp && aSel) aInp.value = aSel.value || aInp.value;
+                if (bInp && bSel) bInp.value = bSel.value || bInp.value;
+                if (uInp && uSel) uInp.value = uSel.value || uInp.value;
+            } else {
+                if (dropWrap) dropWrap.style.display = 'grid';
+                if (manWrap) manWrap.style.display = 'none';
+                if (btnTog) btnTog.innerText = '✏️ 手動填寫';
+                if (aInp) window.populateModalUnitDropdowns(aInp.value, bInp ? bInp.value : '', uInp ? uInp.value : '');
+            }
+        };
+
         window.showModal = function (r) {
             window._currentAdminRecord = r;
             document.getElementById('detailModal').classList.add('active'); window.toggleEditMode(false);
@@ -4983,10 +5186,11 @@
             
             document.getElementById('mDate').innerText = r['登記日期'] || '-';
             
-            if (document.getElementById('mUnit_txt')) document.getElementById('mUnit_txt').innerText = `${r['機關名稱'] || ''} - ${r['大隊/分類'] || ''} - ${r['單位名稱'] || ''}`;
-            if (document.getElementById('mAgency_inp')) document.getElementById('mAgency_inp').value = r['機關名稱'] || '';
-            if (document.getElementById('mBrigade_inp')) document.getElementById('mBrigade_inp').value = r['大隊/分類'] || '';
-            if (document.getElementById('mUnitName_inp')) document.getElementById('mUnitName_inp').value = r['單位名稱'] || '';
+            const recAgency = (r['機關名稱'] || r.agency || r['機關'] || '').trim();
+            const recBrigade = (r['大隊/分類'] || r['大隊'] || r.brigade || '').trim();
+            const recUnit = (r['單位名稱'] || r['分隊'] || r.unit || '').trim();
+            if (document.getElementById('mUnit_txt')) document.getElementById('mUnit_txt').innerText = `${recAgency || '-'} - ${recBrigade || '-'} - ${recUnit || '-'}`;
+            window.populateModalUnitDropdowns(recAgency, recBrigade, recUnit);
 
             if (document.getElementById('mBodySize_txt')) {
                 document.getElementById('mBodySize_txt').innerText = `高:${r['身高']||'-'} / 肩:${r['肩寬']||'-'} / 胸:${r['胸圍']||'-'} / 腰:${r['腰圍']||'-'} / 臀:${r['臀圍']||'-'} / 內長:${r['褲內長']||'-'}`;
@@ -5091,8 +5295,14 @@
             if (isEdit) {
                 txts.forEach(t => t.style.display = 'none'); 
                 inps.forEach(i => {
-                    if (i.id === 'mBodySize_inp' || i.id === 'mUnit_inp') {
+                    if (i.id === 'mBodySize_inp') {
                         i.style.display = 'grid';
+                    } else if (i.id === 'mUnit_dropdown_wrap') {
+                        i.style.display = window._modalUnitManual ? 'none' : 'grid';
+                    } else if (i.id === 'mUnit_manual_wrap') {
+                        i.style.display = window._modalUnitManual ? 'grid' : 'none';
+                    } else if (i.id === 'btnToggleUnitManual') {
+                        i.style.display = 'inline-block';
                     } else {
                         i.style.display = 'block';
                     }
@@ -5127,14 +5337,18 @@
             const newGender = document.getElementById('mGender_inp') ? document.getElementById('mGender_inp').value : '';
             if (newGender) formData.append("gender", newGender);
             
-            const newAgency = document.getElementById('mAgency_inp') ? document.getElementById('mAgency_inp').value.trim() : '';
+            const isManual = !!window._modalUnitManual;
+            const newAgency = (isManual ? (document.getElementById('mAgency_inp') ? document.getElementById('mAgency_inp').value : '') : (document.getElementById('mAgency_sel') ? document.getElementById('mAgency_sel').value : '')).trim();
+            const newBrigade = (isManual ? (document.getElementById('mBrigade_inp') ? document.getElementById('mBrigade_inp').value : '') : (document.getElementById('mBrigade_sel') ? document.getElementById('mBrigade_sel').value : '')).trim();
+            const newUnit = (isManual ? (document.getElementById('mUnitName_inp') ? document.getElementById('mUnitName_inp').value : '') : (document.getElementById('mUnitName_sel') ? document.getElementById('mUnitName_sel').value : '')).trim();
+
             if (newAgency) formData.append("agency", newAgency);
-            
-            const newBrigade = document.getElementById('mBrigade_inp') ? document.getElementById('mBrigade_inp').value.trim() : '';
             if (newBrigade) formData.append("brigade", newBrigade);
-            
-            const newUnit = document.getElementById('mUnitName_inp') ? document.getElementById('mUnitName_inp').value.trim() : '';
             if (newUnit) formData.append("unit", newUnit);
+
+            if (orig['機關名稱']) formData.append("oldAgency", orig['機關名稱']);
+            if (orig['大隊/分類']) formData.append("oldBrigade", orig['大隊/分類']);
+            if (orig['單位名稱']) formData.append("oldUnit", orig['單位名稱']);
             
             const newHeight = document.getElementById('mHeight_inp') ? document.getElementById('mHeight_inp').value.trim() : '';
             formData.append("height", newHeight);
@@ -5188,12 +5402,43 @@
                     // Update in-memory record
                     const target = allRecords.find(x => String(x['裝袋序號']).trim() === String(bagNo).trim());
                     if (target) {
+                        const oldAgency = target['機關名稱'];
+                        const oldBrigade = target['大隊/分類'];
+                        const oldUnit = target['單位名稱'];
+                        const personName = target['姓名'] || newName;
+
                         if (newName) target['姓名'] = newName;
                         if (newPersonId) target['人員識別碼'] = newPersonId;
                         if (newGender) target['性別'] = newGender;
                         if (newAgency) target['機關名稱'] = newAgency;
                         if (newBrigade) target['大隊/分類'] = newBrigade;
                         if (newUnit) target['單位名稱'] = newUnit;
+
+                        // 更新記憶體中的 dbMeasured 標記
+                        if (window.dbMeasured && personName) {
+                            const oldKey = `${oldAgency}_${oldBrigade}_${oldUnit}_${personName}`;
+                            const newKey = `${target['機關名稱']}_${target['大隊/分類']}_${target['單位名稱']}_${personName}`;
+                            const idx = window.dbMeasured.indexOf(oldKey);
+                            if (idx !== -1) {
+                                window.dbMeasured[idx] = newKey;
+                            } else if (!window.dbMeasured.includes(newKey)) {
+                                window.dbMeasured.push(newKey);
+                            }
+                        }
+
+                        // 更新記憶體中的 dbRoster (人員名冊)
+                        if (Array.isArray(dbRoster)) {
+                            const rMatch = dbRoster.find(r => 
+                                (target['人員識別碼'] && r['人員識別碼'] === target['人員識別碼']) ||
+                                (r['姓名'] === personName && r['機關名稱'] === oldAgency)
+                            );
+                            if (rMatch) {
+                                if (newAgency) rMatch['機關名稱'] = newAgency;
+                                if (newBrigade) rMatch['大隊'] = newBrigade;
+                                if (newUnit) rMatch['分隊'] = newUnit;
+                            }
+                        }
+
                         target['身高'] = newHeight;
                         target['肩寬'] = newShoulder;
                         target['胸圍'] = newChest;
@@ -5217,12 +5462,155 @@
                     window.toggleEditMode(false); 
                     window.queryAdminTable(window._lastAdminQueryShowAll);
                     renderAdminBoard();
-                    alert("修改已成功儲存並同步至資料庫！"); 
+                    populateLabelFilters();
+                    alert("修改已成功儲存並同步至雲端資料庫與試算表！"); 
                 } else {
                     alert("修改失敗：" + (result.error || "未知錯誤"));
                 }
             } catch (e) { alert("儲存失敗，請檢查網路。"); }
             btnSave.innerText = "儲存"; btnSave.disabled = false;
+        };
+
+        window.openBulkUnitModal = function() {
+            const chks = document.querySelectorAll('.admin-row-chk:checked');
+            if (chks.length === 0) {
+                alert("請先在名單左側勾選要修改單位的人員！");
+                return;
+            }
+            if (typeof window.enrichHierarchyFromRosterAndRecords === 'function') {
+                window.enrichHierarchyFromRosterAndRecords();
+            }
+            const modal = document.getElementById('bulkUnitModal');
+            if (!modal) return;
+            document.getElementById('bulkUnitCount').innerText = chks.length;
+            modal.style.display = 'flex';
+
+            const aSel = document.getElementById('bulkAgencySel');
+            const bSel = document.getElementById('bulkBrigadeSel');
+            const uSel = document.getElementById('bulkUnitSel');
+
+            aSel.innerHTML = '<option value="">請選擇機關...</option>';
+            bSel.innerHTML = '<option value="">請先選擇機關</option>';
+            uSel.innerHTML = '<option value="">請先選擇大隊</option>';
+
+            for (let agency in dbHierarchy) {
+                aSel.innerHTML += `<option value="${agency}">${agency}</option>`;
+            }
+
+            aSel.onchange = function() {
+                bSel.innerHTML = '<option value="">請選擇大隊...</option>';
+                uSel.innerHTML = '<option value="">請先選擇大隊</option>';
+                if (this.value && dbHierarchy[this.value]) {
+                    for (let brigade in dbHierarchy[this.value]) {
+                        bSel.innerHTML += `<option value="${brigade}">${brigade}</option>`;
+                    }
+                }
+            };
+
+            bSel.onchange = function() {
+                uSel.innerHTML = '<option value="">請選擇分隊...</option>';
+                const agency = aSel.value;
+                if (this.value && dbHierarchy[agency] && dbHierarchy[agency][this.value]) {
+                    dbHierarchy[agency][this.value].forEach(u => {
+                        uSel.innerHTML += `<option value="${u}">${u}</option>`;
+                    });
+                }
+            };
+        };
+
+        window.closeBulkUnitModal = function() {
+            const modal = document.getElementById('bulkUnitModal');
+            if (modal) modal.style.display = 'none';
+        };
+
+        window.confirmBulkUnitChange = async function() {
+            const chks = document.querySelectorAll('.admin-row-chk:checked');
+            const bagNos = Array.from(chks).map(c => c.value);
+            if (bagNos.length === 0) {
+                alert("未選取任何人員！");
+                closeBulkUnitModal();
+                return;
+            }
+
+            const agency = document.getElementById('bulkAgencySel').value;
+            const brigade = document.getElementById('bulkBrigadeSel').value;
+            const unit = document.getElementById('bulkUnitSel').value;
+
+            if (!agency && !brigade && !unit) {
+                alert("請至少選擇一個單位層級進行套用！");
+                return;
+            }
+
+            const targetDesc = `${agency || '(不變)'} - ${brigade || '(不變)'} - ${unit || '(不變)'}`;
+            if (!confirm(`確定要將已勾選的 ${bagNos.length} 筆人員所屬單位變更為：\n「${targetDesc}」？\n\n此變更將同步更新雲端資料庫與試算表中的測量紀錄與人員名冊。`)) {
+                return;
+            }
+
+            const btn = document.getElementById('btnConfirmBulkUnit');
+            btn.innerText = "套用中...";
+            btn.disabled = true;
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append("action", "bulkUpdateUnit");
+                formData.append("bagNos", bagNos.join(','));
+                if (agency) formData.append("agency", agency);
+                if (brigade) formData.append("brigade", brigade);
+                if (unit) formData.append("unit", unit);
+
+                const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: formData });
+                const result = await res.json();
+
+                if (result.success) {
+                    bagNos.forEach(bagNo => {
+                        const rec = allRecords.find(r => String(r['裝袋序號']).trim() === String(bagNo).trim());
+                        if (rec) {
+                            const oldAgency = rec['機關名稱'];
+                            const oldBrigade = rec['大隊/分類'];
+                            const oldUnit = rec['單位名稱'];
+                            const pName = rec['姓名'];
+
+                            if (agency) rec['機關名稱'] = agency;
+                            if (brigade) rec['大隊/分類'] = brigade;
+                            if (unit) rec['單位名稱'] = unit;
+
+                            // 更新 dbMeasured
+                            if (window.dbMeasured && pName) {
+                                const oldKey = `${oldAgency}_${oldBrigade}_${oldUnit}_${pName}`;
+                                const newKey = `${rec['機關名稱']}_${rec['大隊/分類']}_${rec['單位名稱']}_${pName}`;
+                                const idx = window.dbMeasured.indexOf(oldKey);
+                                if (idx !== -1) window.dbMeasured[idx] = newKey;
+                                else if (!window.dbMeasured.includes(newKey)) window.dbMeasured.push(newKey);
+                            }
+
+                            // 更新 dbRoster
+                            if (Array.isArray(dbRoster)) {
+                                const rMatch = dbRoster.find(r => 
+                                    (rec['人員識別碼'] && r['人員識別碼'] === rec['人員識別碼']) ||
+                                    (r['姓名'] === pName && r['機關名稱'] === oldAgency)
+                                );
+                                if (rMatch) {
+                                    if (agency) rMatch['機關名稱'] = agency;
+                                    if (brigade) rMatch['大隊'] = brigade;
+                                    if (unit) rMatch['分隊'] = unit;
+                                }
+                            }
+                        }
+                    });
+
+                    closeBulkUnitModal();
+                    populateLabelFilters();
+                    window.queryAdminTable(window._lastAdminQueryShowAll);
+                    renderAdminBoard();
+                    alert(`已成功將 ${bagNos.length} 筆人員的所屬單位更新為「${targetDesc}」並同步至雲端！`);
+                } else {
+                    alert("批次更新失敗：" + (result.error || "未知錯誤"));
+                }
+            } catch(e) {
+                alert("連線更新失敗，請檢查網路。");
+            }
+            btn.innerText = "確認套用";
+            btn.disabled = false;
         };
 
         window.toggleAllAdminRows = function(cb) {

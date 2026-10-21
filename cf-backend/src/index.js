@@ -120,6 +120,21 @@ export default {
           }
         });
 
+        // 🌟 防呆回退：若 units 資料表為空，自動自名冊 roster 提取單位階層
+        if (Object.keys(hierarchy).length === 0) {
+          (rosterRes.results || []).forEach(r => {
+            const agency = (r.agency || '').trim();
+            const brigade = (r.brigade || '').trim();
+            const unit = (r.unit || '').trim();
+            if (agency && brigade && unit) {
+              if (!hierarchy[agency]) hierarchy[agency] = {};
+              if (!hierarchy[agency][brigade]) hierarchy[agency][brigade] = [];
+              if (!hierarchy[agency][brigade].includes(unit)) hierarchy[agency][brigade].push(unit);
+              systemCodes[`${agency}_${brigade}_${unit}`] = `${agency}_${brigade}_${unit}`;
+            }
+          });
+        }
+
         // 格式化名冊欄位名稱以符合前端預期 (與試算表欄位一致)
         const roster = (rosterRes.results || []).map(r => ({
           "機關名稱": r.agency,
@@ -320,6 +335,14 @@ export default {
         const bagNo = params.get('bagNo');
         if (!bagNo) return errorResponse("缺少裝袋序號", 400);
 
+        const strOrNull = (v) => (v !== null && v !== undefined && String(v).trim() !== '') ? String(v).trim() : null;
+        const newAgency = strOrNull(params.get('agency'));
+        const newBrigade = strOrNull(params.get('brigade'));
+        const newUnit = strOrNull(params.get('unit'));
+        const newName = strOrNull(params.get('name'));
+        const newPersonId = strOrNull(params.get('personId'));
+        const oldAgency = strOrNull(params.get('oldAgency'));
+
         await env.DB.prepare(`
           UPDATE records SET
             name = COALESCE(?, name),
@@ -352,22 +375,55 @@ export default {
             sz_shoe = COALESCE(?, sz_shoe)
           WHERE bag_no = ?
         `).bind(
-          params.get('name'), params.get('gender'),
-          params.get('agency'), params.get('brigade'), params.get('unit'),
-          params.get('personId'),
+          newName, strOrNull(params.get('gender')),
+          newAgency, newBrigade, newUnit,
+          newPersonId,
           params.get('height') !== null && params.get('height') !== undefined && params.get('height') !== '' ? parseFloat(params.get('height')) : null,
           params.get('shoulder') !== null && params.get('shoulder') !== undefined && params.get('shoulder') !== '' ? parseFloat(params.get('shoulder')) : null,
           params.get('chest') !== null && params.get('chest') !== undefined && params.get('chest') !== '' ? parseFloat(params.get('chest')) : null,
           params.get('waist') !== null && params.get('waist') !== undefined && params.get('waist') !== '' ? parseFloat(params.get('waist')) : null,
           params.get('hip') !== null && params.get('hip') !== undefined && params.get('hip') !== '' ? parseFloat(params.get('hip')) : null,
           params.get('inseam') !== null && params.get('inseam') !== undefined && params.get('inseam') !== '' ? parseFloat(params.get('inseam')) : null,
-          params.get('series'), params.get('note'),
-          params.get('status'), params.get('adminNote'),
-          params.get('sz_long'), params.get('sz_short'), params.get('sz_op_long'), params.get('sz_op_short'),
-          params.get('sz_vest'), params.get('sz_jacket'), params.get('sz_ems_inner'), params.get('sz_tac_jacket'),
-          params.get('sz_pant'), params.get('sz_belt'), params.get('sz_cap'), params.get('sz_shoe'),
+          strOrNull(params.get('series')), strOrNull(params.get('note')),
+          strOrNull(params.get('status')), strOrNull(params.get('adminNote')),
+          strOrNull(params.get('sz_long')), strOrNull(params.get('sz_short')), strOrNull(params.get('sz_op_long')), strOrNull(params.get('sz_op_short')),
+          strOrNull(params.get('sz_vest')), strOrNull(params.get('sz_jacket')), strOrNull(params.get('sz_ems_inner')), strOrNull(params.get('sz_tac_jacket')),
+          strOrNull(params.get('sz_pant')), strOrNull(params.get('sz_belt')), strOrNull(params.get('sz_cap')), strOrNull(params.get('sz_shoe')),
           bagNo
         ).run();
+
+        // 🌟 同步更新 D1 中的 roster (人員名冊)
+        if (newAgency || newBrigade || newUnit) {
+          try {
+            const curr = await env.DB.prepare("SELECT person_id, name, agency FROM records WHERE bag_no = ?").bind(bagNo).first();
+            const pId = newPersonId || (curr ? curr.person_id : null);
+            const pName = newName || (curr ? curr.name : null);
+            const pOldAgency = oldAgency || (curr ? curr.agency : null);
+
+            let updatedRoster = false;
+            if (pId && pId.trim()) {
+              const res = await env.DB.prepare(`
+                UPDATE roster SET
+                  agency = COALESCE(?, agency),
+                  brigade = COALESCE(?, brigade),
+                  unit = COALESCE(?, unit)
+                WHERE person_id = ?
+              `).bind(newAgency, newBrigade, newUnit, pId.trim()).run();
+              if (res.meta && res.meta.changes > 0) updatedRoster = true;
+            }
+            if (!updatedRoster && pName && pName.trim()) {
+              await env.DB.prepare(`
+                UPDATE roster SET
+                  agency = COALESCE(?, agency),
+                  brigade = COALESCE(?, brigade),
+                  unit = COALESCE(?, unit)
+                WHERE name = ? AND (agency = ? OR ? IS NULL)
+              `).bind(newAgency, newBrigade, newUnit, pName.trim(), pOldAgency, pOldAgency).run();
+            }
+          } catch(rErr) {
+            console.error("D1 roster 同步失敗:", rErr);
+          }
+        }
 
         // ⚡ 背景非同步同步回 Google Sheets
         ctx.waitUntil(syncToGoogleSheets(env, bodyText));
@@ -413,6 +469,60 @@ export default {
         ctx.waitUntil(syncToGoogleSheets(env, bodyText));
 
         return jsonResponse({ success: true });
+      }
+
+      // ==========================================
+      // [POST] bulkUpdateUnit - 批量更新人員所屬單位 (機關/大隊/分隊)
+      // ==========================================
+      if (action === 'bulkUpdateUnit' && request.method === 'POST') {
+        const bagNosStr = params.get('bagNos') || "";
+        const strOrNull = (v) => (v !== null && v !== undefined && String(v).trim() !== '') ? String(v).trim() : null;
+        const newAgency = strOrNull(params.get('agency'));
+        const newBrigade = strOrNull(params.get('brigade'));
+        const newUnit = strOrNull(params.get('unit'));
+
+        if (!bagNosStr) return errorResponse("缺少裝袋序號清單", 400);
+        if (!newAgency && !newBrigade && !newUnit) return errorResponse("請提供欲變更的單位資料", 400);
+
+        const bagNos = bagNosStr.split(',').map(s => s.trim()).filter(Boolean);
+        for (const bagNo of bagNos) {
+          await env.DB.prepare(`
+            UPDATE records SET
+              agency = COALESCE(?, agency),
+              brigade = COALESCE(?, brigade),
+              unit = COALESCE(?, unit)
+            WHERE bag_no = ?
+          `).bind(newAgency, newBrigade, newUnit, bagNo).run();
+
+          // 同步 D1 roster
+          try {
+            const curr = await env.DB.prepare("SELECT person_id, name, agency FROM records WHERE bag_no = ?").bind(bagNo).first();
+            if (curr) {
+              if (curr.person_id && curr.person_id.trim()) {
+                await env.DB.prepare(`
+                  UPDATE roster SET
+                    agency = COALESCE(?, agency),
+                    brigade = COALESCE(?, brigade),
+                    unit = COALESCE(?, unit)
+                  WHERE person_id = ?
+                `).bind(newAgency, newBrigade, newUnit, curr.person_id.trim()).run();
+              } else if (curr.name && curr.name.trim()) {
+                await env.DB.prepare(`
+                  UPDATE roster SET
+                    agency = COALESCE(?, agency),
+                    brigade = COALESCE(?, brigade),
+                    unit = COALESCE(?, unit)
+                  WHERE name = ? AND (agency = ? OR ? IS NULL)
+                `).bind(newAgency, newBrigade, newUnit, curr.name.trim(), curr.agency, curr.agency).run();
+              }
+            }
+          } catch(err) {}
+        }
+
+        // ⚡ 背景非同步同步回 Google Sheets
+        ctx.waitUntil(syncToGoogleSheets(env, bodyText));
+
+        return jsonResponse({ success: true, count: bagNos.length });
       }
 
       // ==========================================
@@ -603,16 +713,22 @@ export default {
             const placeholders = [];
             const values = [];
             for (const u of chunk) {
-              placeholders.push("(?, ?, ?, ?)");
-              values.push(
-                u['機關名稱'] || u.agency || '',
-                u['所屬大隊/分類'] || u.brigade || '',
-                u['單位名稱'] || u.unit || '',
-                u['系統代碼'] || u.sys_code || ''
-              );
+              const a = (u['機關名稱'] || u['機關'] || u.agency || '').trim();
+              const b = (u['所屬大隊/分類'] || u['大隊/分類'] || u['大隊'] || u.brigade || '').trim();
+              const un = (u['單位名稱'] || u['分隊'] || u.unit || '').trim();
+              let sc = (u['系統代碼'] || u['代碼'] || u.sys_code || '').trim();
+              if (!sc && a && b && un) {
+                sc = `${a}_${b}_${un}`;
+              }
+              if (a && b && un) {
+                placeholders.push("(?, ?, ?, ?)");
+                values.push(a, b, un, sc);
+              }
             }
-            const sql = `INSERT OR REPLACE INTO units (agency, brigade, unit, sys_code) VALUES ${placeholders.join(', ')}`;
-            await env.DB.prepare(sql).bind(...values).run();
+            if (placeholders.length > 0) {
+              const sql = `INSERT OR REPLACE INTO units (agency, brigade, unit, sys_code) VALUES ${placeholders.join(', ')}`;
+              await env.DB.prepare(sql).bind(...values).run();
+            }
           }
         }
         return jsonResponse({ success: true, count: units.length });
