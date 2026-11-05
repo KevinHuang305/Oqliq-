@@ -792,6 +792,10 @@
             margin-top: 20px;
         }
 
+        :root {
+            --lbl-font-size: 12px;
+        }
+
         .label-card {
             background: #e4e4e7;
             color: #000;
@@ -801,13 +805,38 @@
             flex-direction: column;
             justify-content: space-between;
             position: relative;
+            font-size: var(--lbl-font-size, 12px);
         }
 
         .label-text {
             font-family: 'JetBrains Mono', monospace;
-            font-size: 12px;
+            font-size: var(--lbl-font-size, 12px);
             line-height: 1.6;
             font-weight: 600;
+        }
+
+        .label-text .label-title {
+            font-size: calc(var(--lbl-font-size, 12px) * 1.333) !important;
+        }
+
+        .label-text .label-name-large {
+            font-size: calc(var(--lbl-font-size, 12px) * 4) !important;
+        }
+
+        .label-text .label-name-squad {
+            font-size: calc(var(--lbl-font-size, 12px) * 2.667) !important;
+        }
+
+        .label-text .label-sub-text {
+            font-size: calc(var(--lbl-font-size, 12px) * 1.167) !important;
+        }
+
+        .label-text .label-person-list {
+            font-size: calc(var(--lbl-font-size, 12px) * 0.917) !important;
+        }
+
+        .label-text .label-badge {
+            font-size: var(--lbl-font-size, 12px) !important;
         }
 
         .label-text hr {
@@ -1905,10 +1934,17 @@
                 <button class="btn btn-outline" id="btnLblSquad" onclick="renderLabels('squad')">分隊箱</button>
                 <button class="btn btn-ghost" id="btnLblRes" onclick="renderLabels('reserve')">補件備援</button>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <div id="globalCopiesWrap" style="display:none; align-items:center; gap:5px; font-size:14px; font-weight:bold; color:var(--text-main);">
                     每箱容納個人袋數量上限: <input type="number" id="boxCapacityInp" value="20" min="1" style="width:60px; padding:4px;">
                     <button class="btn" style="padding:4px 8px; font-size:12px; border:1px solid #d4d4d8; background:white;" onclick="renderLabels(window.currentLabelType)">更新標籤</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:bold; color:var(--text-main); background:var(--bg-surface); padding:4px 10px; border-radius:6px; border:1px solid var(--border);">
+                    <span style="white-space:nowrap;">字體大小:</span>
+                    <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:12px; min-width:24px; height:28px; line-height:1;" onclick="adjustLabelFontSize(-1)" title="縮小字體">-</button>
+                    <input type="number" id="lblFontSizeInp" value="12" min="8" max="32" step="1" style="width:50px; height:28px; padding:2px; text-align:center; border:1px solid var(--border); border-radius:4px; background:var(--bg); color:var(--text-main); font-weight:bold; font-size:13px;" oninput="updateLabelFontSize(this.value)">
+                    <button type="button" class="btn btn-outline" style="padding:2px 8px; font-size:12px; min-width:24px; height:28px; line-height:1;" onclick="adjustLabelFontSize(1)" title="放大字體">+</button>
+                    <span style="font-size:12px; color:var(--text-muted); font-weight:normal;">px</span>
                 </div>
                 <button class="btn btn-primary" style="background:#10b981; color:white;"
                     onclick="openPrintChoice(() => window.print())">列印標籤</button>
@@ -2028,6 +2064,10 @@
                 <div>
                     <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">內容顯示比例 (例如 0.8 為縮小)</label>
                     <input type="number" id="lblSetScale" value="1.0" step="0.1" oninput="updatePrintPreview()" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg); color:var(--text-main);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">標籤字體大小 (px，預設 12)</label>
+                    <input type="number" id="lblSetFontSize" value="12" min="8" max="32" step="1" oninput="updateLabelFontSize(this.value)" style="width:100%; padding:8px; border-radius:4px; border:1px solid var(--border); background:var(--bg); color:var(--text-main);">
                 </div>
                 <div>
                     <label style="display:block; font-size:13px; margin-bottom:5px; color:var(--text-muted);">預設列印紙張模式</label>
@@ -4124,12 +4164,12 @@
                         <div class="label-card" id="step4LabelCard" style="height:auto; min-height:10cm;">
                             <div class="label-card-inner">
                                 <div class="label-text">
-                                    <div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;">
+                                    <div class="label-title" style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG
                                     </div>
                                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                                         <div style="flex:1;">
-                                            <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${pName}</div>
+                                            <div class="label-name-large" style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${pName}</div>
                                             <div>CITY: ${getCountyFromBagNo(bagNo) || '-'}</div>
                                             <div>UNIT: ${agency}</div>
                                             <div>SQUAD: ${brigade} - ${unit}</div>
@@ -4141,7 +4181,7 @@
                                     </div>
                                     <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kitHtml}</div>
                                     ${noteHtml}
-                                    <div style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${bagNo}</div>
+                                    <div class="label-sub-text" style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${bagNo}</div>
                                 </div>
                             </div>
                         </div>
@@ -5799,11 +5839,11 @@
                         kit += `<div style="display:flex; align-items:center; margin-bottom:4px;"><div style="width:12px; height:12px; border:1px solid #000; margin-right:8px; flex-shrink:0;"></div>${sizeNames[k] || k}(${k}) : ${val}</div>`; 
                     });
                     const qrId = `qr_inner_${idx}`;
-                    const innerNoteHtml = r['現場備註'] ? `<div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${r['現場備註']}</div>` : "";
-                    html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG</div>
+                    const innerNoteHtml = r['現場備註'] ? `<div class="label-sub-text" style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px; color:#ef4444; font-weight:bold; font-size:14px;"><strong>備註：</strong><br>${r['現場備註']}</div>` : "";
+                    html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div class="label-title" style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>PERSONAL ISSUE BAG</div>
                     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                         <div style="flex:1;">
-                            <div style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${r['姓名']}</div>
+                            <div class="label-name-large" style="font-size:48px; font-weight:900; line-height:1.1; letter-spacing:2px; word-break:break-all; margin-bottom:10px;">${r['姓名']}</div>
                             <div>CITY: ${getCountyFromBagNo(r['裝袋序號']) || '-'}</div>
                             <div>UNIT: ${r['機關名稱']}</div>
                             <div>SQUAD: ${r['大隊/分類']} - ${r['單位名稱']}</div>
@@ -5814,7 +5854,7 @@
                         </div>
                     </div>
                     <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>KIT CONTENT:</strong><br>${kit}</div>${innerNoteHtml}
-                    <div style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${r['裝袋序號']}</div></div></div>`;
+                    <div class="label-sub-text" style="margin-top:10px; font-size:14px; font-weight:bold; color:#000;">BAG NO: ${r['裝袋序號']}</div></div></div>`;
                     labelQRCodes.push({ id: qrId, text: `${window.getBaseUrlForQr()}?scan=person&id=${encodeURIComponent(r['裝袋序號'])}` });
                 });
             }
@@ -5838,7 +5878,7 @@
                     const totalBoxes = chunks.length;
 
                     chunks.forEach((chunk, chunkIdx) => {
-                        let personList = '<div style="display:flex; flex-wrap:wrap; gap:2px; font-size:11px;">';
+                        let personList = '<div class="label-person-list" style="display:flex; flex-wrap:wrap; gap:2px; font-size:11px;">';
                         chunk.forEach(p => {
                             personList += `<div style="flex:1 1 48%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="display:inline-block; width:10px; height:10px; border:1px solid #000; margin-right:4px; vertical-align:middle;"></span>[${p['裝袋序號']}] ${p['姓名']}</div>`;
                         });
@@ -5853,17 +5893,17 @@
                         }
                         
                         html += `<div class="label-card" style="height:auto; min-height:10cm;">${getPrintTool()}<div class="label-text">
-                        <div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
+                        <div class="label-title" style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>SQUAD BOX <div class="label-badge" style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${chunkIdx+1}/${totalBoxes}</div></div>
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px;">
                             <div style="flex:1;">
                                 <div>UNIT: ${first['機關名稱']}</div>
-                                <div style="font-size:32px; font-weight:900; line-height:1.1; margin:6px 0; word-break:break-all;">${first['單位名稱']}</div>
+                                <div class="label-name-squad" style="font-size:32px; font-weight:900; line-height:1.1; margin:6px 0; word-break:break-all;">${first['單位名稱']}</div>
                                 <div>BOX NO: ${boxNoDisp}</div>
                                 <div>PERSON COUNT: ${chunk.length} / 單位總人數: ${group.length}</div>
                             </div>
                             <div class="label-qr-wrap" style="display:flex; flex-direction:column; align-items:center; margin-left:10px; flex-shrink:0;">
                                 <div id="${qrId}" class="qr-box" style="margin-bottom:4px;"></div>
-                                <div style="font-size:11px; font-weight:bold; color:#000; text-align:center;">SCAN BOX<br>(${chunkIdx+1}/${totalBoxes})</div>
+                                <div class="label-person-list" style="font-size:11px; font-weight:bold; color:#000; text-align:center;">SCAN BOX<br>(${chunkIdx+1}/${totalBoxes})</div>
                             </div>
                         </div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div></div>`;
@@ -5877,7 +5917,7 @@
                 Object.keys(units).forEach((u, idx) => {
                     for(let i=0; i<copies; i++) {
                         const qrId = `qr_unit_${idx}_${i}`;
-                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>UNIT SUPPLY CRATE <div style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${i+1}/${copies}</div></div>
+                        html += `<div class="label-card">${getPrintTool()}<div class="label-text"><div class="label-title" style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>UNIT SUPPLY CRATE <div class="label-badge" style="margin-left:auto; font-size:12px; background:#000; color:#fff; padding:2px 8px; border-radius:12px;">${i+1}/${copies}</div></div>
                         <div>UNIT: ${u}</div><div>TOTAL BOX: ________</div><div>THIS BOX: ________</div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT TYPE:</strong><br><div>　PERSONAL KIT + RESERVE ITEMS</div></div>
                         <div style="margin-top:10px;">DELIVERY POINT:<br><strong>${u}</strong></div></div>
@@ -5959,7 +5999,7 @@
             if (!item || !size || !qty) return alert("請填寫品項、尺寸與數量！");
             const qrId = `qr_res_${Date.now()}`;
             const printTool = `<div class="no-print" style="position:absolute; top:-1px; right:-1px; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:0 8px 0 8px; padding:4px 8px; display:flex; align-items:center; gap:4px; z-index:10; box-shadow:0 2px 4px rgba(0,0,0,0.1);"><span style="font-size:11px;">單張列印:</span><select class="single-copy-inp" style="width:50px; padding:2px; font-size:12px;">${Array.from({length:10}, (_,i)=>`<option value="${i+1}">${i+1}</option>`).join('')}</select><button class="btn btn-outline" style="padding:2px 6px; font-size:11px; background:white;" onclick="const card = this.closest('.label-card'); const val = this.previousElementSibling.value; openPrintChoice(() => printSingleLabel(card, val))">列印</button></div>`;
-            const html = `<div class="label-card">${printTool}<div class="label-text"><div style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>RESERVE BOX</div>
+            const html = `<div class="label-card">${printTool}<div class="label-text"><div class="label-title" style="font-weight:bold; font-size:16px; border-bottom:2px solid #000; margin-bottom:10px; display:flex; align-items:center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line><line x1="9" y1="12" x2="15" y2="12"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>RESERVE BOX</div>
             <div>ITEM: ${item}</div><div>SIZE: ${size}</div><div>QTY: ${qty}</div><div>BOX NO: ${box}</div>
             <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;">USAGE:<br>${usage}</div></div>
             <div class="label-qr-wrap"><div id="${qrId}" class="qr-box"></div></div></div>`;
@@ -5999,6 +6039,39 @@
             }
         };
         initResItems();
+
+        window.updateLabelFontSize = function(val, syncStorage = true) {
+            let size = parseFloat(val);
+            if (isNaN(size) || size < 6) size = 12;
+            if (size > 40) size = 40;
+            
+            document.documentElement.style.setProperty('--lbl-font-size', size + 'px');
+            
+            const inpToolbar = document.getElementById('lblFontSizeInp');
+            if (inpToolbar && parseFloat(inpToolbar.value) !== size) inpToolbar.value = size;
+            
+            const inpConfig = document.getElementById('lblSetFontSize');
+            if (inpConfig && parseFloat(inpConfig.value) !== size) inpConfig.value = size;
+            
+            if (syncStorage) {
+                try {
+                    localStorage.setItem('label_font_size', size);
+                } catch(e) {}
+            }
+        };
+
+        window.adjustLabelFontSize = function(delta) {
+            const current = parseFloat(document.getElementById('lblFontSizeInp') ? document.getElementById('lblFontSizeInp').value : (localStorage.getItem('label_font_size') || 12)) || 12;
+            window.updateLabelFontSize(current + delta);
+        };
+
+        // 載入初始標籤字體大小 (優先自本機讀取)
+        try {
+            const savedFontSize = localStorage.getItem('label_font_size');
+            if (savedFontSize) {
+                window.updateLabelFontSize(savedFontSize, false);
+            }
+        } catch(e) {}
 
         window.updateResSizeOptions = function () {
             const item = document.getElementById('resItem').value;
@@ -6062,6 +6135,7 @@
                             if(lConf.mt !== undefined) document.getElementById('lblSetMt').value = lConf.mt;
                             if(lConf.ml !== undefined) document.getElementById('lblSetMl').value = lConf.ml;
                             if(lConf.scale !== undefined) document.getElementById('lblSetScale').value = lConf.scale;
+                            if(lConf.fontSize !== undefined) window.updateLabelFontSize(lConf.fontSize, false);
                             if(lConf.pageMode !== undefined) document.getElementById('lblSetPageMode').value = lConf.pageMode;
                         } catch(err) {}
                     }
@@ -6279,6 +6353,7 @@
                 mt: parseFloat(document.getElementById('lblSetMt').value) || 10,
                 ml: parseFloat(document.getElementById('lblSetMl').value) || 10,
                 scale: parseFloat(document.getElementById('lblSetScale').value) || 1.0,
+                fontSize: parseFloat(document.getElementById('lblFontSizeInp') ? document.getElementById('lblFontSizeInp').value : (document.getElementById('lblSetFontSize') ? document.getElementById('lblSetFontSize').value : 12)) || 12,
                 pageMode: document.getElementById('lblSetPageMode').value || 'custom'
             };
             formData.append("label_config", JSON.stringify(lConf));
