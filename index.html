@@ -832,6 +832,11 @@
         }
 
         .label-text .label-person-list {
+            font-size: calc(var(--lbl-font-size, 12px) * 1.333) !important;
+            font-weight: bold;
+        }
+
+        .label-text .label-scan-hint {
             font-size: calc(var(--lbl-font-size, 12px) * 0.917) !important;
         }
 
@@ -5878,9 +5883,9 @@
                     const totalBoxes = chunks.length;
 
                     chunks.forEach((chunk, chunkIdx) => {
-                        let personList = '<div class="label-person-list" style="display:flex; flex-wrap:wrap; gap:2px; font-size:11px;">';
+                        let personList = '<div class="label-person-list" style="display:flex; flex-wrap:wrap; gap:4px 10px; font-size:16px;">';
                         chunk.forEach(p => {
-                            personList += `<div style="flex:1 1 48%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><span style="display:inline-block; width:10px; height:10px; border:1px solid #000; margin-right:4px; vertical-align:middle;"></span>[${p['裝袋序號']}] ${p['姓名']}</div>`;
+                            personList += `<div style="flex:1 1 45%; min-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:bold; line-height:1.4;"><span style="display:inline-block; width:12px; height:12px; border:1.5px solid #000; margin-right:6px; vertical-align:middle;"></span>${p['姓名']}</div>`;
                         });
                         personList += '</div>';
 
@@ -5903,7 +5908,7 @@
                             </div>
                             <div class="label-qr-wrap" style="display:flex; flex-direction:column; align-items:center; margin-left:10px; flex-shrink:0;">
                                 <div id="${qrId}" class="qr-box" style="margin-bottom:4px;"></div>
-                                <div class="label-person-list" style="font-size:11px; font-weight:bold; color:#000; text-align:center;">SCAN BOX<br>(${chunkIdx+1}/${totalBoxes})</div>
+                                <div class="label-scan-hint" style="font-size:11px; font-weight:bold; color:#000; text-align:center;">SCAN BOX<br>(${chunkIdx+1}/${totalBoxes})</div>
                             </div>
                         </div>
                         <div style="margin-top:10px; border-top:1px dashed #a1a1aa; padding-top:10px;"><strong>CONTENT LIST:</strong><br>${personList}</div></div></div>`;
